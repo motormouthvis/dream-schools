@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "Dream Neighborhood — Schools tab demo (Fort Pierce / St. Lucie County, FL)",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,11 +14,13 @@
   },
   "dependencies": {
     "next": "^16.2.9",
+    "pg": "^8.22.0",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
   "devDependencies": {
     "@types/node": "20.14.10",
+    "@types/pg": "^8.20.0",
     "@types/react": "19.1.0",
     "@types/react-dom": "19.1.0",
     "autoprefixer": "10.4.19",

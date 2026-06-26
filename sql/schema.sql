@@ -13,11 +13,13 @@ create extension if not exists postgis;
 -- school_districts
 -- ---------------------------------------------------------------------------
 create table if not exists school_districts (
-    district_id   text primary key,           -- NCES LEA id
+    district_id   text primary key,           -- NCES LEA id (= Census GEOID)
     name          text not null,
     short_name    text,
     state         text,
-    geom          geometry(MultiPolygon, 4326) -- district boundary
+    enrollment    integer,                     -- summed from member schools
+    school_count  integer,
+    geom          geometry(MultiPolygon, 4326) -- district boundary (optional)
 );
 create index if not exists school_districts_geom_idx
     on school_districts using gist (geom);
@@ -77,7 +79,12 @@ create table if not exists school_graduation (
 -- ---------------------------------------------------------------------------
 -- 1) Which district contains an address? (point-in-polygon)
 --    select d.* from school_districts d
---    where st_contains(d.geom, st_setsrid(st_point(:lon, :lat), 4326));
+--    where d.geom is not null
+--      and st_contains(d.geom, st_setsrid(st_point(:lon, :lat), 4326));
+--
+-- 1b) Fallback when boundaries are not loaded: district of the nearest school
+--    select d.* from schools s join school_districts d on d.district_id = s.district_id
+--    order by s.geom <-> st_setsrid(st_point(:lon, :lat), 4326) limit 1;
 --
 -- 2) Nearby schools within ~10 miles, nearest first (radius search)
 --    select s.*, st_distance(s.geom::geography,
@@ -87,5 +94,5 @@ create table if not exists school_graduation (
 --    where st_dwithin(s.geom::geography,
 --                     st_setsrid(st_point(:lon, :lat), 4326)::geography,
 --                     16093.4)
---    order by miles asc
+--    order by s.geom <-> st_setsrid(st_point(:lon, :lat), 4326)
 --    limit 8;

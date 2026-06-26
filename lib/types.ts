@@ -62,7 +62,7 @@ export interface GeocodeResult {
   lat: number;
   lon: number;
   zip: string;
-  source: "census" | "zip-centroid";
+  source: "census" | "zip-centroid" | "autocomplete";
   approximate: boolean;
 }
 

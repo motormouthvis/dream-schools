@@ -76,14 +76,33 @@ components/               SchoolsTab, ScoreGauge, CategoryCard, SafetySection, N
 lib/
   geocode.ts              Census geocoder + zip-centroid fallback
   geo.ts                  haversine distance + point-in-polygon (PostGIS equivalents)
-  scoring.ts              3-category quality index + per-school quick score
-  lookup.ts               orchestrates a full lookup -> LookupResult
+  scoring.ts              3-category quality index (pure, source-agnostic)
+  buildResult.ts          assembles LookupResult (shared by both data paths)
+  lookup.ts               JSON-bundle lookup (10-zip demo)
+  lookupDb.ts             Postgres + PostGIS lookup (nationwide)
+  db.ts                   pg connection pool (used when DATABASE_URL is set)
   data.ts / types.ts      loads the data bundle / shared types
-data/                     generated JSON bundle (zipcodes, district, schools, safety, graduation)
-pipeline/                 fetch_real_data.py (real data), build_sql_inserts.py
+data/                     committed JSON bundle (10-zip demo)
+pipeline/
+  fetch_real_data.py      10-zip demo bundle (stdlib only)
+  load_postgres.py        NATIONWIDE ETL -> Postgres + PostGIS
+  load_boundaries.py      optional: national district boundary polygons (pyshp)
+  build_sql_inserts.py    10-zip SQL for Supabase
 sql/                      schema.sql (Postgres+PostGIS) + generated seed_data.sql
+Procfile, app.json        Heroku deploy
 scripts/screenshot.mjs    optional: render screenshots with headless Chrome
 ```
+
+## Two ways to run
+
+| Mode | When | Data |
+|---|---|---|
+| **JSON demo** (default) | `DATABASE_URL` unset | committed 10-zip bundle in `data/` |
+| **Nationwide** | `DATABASE_URL` set | Postgres + PostGIS, ~102k US schools |
+
+The app auto-detects: if `DATABASE_URL` is present it serves nationwide from
+Postgres (`lib/lookupDb.ts`); otherwise it serves the 10-zip JSON demo
+(`lib/lookup.ts`). Both produce the identical Schools-tab UI.
 
 ## Regenerate the data bundle (real data)
 
@@ -98,22 +117,73 @@ network access to re‑pull fresh data.
 
 ---
 
-## Cloud path (Supabase + Vercel)
+## Nationwide data on Postgres + PostGIS
 
-The local demo replicates the two PostGIS queries (point‑in‑polygon for the
-district, radius search for nearby schools) in TypeScript so it runs with no
-database. To host the data in **Supabase**:
+`pipeline/load_postgres.py` downloads **all ~102k U.S. public schools** with real
+per-school federal data and loads them into Postgres + PostGIS:
 
-1. Create a project, open the SQL editor, run `sql/schema.sql` (enables PostGIS
-   and creates the four tables), then run `sql/seed_data.sql`.
-2. Confirm with the example queries at the bottom of `sql/schema.sql`.
-3. To have the app read from Supabase instead of the JSON bundle, add a Postgres
-   client and swap the lookups in `lib/lookup.ts` for the SQL in `schema.sql`
-   (the `LookupResult` shape stays the same, so the UI is unchanged).
+| Table | Rows (nationwide) | Source |
+|---|---|---|
+| `schools` | ~100k | NCES CCD directory 2023-24 |
+| `school_safety` | ~98k | U.S. DOE CRDC 2021-22 |
+| `school_graduation` | ~20k | EDFacts 2018-19 |
+| `school_districts` | ~19k | derived from CCD (+ optional boundary polygons) |
 
-**Deploy the frontend + API to Vercel:** import the repo and deploy — no env vars
-are required for the demo. To use Mapbox/Google geocoding instead of the Census
-geocoder, add the key as an env var and extend `lib/geocode.ts`.
+```bash
+export DATABASE_URL=postgresql://user:pass@host:5432/dbname
+pip install -r requirements.txt
+
+python3 pipeline/load_postgres.py            # nationwide full refresh (~5-10 min)
+python3 pipeline/load_postgres.py --fips 12  # one state (FL) for a quick test
+
+# optional: real district boundary polygons for exact point-in-polygon
+python3 pipeline/load_boundaries.py
+```
+
+Without boundary polygons, address→district uses the **nearest school's
+district** (a good approximation); with them, it uses true `ST_Contains`
+point-in-polygon. Either way nearby-school search uses the PostGIS KNN operator.
+
+Then run the app pointed at the database:
+
+```bash
+DATABASE_URL=postgresql://... npm run start
+```
+
+### Deploy to Heroku (Postgres + PostGIS)
+
+You normally host on Heroku, so this is wired up:
+
+```bash
+heroku create your-app
+heroku addons:create heroku-postgresql:essential-1   # ~$9/mo; holds the ~240k rows
+heroku buildpacks:add heroku/python                  # for the loader
+heroku buildpacks:add heroku/nodejs                  # for the Next.js app
+git push heroku HEAD:main
+
+# enable PostGIS + load all data (one-off dyno; DATABASE_URL is injected by Heroku)
+heroku pg:psql -c "create extension if not exists postgis;"
+heroku run "python3 pipeline/load_postgres.py"
+heroku run "python3 pipeline/load_boundaries.py"     # optional boundaries
+heroku open
+```
+
+Notes:
+- `app.json` declares the buildpacks + addon and a `postdeploy` that runs the
+  loader automatically for one-click / review-app deploys. If `postdeploy` times
+  out on the full nationwide load, just run `heroku run "python3 pipeline/load_postgres.py"`.
+- **Heroku Postgres row limits:** `essential-0` caps at 10k rows (too small);
+  the nationwide dataset (~240k rows) needs `essential-1` (10M rows) or higher.
+- You can also load from your laptop straight into the Heroku DB:
+  `DATABASE_URL="$(heroku config:get DATABASE_URL)" python3 pipeline/load_postgres.py`
+  (the loader adds `sslmode=require` automatically for managed Postgres).
+
+### Supabase / Vercel (alternative)
+
+For the 10-zip demo you can instead load `sql/schema.sql` + `sql/seed_data.sql`
+into Supabase, or deploy the JSON demo to Vercel with no env vars. For nationwide
+on Vercel, point `DATABASE_URL` at Supabase/Neon and run `load_postgres.py`
+against it.
 
 ---
 

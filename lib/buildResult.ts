@@ -1,0 +1,113 @@
+import { areaScores, quickSchoolScore, type ScoredSchool } from "@/lib/scoring";
+import type {
+  GeocodeResult,
+  LookupResult,
+  NearbySchool,
+  SafetyDetail,
+  School,
+} from "@/lib/types";
+
+function grades(s: School): string {
+  return s.gradeLow === s.gradeHigh ? s.gradeLow : `${s.gradeLow}-${s.gradeHigh}`;
+}
+
+export interface DistrictInfo {
+  districtId: string;
+  name: string;
+  shortName: string;
+  state: string;
+  studentCount: number;
+  schoolCount: number;
+  inDistrict: boolean;
+}
+
+/**
+ * Assemble the LookupResult shown by the Schools tab. Both the JSON-bundle path
+ * and the Postgres path resolve the same inputs and call this builder, so the UI
+ * is identical regardless of the data source.
+ */
+export function buildResult(params: {
+  query: string;
+  geocode: GeocodeResult;
+  district: DistrictInfo;
+  areaItems: ScoredSchool[]; // schools serving the area (for the 3-category index)
+  nearby: { item: ScoredSchool; miles: number }[]; // closest schools, sorted asc
+}): LookupResult {
+  const { query, geocode, district, areaItems, nearby } = params;
+  const scores = areaScores(areaItems);
+
+  const nearbySchools: NearbySchool[] = nearby.map(({ item, miles }) => ({
+    ncesId: item.school.ncesId,
+    name: item.school.name,
+    type: item.school.type,
+    grades: grades(item.school),
+    zip: item.school.zip,
+    miles: Math.round(miles * 10) / 10,
+    score: quickSchoolScore(item),
+    enrollment: item.school.enrollment,
+  }));
+
+  const safetyDetails: SafetyDetail[] = nearby
+    .filter((n) => n.item.safety)
+    .map(({ item, miles }) => ({
+      ncesId: item.school.ncesId,
+      name: item.school.name,
+      miles: Math.round(miles * 10) / 10,
+      record: item.safety!,
+    }));
+
+  const primary = nearby[0];
+  const headline = primary.item.safety!;
+
+  return {
+    query,
+    geocode,
+    district,
+    overallScore: scores.overall,
+    scoreBasis: "Based on NCES CCD 2023-24 + U.S. DOE CRDC 2021-22 safety data",
+    categories: {
+      academic: {
+        label: "Academic & Staffing",
+        score: scores.academic.score,
+        metrics: [
+          { label: "Student-teacher ratio", value: scores.academic.studentTeacherRatio },
+          {
+            label: `4-year graduation rate (${scores.academic.gradYear})`,
+            value: scores.academic.gradRate > 0 ? `${scores.academic.gradRate}%` : "Not reported",
+          },
+          { label: "Chronic absenteeism", value: `${scores.academic.chronicAbsenteeism}%` },
+        ],
+      },
+      safety: {
+        label: "Safety & Climate",
+        score: scores.safety.score,
+        schoolYear: headline.schoolYear,
+        primarySchoolName: primary.item.school.name,
+        headline,
+        metrics: [
+          { label: "Violent incidents total", value: String(headline.violentIncidentsTotal) },
+          {
+            label: "Physical attacks w/ weapon",
+            value: String(headline.physicalAttacksWithWeapon),
+          },
+          {
+            label: "Firearm/explosive possession",
+            value: String(headline.firearmExplosivePossession),
+          },
+          { label: "Out-of-school suspensions", value: String(headline.outOfSchoolSuspensions) },
+        ],
+      },
+      scale: {
+        label: "Scale & Stability",
+        score: scores.scale.score,
+        metrics: [
+          { label: "Schools serving area", value: String(scores.scale.schoolCount) },
+          { label: "Average enrollment", value: scores.scale.avgEnrollment.toLocaleString() },
+          { label: "District enrollment", value: district.studentCount.toLocaleString() },
+        ],
+      },
+    },
+    safetyDetails,
+    nearbySchools,
+  };
+}

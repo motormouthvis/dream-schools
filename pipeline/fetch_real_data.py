@@ -182,7 +182,9 @@ def main():
 
     # --- Safety: CRDC offenses, suspensions, harassment, chronic absenteeism ---
     offenses = {r["ncessch"]: r for r in fetch_all(f"/schools/crdc/offenses/{CRDC_YEAR}/", {"leaid": LEAID})}
-    disc = {r["ncessch"]: r for r in fetch_all(f"/schools/crdc/discipline-instances/{CRDC_YEAR}/", {"leaid": LEAID})}
+    # disability=99 is the all-students total (categories 0-4 are overlapping
+    # breakdowns and must not be summed).
+    disc = {r["ncessch"]: r for r in fetch_all(f"/schools/crdc/discipline-instances/{CRDC_YEAR}/", {"leaid": LEAID, "disability": 99})}
     harass = {}
     for r in fetch_all(f"/schools/crdc/harassment-or-bullying/{CRDC_YEAR}/allegations/", {"leaid": LEAID}):
         total = (num(r.get("allegations_harass_disability")) + num(r.get("allegations_harass_orientation"))

@@ -1,75 +1,51 @@
-import { SCHOOLS, DISTRICT, safetyFor } from "@/lib/data";
+import { SCHOOLS, DISTRICT, safetyFor, graduationFor } from "@/lib/data";
 import { haversineMiles, pointInPolygon } from "@/lib/geo";
-import { areaScores, quickSchoolScore } from "@/lib/scoring";
 import { geocode } from "@/lib/geocode";
-import type {
-  LookupResult,
-  School,
-  NearbySchool,
-  SafetyDetail,
-} from "@/lib/types";
+import { buildResult } from "@/lib/buildResult";
+import type { ScoredSchool } from "@/lib/scoring";
+import type { GeocodeResult, LookupResult } from "@/lib/types";
 
 const AREA_RADIUS_MILES = 10;
 const NEARBY_COUNT = 8;
 
-function grades(s: School): string {
-  return s.gradeLow === s.gradeHigh ? s.gradeLow : `${s.gradeLow}-${s.gradeHigh}`;
+function toScored(ncesId: string): ScoredSchool {
+  const school = SCHOOLS.find((s) => s.ncesId === ncesId)!;
+  return { school, safety: safetyFor(ncesId), grad: graduationFor(ncesId) };
 }
 
-export async function lookupAddress(address: string): Promise<LookupResult | null> {
-  const geo = await geocode(address);
+/** JSON-bundle lookup (10-zip demo). Used when DATABASE_URL is not set. */
+export async function lookupAddress(
+  address: string,
+  presetGeo?: GeocodeResult
+): Promise<LookupResult | null> {
+  const geo = presetGeo ?? (await geocode(address));
   if (!geo) return null;
 
   const hasPoint = Number.isFinite(geo.lat) && Number.isFinite(geo.lon);
-
   const inDistrict = hasPoint
     ? pointInPolygon(geo.lon, geo.lat, DISTRICT.geometry.coordinates[0])
     : false;
 
-  // District-level totals for the header.
   const districtSchools = SCHOOLS.filter((s) => s.districtId === DISTRICT.districtId);
   const studentCount = districtSchools.reduce((sum, s) => sum + s.enrollment, 0);
 
-  // Distance-annotated schools (nearest first).
   const withDistance = SCHOOLS.map((s) => ({
     school: s,
     miles: hasPoint ? haversineMiles(geo.lat, geo.lon, s.lat, s.lon) : 0,
   })).sort((a, b) => a.miles - b.miles);
 
-  // Schools serving the area (used for the 3-category index).
-  let areaSet = withDistance
+  let areaSchools = withDistance
     .filter((x) => !hasPoint || x.miles <= AREA_RADIUS_MILES)
     .map((x) => x.school);
-  if (areaSet.length < 4) areaSet = districtSchools;
+  if (areaSchools.length < 4) areaSchools = districtSchools;
 
-  const scores = areaScores(areaSet);
+  const areaItems: ScoredSchool[] = areaSchools.map((s) => toScored(s.ncesId));
+  const nearby = withDistance.slice(0, NEARBY_COUNT).map((x) => ({
+    item: toScored(x.school.ncesId),
+    miles: x.miles,
+  }));
 
-  const nearbySchools: NearbySchool[] = withDistance
-    .slice(0, NEARBY_COUNT)
-    .map(({ school, miles }) => ({
-      ncesId: school.ncesId,
-      name: school.name,
-      type: school.type,
-      grades: grades(school),
-      zip: school.zip,
-      miles: Math.round(miles * 10) / 10,
-      score: quickSchoolScore(school),
-      enrollment: school.enrollment,
-    }));
-
-  const primary = withDistance[0];
-  const headline = safetyFor(primary.school.ncesId)!;
-
-  const safetyDetails: SafetyDetail[] = withDistance
-    .slice(0, NEARBY_COUNT)
-    .map(({ school, miles }) => ({
-      ncesId: school.ncesId,
-      name: school.name,
-      miles: Math.round(miles * 10) / 10,
-      record: safetyFor(school.ncesId)!,
-    }));
-
-  return {
+  return buildResult({
     query: address,
     geocode: geo,
     district: {
@@ -81,51 +57,7 @@ export async function lookupAddress(address: string): Promise<LookupResult | nul
       schoolCount: districtSchools.length,
       inDistrict,
     },
-    overallScore: scores.overall,
-    scoreBasis: "Based on NCES CCD 2023-24 + U.S. DOE CRDC 2021-22 safety data",
-    categories: {
-      academic: {
-        label: "Academic & Staffing",
-        score: scores.academic.score,
-        metrics: [
-          { label: "Student-teacher ratio", value: scores.academic.studentTeacherRatio },
-          {
-            label: `4-year graduation rate (${scores.academic.gradYear})`,
-            value: `${scores.academic.gradRate}%`,
-          },
-          { label: "Chronic absenteeism", value: `${scores.academic.chronicAbsenteeism}%` },
-        ],
-      },
-      safety: {
-        label: "Safety & Climate",
-        score: scores.safety.score,
-        schoolYear: headline.schoolYear,
-        primarySchoolName: primary.school.name,
-        headline,
-        metrics: [
-          { label: "Violent incidents total", value: String(headline.violentIncidentsTotal) },
-          {
-            label: "Physical attacks w/ weapon",
-            value: String(headline.physicalAttacksWithWeapon),
-          },
-          {
-            label: "Firearm/explosive possession",
-            value: String(headline.firearmExplosivePossession),
-          },
-          { label: "Out-of-school suspensions", value: String(headline.outOfSchoolSuspensions) },
-        ],
-      },
-      scale: {
-        label: "Scale & Stability",
-        score: scores.scale.score,
-        metrics: [
-          { label: "Schools serving area", value: String(scores.scale.schoolCount) },
-          { label: "Average enrollment", value: scores.scale.avgEnrollment.toLocaleString() },
-          { label: "District enrollment", value: studentCount.toLocaleString() },
-        ],
-      },
-    },
-    safetyDetails,
-    nearbySchools,
-  };
+    areaItems,
+    nearby,
+  });
 }
