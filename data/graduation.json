@@ -1,0 +1,37 @@
+[
+  {
+    "ncesId": "120144000001",
+    "schoolYear": "2022-23",
+    "source": "NCES CCD / ED Data Express (illustrative)",
+    "gradRate4yr": 93,
+    "collegeGoingRate": 61
+  },
+  {
+    "ncesId": "120144000002",
+    "schoolYear": "2022-23",
+    "source": "NCES CCD / ED Data Express (illustrative)",
+    "gradRate4yr": 93,
+    "collegeGoingRate": 73
+  },
+  {
+    "ncesId": "120144000003",
+    "schoolYear": "2022-23",
+    "source": "NCES CCD / ED Data Express (illustrative)",
+    "gradRate4yr": 85,
+    "collegeGoingRate": 77
+  },
+  {
+    "ncesId": "120144000004",
+    "schoolYear": "2022-23",
+    "source": "NCES CCD / ED Data Express (illustrative)",
+    "gradRate4yr": 85,
+    "collegeGoingRate": 66
+  },
+  {
+    "ncesId": "120144000005",
+    "schoolYear": "2022-23",
+    "source": "NCES CCD / ED Data Express (illustrative)",
+    "gradRate4yr": 94,
+    "collegeGoingRate": 73
+  }
+]
