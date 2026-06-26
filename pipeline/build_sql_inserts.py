@@ -49,36 +49,38 @@ def main():
     )
 
     # Schools
-    lines.append("insert into schools (nces_id, name, type, grade_low, grade_high, zip, district_id, enrollment, student_teacher_ratio, geom) values")
+    lines.append("insert into schools (nces_id, name, type, grade_low, grade_high, zip, district_id, enrollment, student_teacher_ratio, chronic_absent_students, geom) values")
     rows = []
     for sc in schools:
         rows.append(
             f"  ({s(sc['ncesId'])}, {s(sc['name'])}, {s(sc['type'])}, {s(sc['gradeLow'])}, "
             f"{s(sc['gradeHigh'])}, {s(sc['zip'])}, {s(sc['districtId'])}, {s(sc['enrollment'])}, "
-            f"{s(sc['studentTeacherRatio'])}, ST_SetSRID(ST_Point({sc['lon']}, {sc['lat']}), 4326))"
+            f"{s(sc['studentTeacherRatio'])}, {s(sc.get('chronicAbsentStudents'))}, "
+            f"ST_SetSRID(ST_Point({sc['lon']}, {sc['lat']}), 4326))"
         )
     lines.append(",\n".join(rows) + "\non conflict (nces_id) do nothing;\n")
 
-    # Safety
-    lines.append("insert into school_safety (nces_id, school_year, source, aggravated_assaults, violent_incidents_total, threats_of_violence, theft_larceny, vandalism, drug_incidents, weapons_possession, police_calls, security_cameras, controlled_building_access, sworn_law_enforcement, visitor_sign_in) values")
+    # Safety (real CRDC 2021-22)
+    lines.append("insert into school_safety (nces_id, school_year, source, violent_incidents_total, physical_attacks_with_weapon, physical_attacks_no_weapon, threats_of_violence, robberies, rape_or_sexual_battery, firearm_explosive_possession, firearm_incident, out_of_school_suspensions, harassment_bullying_allegations) values")
     rows = []
     for r in safety:
         rows.append(
-            f"  ({s(r['ncesId'])}, {s(r['schoolYear'])}, {s(r['source'])}, {s(r['aggravatedAssaults'])}, "
-            f"{s(r['violentIncidentsTotal'])}, {s(r['threatsOfViolence'])}, {s(r['theftLarceny'])}, "
-            f"{s(r['vandalism'])}, {s(r['drugIncidents'])}, {s(r['weaponsPossession'])}, {s(r['policeCalls'])}, "
-            f"{s(r['securityCameras'])}, {s(r['controlledBuildingAccess'])}, {s(r['swornLawEnforcementOnSite'])}, "
-            f"{s(r['visitorSignIn'])})"
+            f"  ({s(r['ncesId'])}, {s(r['schoolYear'])}, {s(r['source'])}, "
+            f"{s(r['violentIncidentsTotal'])}, {s(r['physicalAttacksWithWeapon'])}, "
+            f"{s(r['physicalAttacksNoWeapon'])}, {s(r['threatsOfViolence'])}, {s(r['robberies'])}, "
+            f"{s(r['rapeOrSexualBattery'])}, {s(r['firearmExplosivePossession'])}, "
+            f"{s(r['firearmIncident'])}, {s(r['outOfSchoolSuspensions'])}, "
+            f"{s(r['harassmentBullyingAllegations'])})"
         )
     lines.append(",\n".join(rows) + "\non conflict (nces_id) do nothing;\n")
 
-    # Graduation
-    lines.append("insert into school_graduation (nces_id, school_year, source, grad_rate_4yr, college_going_rate) values")
+    # Graduation (EDFacts)
+    lines.append("insert into school_graduation (nces_id, school_year, source, grad_rate_4yr, cohort_size) values")
     rows = []
     for r in graduation:
         rows.append(
             f"  ({s(r['ncesId'])}, {s(r['schoolYear'])}, {s(r['source'])}, {s(r['gradRate4yr'])}, "
-            f"{s(r['collegeGoingRate'])})"
+            f"{s(r['cohortSize'])})"
         )
     lines.append(",\n".join(rows) + "\non conflict (nces_id) do nothing;\n")
 

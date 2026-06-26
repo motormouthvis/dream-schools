@@ -26,26 +26,27 @@ export interface School {
   lat: number;
   lon: number;
   enrollment: number;
-  studentTeacherRatio: number;
+  studentTeacherRatio: number | null;
+  chronicAbsentStudents: number | null;
   districtId: string;
 }
 
+// Real per-school safety, sourced from the U.S. Dept. of Education Civil Rights
+// Data Collection (CRDC) 2021-22. Counts are CRDC offense/discipline items.
 export interface SafetyRecord {
   ncesId: string;
   schoolYear: string;
   source: string;
-  aggravatedAssaults: number;
   violentIncidentsTotal: number;
+  physicalAttacksWithWeapon: number;
+  physicalAttacksNoWeapon: number;
   threatsOfViolence: number;
-  theftLarceny: number;
-  vandalism: number;
-  drugIncidents: number;
-  weaponsPossession: number;
-  policeCalls: number;
-  securityCameras: boolean;
-  controlledBuildingAccess: boolean;
-  swornLawEnforcementOnSite: boolean;
-  visitorSignIn: boolean;
+  robberies: number;
+  rapeOrSexualBattery: number;
+  firearmExplosivePossession: number;
+  firearmIncident: boolean;
+  outOfSchoolSuspensions: number;
+  harassmentBullyingAllegations: number;
 }
 
 export interface GraduationRecord {
@@ -53,7 +54,7 @@ export interface GraduationRecord {
   schoolYear: string;
   source: string;
   gradRate4yr: number;
-  collegeGoingRate: number;
+  cohortSize: number;
 }
 
 export interface GeocodeResult {

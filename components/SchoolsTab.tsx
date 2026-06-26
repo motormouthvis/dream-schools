@@ -63,9 +63,10 @@ export function SchoolsTab({ data }: { data: LookupResult }) {
 
         {/* Footer note */}
         <p className="mt-6 text-center text-xs text-slate-400">
-          Safety data reflects the full {categories.safety.schoolYear} school year. Academic data
-          from NCES 2023-24. Demo dataset limited to 10 zip codes around 34946 (Fort Pierce / St.
-          Lucie County, FL); metrics are representative.
+          Safety data reflects the full {categories.safety.schoolYear} school year (U.S. Dept. of
+          Education CRDC). Roster &amp; staffing from NCES CCD 2023-24; graduation from EDFacts.
+          Demo limited to schools in/near 10 zip codes around 34946 (Fort Pierce / St. Lucie County,
+          FL). All figures are real, per-school federal data.
         </p>
       </div>
     </section>

@@ -35,6 +35,7 @@ create table if not exists schools (
     district_id             text references school_districts(district_id),
     enrollment              integer,
     student_teacher_ratio   numeric,
+    chronic_absent_students integer,           -- CRDC 2021-22
     geom                    geometry(Point, 4326)  -- school location (lon/lat)
 );
 create index if not exists schools_geom_idx on schools using gist (geom);
@@ -42,35 +43,33 @@ create index if not exists schools_zip_idx on schools (zip);
 create index if not exists schools_district_idx on schools (district_id);
 
 -- ---------------------------------------------------------------------------
--- school_safety  (SSOCS 2021-22 style; join on nces_id)
+-- school_safety  (real per-school data; U.S. DOE CRDC 2021-22; join on nces_id)
 -- ---------------------------------------------------------------------------
 create table if not exists school_safety (
-    nces_id                     text primary key references schools(nces_id),
-    school_year                 text,          -- e.g. '2021-22'
-    source                      text,
-    aggravated_assaults         integer,
-    violent_incidents_total     integer,
-    threats_of_violence         integer,
-    theft_larceny               integer,
-    vandalism                   integer,
-    drug_incidents              integer,
-    weapons_possession          integer,
-    police_calls                integer,
-    security_cameras            boolean,
-    controlled_building_access  boolean,
-    sworn_law_enforcement       boolean,
-    visitor_sign_in             boolean
+    nces_id                         text primary key references schools(nces_id),
+    school_year                     text,          -- '2021-22'
+    source                          text,
+    violent_incidents_total         integer,
+    physical_attacks_with_weapon    integer,
+    physical_attacks_no_weapon      integer,
+    threats_of_violence             integer,
+    robberies                       integer,
+    rape_or_sexual_battery          integer,
+    firearm_explosive_possession    integer,
+    firearm_incident                boolean,
+    out_of_school_suspensions       integer,
+    harassment_bullying_allegations integer
 );
 
 -- ---------------------------------------------------------------------------
--- school_graduation  (join on nces_id)
+-- school_graduation  (EDFacts adjusted-cohort grad rate; join on nces_id)
 -- ---------------------------------------------------------------------------
 create table if not exists school_graduation (
     nces_id            text primary key references schools(nces_id),
     school_year        text,
     source             text,
     grad_rate_4yr      numeric,
-    college_going_rate numeric
+    cohort_size        integer
 );
 
 -- ---------------------------------------------------------------------------

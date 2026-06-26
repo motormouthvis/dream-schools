@@ -1,37 +1,72 @@
 [
   {
-    "ncesId": "120144000001",
-    "schoolYear": "2022-23",
-    "source": "NCES CCD / ED Data Express (illustrative)",
-    "gradRate4yr": 93,
-    "collegeGoingRate": 61
+    "ncesId": "120177001079",
+    "schoolYear": "2018-19",
+    "source": "U.S. Dept. of Education, EDFacts adjusted-cohort graduation rate (latest available)",
+    "gradRate4yr": 47,
+    "cohortSize": 131
   },
   {
-    "ncesId": "120144000002",
-    "schoolYear": "2022-23",
-    "source": "NCES CCD / ED Data Express (illustrative)",
-    "gradRate4yr": 93,
-    "collegeGoingRate": 73
+    "ncesId": "120177001932",
+    "schoolYear": "2018-19",
+    "source": "U.S. Dept. of Education, EDFacts adjusted-cohort graduation rate (latest available)",
+    "gradRate4yr": 99,
+    "cohortSize": 212
   },
   {
-    "ncesId": "120144000003",
-    "schoolYear": "2022-23",
-    "source": "NCES CCD / ED Data Express (illustrative)",
-    "gradRate4yr": 85,
-    "collegeGoingRate": 77
+    "ncesId": "120177001933",
+    "schoolYear": "2018-19",
+    "source": "U.S. Dept. of Education, EDFacts adjusted-cohort graduation rate (latest available)",
+    "gradRate4yr": 98,
+    "cohortSize": 650
   },
   {
-    "ncesId": "120144000004",
-    "schoolYear": "2022-23",
-    "source": "NCES CCD / ED Data Express (illustrative)",
-    "gradRate4yr": 85,
-    "collegeGoingRate": 66
+    "ncesId": "120177002104",
+    "schoolYear": "2018-19",
+    "source": "U.S. Dept. of Education, EDFacts adjusted-cohort graduation rate (latest available)",
+    "gradRate4yr": 96,
+    "cohortSize": 390
   },
   {
-    "ncesId": "120144000005",
-    "schoolYear": "2022-23",
-    "source": "NCES CCD / ED Data Express (illustrative)",
-    "gradRate4yr": 94,
-    "collegeGoingRate": 73
+    "ncesId": "120177002671",
+    "schoolYear": "2018-19",
+    "source": "U.S. Dept. of Education, EDFacts adjusted-cohort graduation rate (latest available)",
+    "gradRate4yr": 97,
+    "cohortSize": 394
+  },
+  {
+    "ncesId": "120177003503",
+    "schoolYear": "2018-19",
+    "source": "U.S. Dept. of Education, EDFacts adjusted-cohort graduation rate (latest available)",
+    "gradRate4yr": 99,
+    "cohortSize": 642
+  },
+  {
+    "ncesId": "120177004148",
+    "schoolYear": "2018-19",
+    "source": "U.S. Dept. of Education, EDFacts adjusted-cohort graduation rate (latest available)",
+    "gradRate4yr": 99,
+    "cohortSize": 706
+  },
+  {
+    "ncesId": "120177004149",
+    "schoolYear": "2018-19",
+    "source": "U.S. Dept. of Education, EDFacts adjusted-cohort graduation rate (latest available)",
+    "gradRate4yr": 10,
+    "cohortSize": 30
+  },
+  {
+    "ncesId": "120177008089",
+    "schoolYear": "2018-19",
+    "source": "U.S. Dept. of Education, EDFacts adjusted-cohort graduation rate (latest available)",
+    "gradRate4yr": 97,
+    "cohortSize": 105
+  },
+  {
+    "ncesId": "120177008545",
+    "schoolYear": "2018-19",
+    "source": "U.S. Dept. of Education, EDFacts adjusted-cohort graduation rate (latest available)",
+    "gradRate4yr": 22,
+    "cohortSize": 91
   }
 ]

@@ -8,35 +8,42 @@ function clamp(v: number, lo: number, hi: number): number {
 /** Academic sub-score for one school (0-100), from ratio + grad rate. */
 function academicScore(school: School, grad?: GraduationRecord): number {
   // Lower student:teacher ratio is better. 12:1 -> 95, 22:1 -> ~55.
-  const ratioScore = clamp(95 - (school.studentTeacherRatio - 12) * 4, 50, 98);
+  const ratioScore =
+    school.studentTeacherRatio && school.studentTeacherRatio > 0
+      ? clamp(95 - (school.studentTeacherRatio - 12) * 4, 45, 98)
+      : 78;
   if (grad) {
-    return clamp(0.45 * ratioScore + 0.4 * grad.gradRate4yr + 0.15 * grad.collegeGoingRate, 0, 100);
+    return clamp(0.5 * ratioScore + 0.5 * grad.gradRate4yr, 0, 100);
   }
   return ratioScore;
 }
 
-/** Safety sub-score for one school (0-100), from SSOCS-style counts. */
+/**
+ * Safety sub-score for one school (0-100), from real CRDC 2021-22 counts.
+ * Violent offenses and weapons drive the score; out-of-school suspensions and
+ * harassment/bullying are weighted lightly as climate signals.
+ */
 export function safetyScore(school: School, safety?: SafetyRecord): number {
-  if (!safety) return 75;
+  if (!safety) return 80;
   const per1000 = (n: number) => (n / Math.max(school.enrollment, 1)) * 1000;
   let score = 100;
-  score -= per1000(safety.violentIncidentsTotal) * 3.5;
-  score -= per1000(safety.aggravatedAssaults) * 6;
-  score -= per1000(safety.weaponsPossession) * 5;
-  score -= per1000(safety.drugIncidents) * 1.5;
-  if (safety.securityCameras) score += 3;
-  if (safety.controlledBuildingAccess) score += 3;
-  if (safety.swornLawEnforcementOnSite) score += 2;
-  return clamp(Math.round(score), 55, 98);
+  score -= per1000(safety.violentIncidentsTotal) * 4;
+  score -= per1000(safety.physicalAttacksWithWeapon) * 10;
+  score -= per1000(safety.firearmExplosivePossession) * 15;
+  score -= per1000(safety.rapeOrSexualBattery) * 10;
+  score -= per1000(safety.robberies) * 6;
+  score -= per1000(safety.outOfSchoolSuspensions) * 0.08;
+  score -= per1000(safety.harassmentBullyingAllegations) * 0.8;
+  if (safety.firearmIncident) score -= 4;
+  return clamp(Math.round(score), 45, 99);
 }
 
 /** Scale & stability sub-score for one school (0-100). */
 function scaleScore(school: School): number {
-  // Mid-size schools score best; very small / very large slightly lower.
   const e = school.enrollment;
-  const sizeScore = e >= 600 && e <= 1600 ? 88 : e < 600 ? 80 : 78;
-  // Stability proxy: schools closer to the district's typical ratio look steadier.
-  const stability = clamp(90 - Math.abs(school.studentTeacherRatio - 16) * 2, 70, 92);
+  const sizeScore = e >= 600 && e <= 1800 ? 88 : e < 600 ? 80 : 78;
+  const ratio = school.studentTeacherRatio ?? 16;
+  const stability = clamp(90 - Math.abs(ratio - 16) * 2, 70, 92);
   return clamp(Math.round(0.5 * sizeScore + 0.5 * stability), 0, 100);
 }
 
@@ -66,7 +73,8 @@ export interface AreaScores {
     score: number;
     studentTeacherRatio: string;
     gradRate: number;
-    collegeRate: number;
+    gradYear: string;
+    chronicAbsenteeism: number;
   };
   safety: { score: number };
   scale: { score: number; schoolCount: number; avgEnrollment: number };
@@ -74,12 +82,15 @@ export interface AreaScores {
 
 /** Aggregate the three-category quality index across a set of schools. */
 export function areaScores(schools: School[]): AreaScores {
-  const totalStudents = schools.reduce((s, x) => s + x.enrollment, 0);
-  const totalTeachers = schools.reduce(
-    (s, x) => s + x.enrollment / x.studentTeacherRatio,
+  const withRatio = schools.filter(
+    (s) => s.studentTeacherRatio && s.studentTeacherRatio > 0
+  );
+  const ratioStudents = withRatio.reduce((s, x) => s + x.enrollment, 0);
+  const ratioTeachers = withRatio.reduce(
+    (s, x) => s + x.enrollment / (x.studentTeacherRatio as number),
     0
   );
-  const aggRatio = totalTeachers === 0 ? 0 : totalStudents / totalTeachers;
+  const aggRatio = ratioTeachers === 0 ? 0 : ratioStudents / ratioTeachers;
 
   const gradSchools = schools
     .map((s) => ({ s, g: graduationFor(s.ncesId) }))
@@ -87,9 +98,15 @@ export function areaScores(schools: School[]): AreaScores {
   const gradRate = Math.round(
     weightedAvg(gradSchools.map((x) => [x.g.gradRate4yr, x.s.enrollment]))
   );
-  const collegeRate = Math.round(
-    weightedAvg(gradSchools.map((x) => [x.g.collegeGoingRate, x.s.enrollment]))
+  const gradYear = gradSchools[0]?.g.schoolYear ?? "2018-19";
+
+  const absSchools = schools.filter((s) => s.chronicAbsentStudents != null);
+  const absStudents = absSchools.reduce(
+    (s, x) => s + (x.chronicAbsentStudents as number),
+    0
   );
+  const absEnroll = absSchools.reduce((s, x) => s + x.enrollment, 0);
+  const chronicAbsenteeism = absEnroll === 0 ? 0 : Math.round((absStudents / absEnroll) * 100);
 
   const academicComponent = weightedAvg(
     schools.map((s) => [academicScore(s, graduationFor(s.ncesId)), s.enrollment])
@@ -105,14 +122,16 @@ export function areaScores(schools: School[]): AreaScores {
   const safety = Math.round(safetyComponent);
   const scale = Math.round(scaleComponent);
   const overall = Math.round(0.45 * academic + 0.35 * safety + 0.2 * scale);
+  const totalStudents = schools.reduce((s, x) => s + x.enrollment, 0);
 
   return {
     overall,
     academic: {
       score: academic,
-      studentTeacherRatio: `${Math.round(aggRatio)}:1`,
+      studentTeacherRatio: aggRatio > 0 ? `${Math.round(aggRatio)}:1` : "n/a",
       gradRate,
-      collegeRate,
+      gradYear,
+      chronicAbsenteeism,
     },
     safety: { score: safety },
     scale: {

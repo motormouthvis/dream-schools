@@ -82,15 +82,18 @@ export async function lookupAddress(address: string): Promise<LookupResult | nul
       inDistrict,
     },
     overallScore: scores.overall,
-    scoreBasis: "Based on NCES 2023-24 + 2021-22 safety data",
+    scoreBasis: "Based on NCES CCD 2023-24 + U.S. DOE CRDC 2021-22 safety data",
     categories: {
       academic: {
         label: "Academic & Staffing",
         score: scores.academic.score,
         metrics: [
           { label: "Student-teacher ratio", value: scores.academic.studentTeacherRatio },
-          { label: "4-year graduation rate", value: `${scores.academic.gradRate}%` },
-          { label: "College-going rate", value: `${scores.academic.collegeRate}%` },
+          {
+            label: `4-year graduation rate (${scores.academic.gradYear})`,
+            value: `${scores.academic.gradRate}%`,
+          },
+          { label: "Chronic absenteeism", value: `${scores.academic.chronicAbsenteeism}%` },
         ],
       },
       safety: {
@@ -100,13 +103,16 @@ export async function lookupAddress(address: string): Promise<LookupResult | nul
         primarySchoolName: primary.school.name,
         headline,
         metrics: [
-          { label: "Aggravated assaults", value: String(headline.aggravatedAssaults) },
           { label: "Violent incidents total", value: String(headline.violentIncidentsTotal) },
-          { label: "Security cameras", value: headline.securityCameras ? "Yes" : "No" },
           {
-            label: "Controlled access",
-            value: headline.controlledBuildingAccess ? "Yes" : "No",
+            label: "Physical attacks w/ weapon",
+            value: String(headline.physicalAttacksWithWeapon),
           },
+          {
+            label: "Firearm/explosive possession",
+            value: String(headline.firearmExplosivePossession),
+          },
+          { label: "Out-of-school suspensions", value: String(headline.outOfSchoolSuspensions) },
         ],
       },
       scale: {
