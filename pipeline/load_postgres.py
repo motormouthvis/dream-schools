@@ -56,6 +56,27 @@ GRADE_MAP = {
     7: "7", 8: "8", 9: "9", 10: "10", 11: "11", 12: "12", 13: "12",
 }
 
+URBANICITY = {
+    11: "City (large)", 12: "City (midsize)", 13: "City (small)",
+    21: "Suburb (large)", 22: "Suburb (midsize)", 23: "Suburb (small)",
+    31: "Town (fringe)", 32: "Town (distant)", 33: "Town (remote)",
+    41: "Rural (fringe)", 42: "Rural (distant)", 43: "Rural (remote)",
+}
+
+
+def urbanicity_label(code):
+    try:
+        return URBANICITY.get(int(code))
+    except (TypeError, ValueError):
+        return None
+
+
+def title_i_bool(status):
+    try:
+        return int(status) in (1, 2, 3, 4, 5)
+    except (TypeError, ValueError):
+        return False
+
 SCHEMA_SQL = """
 create extension if not exists postgis;
 
@@ -74,6 +95,7 @@ create table if not exists schools (
     nces_id                 text primary key,
     name                    text not null,
     type                    text,
+    level                   text,            -- 'public' or 'private'
     grade_low               text,
     grade_high              text,
     zip                     text,
@@ -81,11 +103,34 @@ create table if not exists schools (
     enrollment              integer,
     student_teacher_ratio   numeric,
     chronic_absent_students integer,
+    -- contact / address
+    street                  text,
+    city                    text,
+    state                   text,
+    phone                   text,
+    -- attributes
+    charter                 boolean,
+    magnet                  boolean,
+    title_i                 boolean,
+    virtual                 boolean,
+    free_reduced_lunch      integer,
+    urbanicity              text,
+    -- demographics (enrollment counts; all grades)
+    enr_white               integer,
+    enr_black               integer,
+    enr_hispanic            integer,
+    enr_asian               integer,
+    enr_amerind             integer,
+    enr_pacific             integer,
+    enr_twomore             integer,
+    enr_male                integer,
+    enr_female              integer,
     geom                    geometry(Point, 4326)
 );
 create index if not exists schools_geom_idx on schools using gist (geom);
 create index if not exists schools_zip_idx on schools (zip);
 create index if not exists schools_district_idx on schools (district_id);
+create index if not exists schools_level_idx on schools (level);
 
 create table if not exists school_safety (
     nces_id                         text primary key,
@@ -283,6 +328,19 @@ def main():
         if mid is not None and mid >= 0:
             grad[r["ncessch"]] = (mid, num(r.get("cohort_num")))
 
+    log("  Downloading CCD enrollment by race (all grades) ...")
+    # race codes: 1 White, 2 Black, 3 Hispanic, 4 Asian, 5 Am.Indian/AK,
+    # 6 Native HI/Pacific, 7 Two+; 99 total.
+    race = {}
+    for r in http_get_all(f"/schools/ccd/enrollment/{args.year_ccd}/grade-99/race/", filt, "race"):
+        d = race.setdefault(r["ncessch"], {})
+        d[r.get("race")] = num(r.get("enrollment"))
+    log("  Downloading CCD enrollment by sex (all grades) ...")
+    sex = {}
+    for r in http_get_all(f"/schools/ccd/enrollment/{args.year_ccd}/grade-99/sex/", filt, "sex"):
+        d = sex.setdefault(r["ncessch"], {})
+        d[r.get("sex")] = num(r.get("enrollment"))
+
     log(f"  Download complete in {time.time()-t0:.0f}s. "
         f"Building rows for {len(directory):,} schools ...")
 
@@ -304,12 +362,28 @@ def main():
         stype = classify_type(d.get("lowest_grade_offered"), d.get("highest_grade_offered"), charter)
         zip_ = (str(d.get("zip_location") or d.get("zip_mailing") or "")[:5]) or None
         geom = f"SRID=4326;POINT({lon} {lat})"
+        rc = race.get(nces, {})
+        sx = sex.get(nces, {})
+        def rget(code):
+            v = rc.get(code)
+            return v if v is not None else ""
 
         school_rows.append([
-            nces, titlecase(d.get("school_name") or ""), stype,
+            nces, titlecase(d.get("school_name") or ""), stype, "public",
             grade_label(d.get("lowest_grade_offered")), grade_label(d.get("highest_grade_offered")),
             zip_, leaid, int(enr), ratio if ratio is not None else "",
-            absent.get(nces, ""), geom,
+            absent.get(nces, ""),
+            titlecase(d.get("street_location") or "") or "", titlecase(d.get("city_location") or "") or "",
+            (d.get("state_location") or "") or "", d.get("phone") or "",
+            "true" if charter else "false",
+            "true" if d.get("magnet") else "false",
+            "true" if title_i_bool(d.get("title_i_status")) else "false",
+            "true" if d.get("virtual") else "false",
+            num(d.get("free_or_reduced_price_lunch")) if d.get("free_or_reduced_price_lunch") is not None else "",
+            urbanicity_label(d.get("urban_centric_locale")) or "",
+            rget(1), rget(2), rget(3), rget(4), rget(5), rget(6), rget(7),
+            sx.get(1, ""), sx.get(2, ""),
+            geom,
         ])
 
         if leaid:
@@ -347,9 +421,9 @@ def main():
     conn.autocommit = False
     try:
         with conn.cursor() as cur:
-            log("  Applying schema ...")
+            log("  Applying schema (drop + recreate) ...")
+            cur.execute("DROP TABLE IF EXISTS school_safety, school_graduation, schools, school_districts CASCADE;")
             cur.execute(SCHEMA_SQL)
-            cur.execute("TRUNCATE school_safety, school_graduation, schools, school_districts;")
 
             log("  COPY school_districts ...")
             copy_rows(cur, "school_districts",
@@ -357,9 +431,13 @@ def main():
                       district_rows)
             log("  COPY schools ...")
             copy_rows(cur, "schools",
-                      ["nces_id", "name", "type", "grade_low", "grade_high", "zip",
+                      ["nces_id", "name", "type", "level", "grade_low", "grade_high", "zip",
                        "district_id", "enrollment", "student_teacher_ratio",
-                       "chronic_absent_students", "geom"],
+                       "chronic_absent_students", "street", "city", "state", "phone",
+                       "charter", "magnet", "title_i", "virtual", "free_reduced_lunch",
+                       "urbanicity", "enr_white", "enr_black", "enr_hispanic", "enr_asian",
+                       "enr_amerind", "enr_pacific", "enr_twomore", "enr_male", "enr_female",
+                       "geom"],
                       school_rows)
             log("  COPY school_safety ...")
             copy_rows(cur, "school_safety",

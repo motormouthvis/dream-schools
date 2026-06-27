@@ -8,17 +8,28 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Dream Neighborhood green
         brand: {
-          50: "#eef6ff",
-          100: "#d9eaff",
-          200: "#bcdaff",
-          300: "#8ec3ff",
-          400: "#59a1ff",
-          500: "#327dfb",
-          600: "#1c5ef0",
-          700: "#1749dc",
-          800: "#193db2",
-          900: "#1a378c",
+          50: "#eefbf2",
+          100: "#d6f5e0",
+          200: "#b0eac6",
+          300: "#7dd9a4",
+          400: "#46c07c",
+          500: "#1fa55f",
+          600: "#12854c",
+          700: "#0f6a3f",
+          800: "#105435",
+          900: "#0e3d28",
+        },
+        // bright lime accent (primary CTAs)
+        lime2: {
+          400: "#a5e635",
+          500: "#84cc16",
+          600: "#65a30d",
+        },
+        ink: {
+          800: "#13241b",
+          900: "#0c1a13",
         },
       },
       fontFamily: {

@@ -5,7 +5,13 @@ import { scoreBadgeClass } from "./score";
 import { SchoolDetailModal } from "./SchoolDetailModal";
 import type { NearbySchool } from "@/lib/types";
 
-export function NearbySchools({ schools }: { schools: NearbySchool[] }) {
+export function NearbySchools({
+  schools,
+  fairHousing = false,
+}: {
+  schools: NearbySchool[];
+  fairHousing?: boolean;
+}) {
   const [openId, setOpenId] = useState<string | null>(null);
 
   return (
@@ -45,7 +51,13 @@ export function NearbySchools({ schools }: { schools: NearbySchool[] }) {
         ))}
       </ul>
 
-      {openId && <SchoolDetailModal ncesId={openId} onClose={() => setOpenId(null)} />}
+      {openId && (
+        <SchoolDetailModal
+          ncesId={openId}
+          fairHousing={fairHousing}
+          onClose={() => setOpenId(null)}
+        />
+      )}
     </div>
   );
 }

@@ -39,6 +39,8 @@ export default function Home() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressRef = useRef(false);
   const [nationwide, setNationwide] = useState(false);
+  const [audience, setAudience] = useState<"full" | "fairhousing">("full");
+  const fairHousing = audience === "fairhousing";
   const sampleAddresses = nationwide ? NATIONWIDE_ADDRESSES : DEMO_ADDRESSES;
 
   useEffect(() => {
@@ -117,17 +119,41 @@ export default function Home() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:py-14">
       <div className="mb-8 text-center">
-        <p className="text-sm font-semibold uppercase tracking-widest text-brand-600">
+        <span className="inline-block rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-brand-700 ring-1 ring-inset ring-brand-600/20">
           Dream Neighborhood
-        </p>
-        <h1 className="mt-1 text-3xl font-bold text-slate-900 sm:text-4xl">Schools</h1>
+        </span>
+        <h1 className="mt-3 text-3xl font-bold tracking-tight text-ink-900 sm:text-4xl">
+          Neighborhood Schools Explorer
+        </h1>
         <p className="mx-auto mt-3 max-w-xl text-sm text-slate-500">
           Enter an address to see its school district, an overall quality score, the three-category
           quality index, and nearby schools.{" "}
           {nationwide
-            ? "Coverage: all ~100k U.S. public schools (NCES + CRDC), served from Postgres + PostGIS."
+            ? "Coverage: all ~100k U.S. public schools (NCES + CRDC)."
             : "Demo coverage: 10 zip codes around 34946 (Fort Pierce / St. Lucie County, FL)."}
         </p>
+
+        {/* Audience / compliance mode */}
+        <div className="mx-auto mt-4 flex max-w-md items-center justify-center gap-2">
+          <label htmlFor="audience" className="text-xs font-medium text-slate-500">
+            View mode
+          </label>
+          <select
+            id="audience"
+            value={audience}
+            onChange={(e) => setAudience(e.target.value as "full" | "fairhousing")}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+          >
+            <option value="full">Full data (research / families)</option>
+            <option value="fairhousing">Fair Housing Compliant (real estate)</option>
+          </select>
+        </div>
+        {fairHousing && (
+          <p className="mx-auto mt-2 max-w-md text-[11px] text-slate-400">
+            Protected-class data (race &amp; gender) is hidden to prevent steering, per Fair Housing
+            guidance.
+          </p>
+        )}
       </div>
 
       <form
@@ -191,7 +217,7 @@ export default function Home() {
         <button
           type="submit"
           disabled={loading}
-          className="rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-xl bg-lime2-500 px-6 py-3 text-sm font-bold text-ink-900 shadow-sm transition hover:bg-lime2-400 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? "Searching…" : "Search"}
         </button>
@@ -227,7 +253,9 @@ export default function Home() {
           </div>
         )}
 
-        {!loading && !error && data && <SchoolsTab data={data} nationwide={nationwide} />}
+        {!loading && !error && data && (
+          <SchoolsTab data={data} nationwide={nationwide} fairHousing={fairHousing} />
+        )}
 
         {!loading && !error && !data && (
           <div className="rounded-3xl border border-dashed border-slate-300 bg-white/60 p-10 text-center text-slate-400">

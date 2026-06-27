@@ -2,29 +2,88 @@ import { hasDatabase, getPool } from "@/lib/db";
 import { SCHOOLS, DISTRICT, safetyFor, graduationFor } from "@/lib/data";
 import { schoolScoreBreakdown, type ScoredSchool } from "@/lib/scoring";
 import type {
+  DemographicSlice,
   GraduationRecord,
   SafetyRecord,
   School,
   SchoolDetail,
 } from "@/lib/types";
 
+interface Extra {
+  level?: string;
+  street?: string | null;
+  city?: string | null;
+  state?: string | null;
+  phone?: string | null;
+  charter?: boolean | null;
+  magnet?: boolean | null;
+  titleI?: boolean | null;
+  virtual?: boolean | null;
+  urbanicity?: string | null;
+  freeReducedLunch?: number | null;
+  race?: { white: number; black: number; hispanic: number; asian: number; amerind: number; pacific: number; twomore: number } | null;
+  sex?: { male: number; female: number } | null;
+}
+
 function grades(low: string, high: string): string {
   return low === high ? low : `${low}-${high}`;
 }
 
-function toDetail(
-  item: ScoredSchool,
-  districtName: string
-): SchoolDetail {
+function slices(
+  pairs: [label: string, count: number | null | undefined][],
+  total: number
+): DemographicSlice[] {
+  return pairs
+    .map(([label, count]) => ({
+      label,
+      count: count ?? 0,
+      pct: total > 0 ? Math.round(((count ?? 0) / total) * 100) : 0,
+    }))
+    .filter((s) => s.count > 0);
+}
+
+function toDetail(item: ScoredSchool, districtName: string, extra: Extra = {}): SchoolDetail {
   const s = item.school;
   const chronicPct =
     s.chronicAbsentStudents != null && s.enrollment > 0
       ? Math.min(100, Math.round((s.chronicAbsentStudents / s.enrollment) * 100))
       : null;
+
+  let demographics: SchoolDetail["demographics"] = null;
+  if (extra.race || extra.sex) {
+    const r = extra.race;
+    const x = extra.sex;
+    demographics = {
+      byRace: r
+        ? slices(
+            [
+              ["White", r.white],
+              ["Black", r.black],
+              ["Hispanic", r.hispanic],
+              ["Asian", r.asian],
+              ["Am. Indian / AK Native", r.amerind],
+              ["Native HI / Pacific", r.pacific],
+              ["Two or more races", r.twomore],
+            ],
+            s.enrollment
+          )
+        : [],
+      byGender: x
+        ? slices([["Male", x.male], ["Female", x.female]], s.enrollment)
+        : [],
+    };
+  }
+
+  const lunchPct =
+    extra.freeReducedLunch != null && s.enrollment > 0
+      ? Math.min(100, Math.round((extra.freeReducedLunch / s.enrollment) * 100))
+      : null;
+
   return {
     ncesId: s.ncesId,
     name: s.name,
     type: s.type,
+    level: extra.level ?? "public",
     grades: grades(s.gradeLow, s.gradeHigh),
     gradeLow: s.gradeLow,
     gradeHigh: s.gradeHigh,
@@ -34,6 +93,22 @@ function toDetail(
     enrollment: s.enrollment,
     studentTeacherRatio: s.studentTeacherRatio,
     chronicAbsentPct: chronicPct,
+    contact: {
+      street: extra.street ?? null,
+      city: extra.city ?? null,
+      state: extra.state ?? null,
+      zip: s.zip || null,
+      phone: extra.phone ?? null,
+    },
+    attributes: {
+      charter: extra.charter ?? null,
+      magnet: extra.magnet ?? null,
+      titleI: extra.titleI ?? null,
+      virtual: extra.virtual ?? null,
+      urbanicity: extra.urbanicity ?? null,
+      freeReducedLunchPct: lunchPct,
+    },
+    demographics,
     district: { districtId: s.districtId, name: districtName },
     scores: schoolScoreBreakdown(item),
     safety: item.safety ?? null,
@@ -45,8 +120,12 @@ async function getFromDb(ncesId: string): Promise<SchoolDetail | null> {
   const pool = getPool();
   const res = await pool.query(
     `select
-        s.nces_id, s.name, s.type, s.grade_low, s.grade_high, s.zip, s.district_id,
+        s.nces_id, s.name, s.type, s.level, s.grade_low, s.grade_high, s.zip, s.district_id,
         s.enrollment, s.student_teacher_ratio, s.chronic_absent_students,
+        s.street, s.city, s.state, s.phone, s.charter, s.magnet, s.title_i, s.virtual,
+        s.free_reduced_lunch, s.urbanicity,
+        s.enr_white, s.enr_black, s.enr_hispanic, s.enr_asian, s.enr_amerind,
+        s.enr_pacific, s.enr_twomore, s.enr_male, s.enr_female,
         ST_Y(s.geom) as lat, ST_X(s.geom) as lon,
         coalesce(d.name, s.district_id) as district_name,
         sf.nces_id as s_nces_id, sf.school_year as s_school_year, sf.source as s_source,
@@ -108,7 +187,30 @@ async function getFromDb(ncesId: string): Promise<SchoolDetail | null> {
       }
     : undefined;
 
-  return toDetail({ school, safety, grad }, r.district_name);
+  const extra: Extra = {
+    level: r.level ?? "public",
+    street: r.street ?? null,
+    city: r.city ?? null,
+    state: r.state ?? null,
+    phone: r.phone ?? null,
+    charter: r.charter,
+    magnet: r.magnet,
+    titleI: r.title_i,
+    virtual: r.virtual,
+    urbanicity: r.urbanicity ?? null,
+    freeReducedLunch: r.free_reduced_lunch,
+    race: {
+      white: r.enr_white ?? 0,
+      black: r.enr_black ?? 0,
+      hispanic: r.enr_hispanic ?? 0,
+      asian: r.enr_asian ?? 0,
+      amerind: r.enr_amerind ?? 0,
+      pacific: r.enr_pacific ?? 0,
+      twomore: r.enr_twomore ?? 0,
+    },
+    sex: { male: r.enr_male ?? 0, female: r.enr_female ?? 0 },
+  };
+  return toDetail({ school, safety, grad }, r.district_name, extra);
 }
 
 function getFromJson(ncesId: string): SchoolDetail | null {

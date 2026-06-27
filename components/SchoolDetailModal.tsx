@@ -7,9 +7,11 @@ import type { SchoolDetail } from "@/lib/types";
 export function SchoolDetailModal({
   ncesId,
   onClose,
+  fairHousing = false,
 }: {
   ncesId: string;
   onClose: () => void;
+  fairHousing?: boolean;
 }) {
   const [detail, setDetail] = useState<SchoolDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +20,7 @@ export function SchoolDetailModal({
     let cancelled = false;
     setDetail(null);
     setError(null);
-    fetch(`/api/school?ncesId=${encodeURIComponent(ncesId)}`)
+    fetch(`/api/school?ncesId=${encodeURIComponent(ncesId)}${fairHousing ? "&fh=1" : ""}`)
       .then((r) => r.json())
       .then((j) => {
         if (cancelled) return;
@@ -29,7 +31,7 @@ export function SchoolDetailModal({
     return () => {
       cancelled = true;
     };
-  }, [ncesId]);
+  }, [ncesId, fairHousing]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -57,14 +59,34 @@ export function SchoolDetailModal({
             </button>
           </div>
         )}
-        {detail && <DetailBody detail={detail} onClose={onClose} />}
+        {detail && <DetailBody detail={detail} onClose={onClose} fairHousing={fairHousing} />}
       </div>
     </div>
   );
 }
 
-function DetailBody({ detail, onClose }: { detail: SchoolDetail; onClose: () => void }) {
+function DetailBody({
+  detail,
+  onClose,
+  fairHousing,
+}: {
+  detail: SchoolDetail;
+  onClose: () => void;
+  fairHousing: boolean;
+}) {
   const s = detail.scores;
+  const a = detail.attributes;
+  const c = detail.contact;
+  const addressLine = [c.street, [c.city, c.state].filter(Boolean).join(", "), c.zip]
+    .filter(Boolean)
+    .join(" · ");
+  const tags = [
+    detail.level === "private" ? "Private" : null,
+    a.charter ? "Charter" : null,
+    a.magnet ? "Magnet" : null,
+    a.virtual ? "Virtual" : null,
+    a.titleI ? "Title I" : null,
+  ].filter(Boolean) as string[];
   return (
     <>
       <header className="flex items-start justify-between gap-3 bg-gradient-to-r from-brand-700 to-brand-500 px-6 py-5 text-white">
@@ -92,6 +114,28 @@ function DetailBody({ detail, onClose }: { detail: SchoolDetail; onClose: () => 
           <BigScore label="Scale" value={s.scale} />
         </div>
 
+        {tags.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {tags.map((t) => (
+              <span
+                key={t}
+                className="rounded-full bg-brand-50 px-2.5 py-0.5 text-[11px] font-semibold text-brand-700 ring-1 ring-inset ring-brand-600/20"
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Contact */}
+        <Section title="Contact">
+          {addressLine && <Fact label="Address" value={addressLine} />}
+          {c.phone && <Fact label="Phone" value={c.phone} />}
+          {!addressLine && !c.phone && (
+            <p className="col-span-2 text-sm text-slate-400">No contact info reported.</p>
+          )}
+        </Section>
+
         {/* Key facts */}
         <Section title="School">
           <Fact label="Type" value={detail.type} />
@@ -105,9 +149,36 @@ function DetailBody({ detail, onClose }: { detail: SchoolDetail; onClose: () => 
             label="Chronic absenteeism"
             value={detail.chronicAbsentPct != null ? `${detail.chronicAbsentPct}%` : "Not reported"}
           />
-          <Fact label="Zip" value={detail.zip || "—"} />
+          {a.freeReducedLunchPct != null && (
+            <Fact label="Free/reduced lunch" value={`${a.freeReducedLunchPct}%`} />
+          )}
+          {a.urbanicity && <Fact label="Setting" value={a.urbanicity} />}
           <Fact label="NCES ID" value={detail.ncesId} />
         </Section>
+
+        {/* Demographics (hidden in Fair Housing Compliant mode) */}
+        {fairHousing ? (
+          <Section title="Student demographics">
+            <p className="col-span-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+              Hidden in <strong>Fair Housing Compliant</strong> mode. Race and gender data are
+              omitted so they can&apos;t be used to steer buyers, per Fair Housing guidance.
+            </p>
+          </Section>
+        ) : (
+          detail.demographics && (
+            <Section title="Student demographics">
+              <div className="col-span-2 space-y-3">
+                {detail.demographics.byRace.length > 0 && (
+                  <DemoBars title="By race / ethnicity" data={detail.demographics.byRace} />
+                )}
+                {detail.demographics.byGender.length > 0 && (
+                  <DemoBars title="By gender" data={detail.demographics.byGender} />
+                )}
+                <p className="text-[11px] text-slate-400">Source: NCES CCD 2023-24 enrollment.</p>
+              </div>
+            </Section>
+          )
+        )}
 
         {/* Graduation */}
         <Section title="Graduation">
@@ -168,6 +239,27 @@ function BigScore({ label, value, primary }: { label: string; value: number; pri
         )}`}
       >
         {scoreLabel(value)}
+      </div>
+    </div>
+  );
+}
+
+function DemoBars({ title, data }: { title: string; data: { label: string; count: number; pct: number }[] }) {
+  return (
+    <div>
+      <p className="mb-1.5 text-xs font-medium text-slate-600">{title}</p>
+      <div className="space-y-1.5">
+        {data.map((d) => (
+          <div key={d.label} className="flex items-center gap-2 text-xs">
+            <span className="w-40 shrink-0 truncate text-slate-500">{d.label}</span>
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full rounded-full bg-brand-500" style={{ width: `${d.pct}%` }} />
+            </div>
+            <span className="w-16 shrink-0 text-right font-semibold tabular-nums text-slate-700">
+              {d.pct}% ({d.count.toLocaleString()})
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );

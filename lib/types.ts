@@ -90,10 +90,17 @@ export interface SafetyDetail {
   record: SafetyRecord;
 }
 
+export interface DemographicSlice {
+  label: string;
+  count: number;
+  pct: number;
+}
+
 export interface SchoolDetail {
   ncesId: string;
   name: string;
   type: string;
+  level: string;
   grades: string;
   gradeLow: string;
   gradeHigh: string;
@@ -103,6 +110,25 @@ export interface SchoolDetail {
   enrollment: number;
   studentTeacherRatio: number | null;
   chronicAbsentPct: number | null;
+  contact: {
+    street: string | null;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+    phone: string | null;
+  };
+  attributes: {
+    charter: boolean | null;
+    magnet: boolean | null;
+    titleI: boolean | null;
+    virtual: boolean | null;
+    urbanicity: string | null;
+    freeReducedLunchPct: number | null;
+  };
+  demographics: {
+    byRace: DemographicSlice[];
+    byGender: DemographicSlice[];
+  } | null;
   district: { districtId: string; name: string };
   scores: { overall: number; academic: number; safety: number; scale: number };
   safety: SafetyRecord | null;

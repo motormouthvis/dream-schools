@@ -31,6 +31,7 @@ create table if not exists schools (
     nces_id                 text primary key,  -- NCES school id
     name                    text not null,
     type                    text,              -- Elementary / Middle / High / Combined / Charter
+    level                   text,              -- 'public' or 'private'
     grade_low               text,
     grade_high              text,
     zip                     text,
@@ -38,6 +39,28 @@ create table if not exists schools (
     enrollment              integer,
     student_teacher_ratio   numeric,
     chronic_absent_students integer,           -- CRDC 2021-22
+    -- contact / address (NCES CCD)
+    street                  text,
+    city                    text,
+    state                   text,
+    phone                   text,
+    -- attributes (NCES CCD)
+    charter                 boolean,
+    magnet                  boolean,
+    title_i                 boolean,
+    virtual                 boolean,
+    free_reduced_lunch      integer,
+    urbanicity              text,
+    -- demographics (NCES CCD enrollment, all grades)
+    enr_white               integer,
+    enr_black               integer,
+    enr_hispanic            integer,
+    enr_asian               integer,
+    enr_amerind             integer,
+    enr_pacific             integer,
+    enr_twomore             integer,
+    enr_male                integer,
+    enr_female              integer,
     geom                    geometry(Point, 4326)  -- school location (lon/lat)
 );
 create index if not exists schools_geom_idx on schools using gist (geom);

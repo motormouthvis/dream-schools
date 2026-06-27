@@ -7,9 +7,11 @@ import type { LookupResult } from "@/lib/types";
 export function SchoolsTab({
   data,
   nationwide = false,
+  fairHousing = false,
 }: {
   data: LookupResult;
   nationwide?: boolean;
+  fairHousing?: boolean;
 }) {
   const { district, categories, geocode } = data;
 
@@ -64,7 +66,7 @@ export function SchoolsTab({
 
         {/* Nearby schools */}
         <div className="mt-6">
-          <NearbySchools schools={data.nearbySchools} />
+          <NearbySchools schools={data.nearbySchools} fairHousing={fairHousing} />
         </div>
 
         {/* Footer note */}
