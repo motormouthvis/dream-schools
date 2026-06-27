@@ -7,6 +7,9 @@ A working, standalone demo of the **Schools tab** for Dream Neighborhood, scoped
 34946  34947  34950  34951  34981  34982  34983  34984  34986  34987
 ```
 
+**Live (nationwide):** https://dream-schools-c2ccd302adef.herokuapp.com — all ~97k
+U.S. public schools on Heroku Postgres + PostGIS.
+
 A user types an address; the app finds the **school district** (point‑in‑polygon),
 shows an **overall quality score**, a **3‑category quality index** (Academic &
 Staffing, Safety & Climate, Scale & Stability), the **annual SSOCS‑style safety
