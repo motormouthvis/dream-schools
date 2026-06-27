@@ -154,7 +154,7 @@ export interface LookupResult {
     safety: CategoryScore & {
       schoolYear: string;
       primarySchoolName: string;
-      headline: SafetyRecord;
+      headline: SafetyRecord | null;
     };
     scale: CategoryScore;
   };

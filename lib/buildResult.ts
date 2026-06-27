@@ -56,8 +56,19 @@ export function buildResult(params: {
       record: item.safety!,
     }));
 
-  const primary = nearby[0];
-  const headline = primary.item.safety!;
+  // Headline safety comes from the nearest school that actually has CRDC data
+  // (private schools have none), so the Safety card stays meaningful.
+  const primary = nearby.find((n) => n.item.safety) ?? nearby[0];
+  const headline = primary.item.safety ?? null;
+
+  const safetyMetrics = headline
+    ? [
+        { label: "Violent incidents total", value: String(headline.violentIncidentsTotal) },
+        { label: "Physical attacks w/ weapon", value: String(headline.physicalAttacksWithWeapon) },
+        { label: "Firearm/explosive possession", value: String(headline.firearmExplosivePossession) },
+        { label: "Out-of-school suspensions", value: String(headline.outOfSchoolSuspensions) },
+      ]
+    : [{ label: "Safety data", value: "Not reported nearby" }];
 
   return {
     query,
@@ -81,21 +92,10 @@ export function buildResult(params: {
       safety: {
         label: "Safety & Climate",
         score: scores.safety.score,
-        schoolYear: headline.schoolYear,
+        schoolYear: headline?.schoolYear ?? "2021-22",
         primarySchoolName: primary.item.school.name,
         headline,
-        metrics: [
-          { label: "Violent incidents total", value: String(headline.violentIncidentsTotal) },
-          {
-            label: "Physical attacks w/ weapon",
-            value: String(headline.physicalAttacksWithWeapon),
-          },
-          {
-            label: "Firearm/explosive possession",
-            value: String(headline.firearmExplosivePossession),
-          },
-          { label: "Out-of-school suspensions", value: String(headline.outOfSchoolSuspensions) },
-        ],
+        metrics: safetyMetrics,
       },
       scale: {
         label: "Scale & Stability",

@@ -122,14 +122,15 @@ export async function lookupAddressDb(
   //    falling back to the district's schools if too few.
   let areaRes = await pool.query(
     `select ${SELECT}
-      where ST_DWithin(s.geom::geography, $1::geography, ${AREA_RADIUS_MILES * METERS_PER_MILE})
+      where s.level <> 'private'
+        and ST_DWithin(s.geom::geography, $1::geography, ${AREA_RADIUS_MILES * METERS_PER_MILE})
       order by s.geom <-> $1
       limit 60`,
     [point]
   );
   if (areaRes.rows.length < 4) {
     areaRes = await pool.query(
-      `select ${SELECT} where s.district_id = $2 order by s.geom <-> $1 limit 60`,
+      `select ${SELECT} where s.district_id = $2 and s.level <> 'private' order by s.geom <-> $1 limit 60`,
       [point, district.district_id]
     );
   }

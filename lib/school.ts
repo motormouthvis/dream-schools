@@ -210,7 +210,9 @@ async function getFromDb(ncesId: string): Promise<SchoolDetail | null> {
     },
     sex: { male: r.enr_male ?? 0, female: r.enr_female ?? 0 },
   };
-  return toDetail({ school, safety, grad }, r.district_name, extra);
+  const districtName =
+    r.district_name || (r.level === "private" ? "Private school" : r.district_id);
+  return toDetail({ school, safety, grad }, districtName, extra);
 }
 
 function getFromJson(ncesId: string): SchoolDetail | null {
