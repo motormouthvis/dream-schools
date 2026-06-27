@@ -129,7 +129,7 @@ export default function Home() {
           Enter an address to see its school district, an overall quality score, the three-category
           quality index, and nearby schools.{" "}
           {nationwide
-            ? "Coverage: all ~100k U.S. public schools (NCES + CRDC)."
+            ? "Coverage: ~119k U.S. public & private schools (NCES CCD + CRDC + PSS)."
             : "Demo coverage: 10 zip codes around 34946 (Fort Pierce / St. Lucie County, FL)."}
         </p>
 
