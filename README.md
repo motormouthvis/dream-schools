@@ -10,6 +10,14 @@ A working, standalone demo of the **Schools tab** for Dream Neighborhood, scoped
 **Live (nationwide):** https://dream-schools-c2ccd302adef.herokuapp.com — all ~97k
 U.S. public schools on Heroku Postgres + PostGIS.
 
+**Now with GreatSchools-style depth** (see `COMPETITIVE_ANALYSIS.md`): per-school
+**1–10 ratings** (Summary, Test Scores, College Readiness), state **test-score
+proficiency** (EDFacts), **college readiness** (grad rate + AP/IB + SAT/ACT),
+**advanced courses**, **low-income & English-learner %**, **teacher certification
+/ counselors / security**, full **CRDC safety**, race/gender **demographics**, an
+interactive **map** with the district boundary, **public + private** schools
+(~119k), a **Fair Housing Compliant** mode, and **community reviews**.
+
 A user types an address; the app finds the **school district** (point‑in‑polygon),
 shows an **overall quality score**, a **3‑category quality index** (Academic &
 Staffing, Safety & Climate, Scale & Stability), the **annual SSOCS‑style safety
