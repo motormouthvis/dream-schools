@@ -60,6 +60,20 @@ export function quickSchoolScore(item: ScoredSchool): number {
   return Math.round(0.45 * a + 0.35 * s + 0.2 * sc);
 }
 
+/** Full 0-100 score breakdown for a single school (used in the detail view). */
+export function schoolScoreBreakdown(item: ScoredSchool): {
+  overall: number;
+  academic: number;
+  safety: number;
+  scale: number;
+} {
+  const academic = Math.round(academicScore(item.school, item.grad));
+  const safety = safetyScore(item.school, item.safety);
+  const scale = scaleScore(item.school);
+  const overall = Math.round(0.45 * academic + 0.35 * safety + 0.2 * scale);
+  return { overall, academic, safety, scale };
+}
+
 function weightedAvg(pairs: [value: number, weight: number][]): number {
   let num = 0;
   let den = 0;
@@ -105,7 +119,8 @@ export function areaScores(items: ScoredSchool[]): AreaScores {
   const absSchools = schools.filter((s) => s.chronicAbsentStudents != null);
   const absStudents = absSchools.reduce((s, x) => s + (x.chronicAbsentStudents as number), 0);
   const absEnroll = absSchools.reduce((s, x) => s + x.enrollment, 0);
-  const chronicAbsenteeism = absEnroll === 0 ? 0 : Math.round((absStudents / absEnroll) * 100);
+  const chronicAbsenteeism =
+    absEnroll === 0 ? 0 : Math.min(100, Math.round((absStudents / absEnroll) * 100));
 
   const academic = Math.round(
     weightedAvg(items.map((i) => [academicScore(i.school, i.grad), i.school.enrollment]))

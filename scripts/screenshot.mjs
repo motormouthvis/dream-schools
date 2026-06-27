@@ -26,6 +26,18 @@ if (EXPAND) {
     }
   }
 }
+const CLICK_SCHOOL = process.argv.includes("--school");
+if (CLICK_SCHOOL) {
+  const btns = await page.$$("button");
+  for (const b of btns) {
+    const txt = await page.evaluate((el) => el.textContent || "", b);
+    if (txt.includes("View details")) {
+      await b.click();
+      await new Promise((r) => setTimeout(r, 1500));
+      break;
+    }
+  }
+}
 await page.screenshot({ path: OUT, fullPage: true });
 await browser.close();
 console.log("wrote", OUT);

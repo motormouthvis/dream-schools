@@ -90,6 +90,25 @@ export interface SafetyDetail {
   record: SafetyRecord;
 }
 
+export interface SchoolDetail {
+  ncesId: string;
+  name: string;
+  type: string;
+  grades: string;
+  gradeLow: string;
+  gradeHigh: string;
+  zip: string;
+  lat: number;
+  lon: number;
+  enrollment: number;
+  studentTeacherRatio: number | null;
+  chronicAbsentPct: number | null;
+  district: { districtId: string; name: string };
+  scores: { overall: number; academic: number; safety: number; scale: number };
+  safety: SafetyRecord | null;
+  graduation: GraduationRecord | null;
+}
+
 export interface LookupResult {
   query: string;
   geocode: GeocodeResult;

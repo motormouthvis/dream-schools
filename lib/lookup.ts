@@ -6,7 +6,7 @@ import type { ScoredSchool } from "@/lib/scoring";
 import type { GeocodeResult, LookupResult } from "@/lib/types";
 
 const AREA_RADIUS_MILES = 10;
-const NEARBY_COUNT = 8;
+const NEARBY_COUNT = 12;
 
 function toScored(ncesId: string): ScoredSchool {
   const school = SCHOOLS.find((s) => s.ncesId === ncesId)!;

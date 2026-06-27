@@ -11,7 +11,7 @@ import type {
 } from "@/lib/types";
 
 const AREA_RADIUS_MILES = 10;
-const NEARBY_COUNT = 8;
+const NEARBY_COUNT = 12;
 const METERS_PER_MILE = 1609.34;
 
 function rowToScored(r: any): { item: ScoredSchool; miles: number } {
