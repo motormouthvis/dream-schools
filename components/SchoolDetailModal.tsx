@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { scoreHex, scoreBadgeClass, scoreLabel } from "./score";
 import type { SchoolDetail } from "@/lib/types";
 
 export function SchoolDetailModal({
@@ -41,7 +40,7 @@ export function SchoolDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 backdrop-blur-sm sm:p-8"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-2 backdrop-blur-sm sm:p-8"
       onClick={onClose}
     >
       <div
@@ -74,7 +73,6 @@ function DetailBody({
   onClose: () => void;
   fairHousing: boolean;
 }) {
-  const s = detail.scores;
   const a = detail.attributes;
   const c = detail.contact;
   const addressLine = [c.street, [c.city, c.state].filter(Boolean).join(", "), c.zip]
@@ -105,13 +103,21 @@ function DetailBody({
         </button>
       </header>
 
-      <div className="max-h-[70vh] overflow-y-auto px-6 py-5">
-        {/* Scores */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <BigScore label="Overall" value={s.overall} primary />
-          <BigScore label="Academic" value={s.academic} />
-          <BigScore label="Safety" value={s.safety} />
-          <BigScore label="Scale" value={s.scale} />
+      <div className="max-h-[82vh] overflow-y-auto px-5 py-5 sm:max-h-[75vh] sm:px-6">
+        {/* GreatSchools-style 1-10 ratings */}
+        <div className="flex flex-wrap items-center gap-4">
+          <Rating10 label="Summary rating" value={detail.summaryRating} big />
+          {detail.testScores?.rating != null && (
+            <Rating10 label="Test scores" value={detail.testScores.rating} />
+          )}
+          {detail.collegeReadiness?.rating != null && (
+            <Rating10 label="College readiness" value={detail.collegeReadiness.rating} />
+          )}
+          {detail.summaryRating == null && (
+            <p className="text-xs text-slate-400">
+              Limited data — federal test/college metrics not reported for this school.
+            </p>
+          )}
         </div>
 
         {tags.length > 0 && (
@@ -125,6 +131,48 @@ function DetailBody({
               </span>
             ))}
           </div>
+        )}
+
+        {/* Test scores */}
+        {detail.testScores && (
+          <Section title={`Test scores${detail.testScores.year ? ` (${detail.testScores.year})` : ""}`}>
+            {detail.testScores.read != null && (
+              <Fact label="Reading/ELA proficient" value={`${detail.testScores.read}%`} />
+            )}
+            {detail.testScores.math != null && (
+              <Fact label="Math proficient" value={`${detail.testScores.math}%`} />
+            )}
+            <p className="col-span-2 mt-1 text-[11px] text-slate-400">
+              % of students proficient on state tests. Source: U.S. DOE EDFacts.
+            </p>
+          </Section>
+        )}
+
+        {/* College readiness (high schools) */}
+        {detail.collegeReadiness && (
+          <Section title="College readiness">
+            {detail.collegeReadiness.gradRate != null && (
+              <Fact label="4-year graduation rate" value={`${detail.collegeReadiness.gradRate}%`} />
+            )}
+            {detail.collegeReadiness.apIbPct != null && (
+              <Fact label="In AP / IB courses" value={`${detail.collegeReadiness.apIbPct}%`} />
+            )}
+            {detail.collegeReadiness.satActPct != null && (
+              <Fact label="Took SAT / ACT" value={`${detail.collegeReadiness.satActPct}%`} />
+            )}
+            <p className="col-span-2 mt-1 text-[11px] text-slate-400">Source: EDFacts + U.S. DOE CRDC.</p>
+          </Section>
+        )}
+
+        {/* Advanced courses */}
+        {detail.advanced && (detail.advanced.apPct || detail.advanced.ibPct || detail.advanced.giftedPct) && (
+          <Section title="Advanced courses">
+            {detail.advanced.apPct != null && <Fact label="AP enrollment" value={`${detail.advanced.apPct}%`} />}
+            {detail.advanced.ibPct != null && <Fact label="IB enrollment" value={`${detail.advanced.ibPct}%`} />}
+            {detail.advanced.giftedPct != null && (
+              <Fact label="Gifted & talented" value={`${detail.advanced.giftedPct}%`} />
+            )}
+          </Section>
         )}
 
         {/* Contact */}
@@ -149,11 +197,29 @@ function DetailBody({
             label="Chronic absenteeism"
             value={detail.chronicAbsentPct != null ? `${detail.chronicAbsentPct}%` : "Not reported"}
           />
-          {a.freeReducedLunchPct != null && (
-            <Fact label="Free/reduced lunch" value={`${a.freeReducedLunchPct}%`} />
+          {detail.students.lowIncomePct != null && (
+            <Fact label="Low-income students" value={`${detail.students.lowIncomePct}%`} />
+          )}
+          {detail.students.ellPct != null && (
+            <Fact label="English learners" value={`${detail.students.ellPct}%`} />
           )}
           {a.urbanicity && <Fact label="Setting" value={a.urbanicity} />}
           <Fact label="NCES ID" value={detail.ncesId} />
+        </Section>
+
+        {/* Teachers & staff */}
+        <Section title="Teachers & staff">
+          <Fact
+            label="Student-teacher ratio"
+            value={detail.teachers.ratio ? `${detail.teachers.ratio}:1` : "Not reported"}
+          />
+          {detail.teachers.certifiedPct != null && (
+            <Fact label="Certified teachers" value={`${detail.teachers.certifiedPct}%`} />
+          )}
+          {detail.teachers.counselors != null && detail.teachers.counselors > 0 && (
+            <Fact label="Counselors (FTE)" value={detail.teachers.counselors} />
+          )}
+          <Fact label="Security staff on site" value={detail.teachers.security ? "Yes" : "No"} />
         </Section>
 
         {/* Demographics (hidden in Fair Housing Compliant mode) */}
@@ -223,22 +289,33 @@ function DetailBody({
   );
 }
 
-function BigScore({ label, value, primary }: { label: string; value: number; primary?: boolean }) {
-  const color = scoreHex(value);
+function rating10Color(v: number): string {
+  if (v >= 8) return "#059669";
+  if (v >= 6) return "#65a30d";
+  if (v >= 4) return "#d97706";
+  return "#e11d48";
+}
+
+function Rating10({ label, value, big }: { label: string; value: number | null; big?: boolean }) {
+  if (value == null) return null;
+  const color = rating10Color(value);
   return (
-    <div
-      className={`rounded-xl p-3 text-center ${primary ? "bg-slate-50 ring-1 ring-slate-200" : ""}`}
-    >
-      <div className="text-2xl font-bold tabular-nums" style={{ color }}>
-        {value}
-      </div>
-      <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{label}</div>
+    <div className="flex items-center gap-2.5">
       <div
-        className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase ring-1 ring-inset ${scoreBadgeClass(
-          value
-        )}`}
+        className="flex items-center justify-center rounded-xl font-bold text-white"
+        style={{
+          backgroundColor: color,
+          width: big ? 56 : 44,
+          height: big ? 56 : 44,
+          fontSize: big ? 20 : 16,
+        }}
       >
-        {scoreLabel(value)}
+        {value}
+        <span className="text-[10px] font-medium opacity-80">/10</span>
+      </div>
+      <div>
+        <div className={`font-semibold text-slate-800 ${big ? "text-sm" : "text-xs"}`}>{label}</div>
+        <div className="text-[11px] text-slate-400">out of 10</div>
       </div>
     </div>
   );

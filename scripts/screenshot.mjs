@@ -10,7 +10,12 @@ const browser = await puppeteer.launch({
   args: ["--no-sandbox", "--disable-setuid-sandbox"],
 });
 const page = await browser.newPage();
-await page.setViewport({ width: 1100, height: 1400, deviceScaleFactor: 2 });
+const MOBILE = process.argv.includes("--mobile");
+await page.setViewport(
+  MOBILE
+    ? { width: 390, height: 844, deviceScaleFactor: 2, isMobile: true }
+    : { width: 1100, height: 1400, deviceScaleFactor: 2 }
+);
 await page.goto(URL, { waitUntil: "networkidle0", timeout: 60000 });
 // wait for the schools widget to render
 await page.waitForSelector("h2", { timeout: 30000 }).catch(() => {});

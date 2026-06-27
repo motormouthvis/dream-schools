@@ -135,6 +135,28 @@ export interface SchoolDetail {
   } | null;
   district: { districtId: string; name: string };
   scores: { overall: number; academic: number; safety: number; scale: number };
+  // GreatSchools-style 1-10 ratings + profile sections
+  summaryRating: number | null;
+  testScores: {
+    read: number | null;
+    math: number | null;
+    year: string | null;
+    rating: number | null;
+  } | null;
+  collegeReadiness: {
+    gradRate: number | null;
+    apIbPct: number | null;
+    satActPct: number | null;
+    rating: number | null;
+  } | null;
+  advanced: { apPct: number | null; ibPct: number | null; giftedPct: number | null } | null;
+  students: { lowIncomePct: number | null; ellPct: number | null };
+  teachers: {
+    ratio: number | null;
+    certifiedPct: number | null;
+    counselors: number | null;
+    security: boolean;
+  };
   safety: SafetyRecord | null;
   graduation: GraduationRecord | null;
 }

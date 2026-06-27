@@ -125,6 +125,21 @@ create table if not exists schools (
     enr_twomore             integer,
     enr_male                integer,
     enr_female              integer,
+    -- academics: state assessment proficiency (EDFacts)
+    test_read_prof          integer,
+    test_math_prof          integer,
+    test_year               text,
+    -- college readiness / advanced coursework (CRDC)
+    ap_enrolled             integer,
+    ib_enrolled             integer,
+    gifted_enrolled         integer,
+    sat_act_students        integer,
+    ell_students            integer,
+    -- teachers & staff (CRDC)
+    teachers_certified      numeric,
+    teachers_uncertified    numeric,
+    counselors_fte          numeric,
+    security_fte            numeric,
     geom                    geometry(Point, 4326)
 );
 create index if not exists schools_geom_idx on schools using gist (geom);
@@ -211,6 +226,28 @@ def num(v):
     except (TypeError, ValueError):
         return 0
     return int(round(f)) if f >= 0 else 0
+
+
+def numf(v):
+    """Float that preserves None for missing/suppressed (negative) values."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if f >= 0 else None
+
+
+def numn(v):
+    """Int that preserves None for missing/suppressed values."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return int(round(f)) if f >= 0 else None
+
+
+def blank(v):
+    return "" if v is None else v
 
 
 def grade_label(v):
@@ -341,6 +378,38 @@ def main():
         d = sex.setdefault(r["ncessch"], {})
         d[r.get("sex")] = num(r.get("enrollment"))
 
+    # --- Academics: state test proficiency (EDFacts assessments) -------------
+    # 2020 (2019-20) is the latest the API serves; 2018 (2017-18) is the most
+    # complete pre-COVID year. Use 2020 where present, fall back to 2018.
+    log("  Downloading EDFacts assessments (math/reading proficiency) ...")
+    assess = {}
+    for yr, label in ((2018, "2017-18"), (2020, "2019-20")):
+        try:
+            for r in http_get_all(f"/schools/edfacts/assessments/{yr}/grade-99/", filt, f"assess {yr}"):
+                rd = numn(r.get("read_test_pct_prof_midpt"))
+                mh = numn(r.get("math_test_pct_prof_midpt"))
+                if rd is not None or mh is not None:
+                    assess[r["ncessch"]] = (rd, mh, label)  # later year overwrites
+        except Exception as exc:
+            log(f"    [warn] assessments {yr} skipped: {exc}")
+
+    # --- College readiness / advanced coursework (CRDC) ----------------------
+    crdc_tot = dict(filt, race=99, sex=99, disability=99, lep=99)
+    log("  Downloading CRDC AP/IB/gifted enrollment ...")
+    apib = {}
+    for r in http_get_all(f"/schools/crdc/ap-ib-enrollment/{args.year_crdc}/race/sex/", crdc_tot, "ap/ib"):
+        apib[r["ncessch"]] = (num(r.get("enrl_AP")), num(r.get("enrl_IB")), num(r.get("enrl_gifted_talented")))
+    log("  Downloading CRDC SAT/ACT participation ...")
+    satact = {}
+    for r in http_get_all(f"/schools/crdc/sat-act-participation/{args.year_crdc}/race/sex/", crdc_tot, "sat/act"):
+        satact[r["ncessch"]] = num(r.get("students_SAT_ACT"))
+    log("  Downloading CRDC teachers & staff ...")
+    staff = {r["ncessch"]: r for r in http_get_all(f"/schools/crdc/teachers-staff/{args.year_crdc}/", filt, "staff")}
+    log("  Downloading CRDC English-learner enrollment ...")
+    ell = {}
+    for r in http_get_all(f"/schools/crdc/enrollment/{args.year_crdc}/lep/sex/", dict(filt, lep=1, sex=99), "ell"):
+        ell[r["ncessch"]] = num(r.get("enrollment_crdc"))
+
     log(f"  Download complete in {time.time()-t0:.0f}s. "
         f"Building rows for {len(directory):,} schools ...")
 
@@ -364,6 +433,8 @@ def main():
         geom = f"SRID=4326;POINT({lon} {lat})"
         rc = race.get(nces, {})
         sx = sex.get(nces, {})
+        av = assess.get(nces)        # (read, math, year) or None
+        ap = apib.get(nces)          # (ap, ib, gifted) or None
         def rget(code):
             v = rc.get(code)
             return v if v is not None else ""
@@ -383,6 +454,17 @@ def main():
             urbanicity_label(d.get("urban_centric_locale")) or "",
             rget(1), rget(2), rget(3), rget(4), rget(5), rget(6), rget(7),
             sx.get(1, ""), sx.get(2, ""),
+            # academics
+            blank(av[0]) if av else "", blank(av[1]) if av else "", (av[2] if av else ""),
+            # college readiness / advanced
+            blank(ap[0]) if ap else "", blank(ap[1]) if ap else "", blank(ap[2]) if ap else "",
+            satact.get(nces, ""),
+            ell.get(nces, ""),
+            # teachers & staff
+            blank(numf((staff.get(nces) or {}).get("teachers_certified_fte"))),
+            blank(numf((staff.get(nces) or {}).get("teachers_uncertified_fte"))),
+            blank(numf((staff.get(nces) or {}).get("counselors_fte"))),
+            blank(numf((staff.get(nces) or {}).get("security_guard_fte"))),
             geom,
         ])
 
@@ -437,6 +519,10 @@ def main():
                        "charter", "magnet", "title_i", "virtual", "free_reduced_lunch",
                        "urbanicity", "enr_white", "enr_black", "enr_hispanic", "enr_asian",
                        "enr_amerind", "enr_pacific", "enr_twomore", "enr_male", "enr_female",
+                       "test_read_prof", "test_math_prof", "test_year",
+                       "ap_enrolled", "ib_enrolled", "gifted_enrolled", "sat_act_students",
+                       "ell_students", "teachers_certified", "teachers_uncertified",
+                       "counselors_fte", "security_fte",
                        "geom"],
                       school_rows)
             log("  COPY school_safety ...")

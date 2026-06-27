@@ -1,6 +1,7 @@
 import { hasDatabase, getPool } from "@/lib/db";
 import { SCHOOLS, DISTRICT, safetyFor, graduationFor } from "@/lib/data";
-import { schoolScoreBreakdown, type ScoredSchool } from "@/lib/scoring";
+import { safetyScore, schoolScoreBreakdown, type ScoredSchool } from "@/lib/scoring";
+import { computeRatings } from "@/lib/ratings";
 import type {
   DemographicSlice,
   GraduationRecord,
@@ -23,6 +24,18 @@ interface Extra {
   freeReducedLunch?: number | null;
   race?: { white: number; black: number; hispanic: number; asian: number; amerind: number; pacific: number; twomore: number } | null;
   sex?: { male: number; female: number } | null;
+  testRead?: number | null;
+  testMath?: number | null;
+  testYear?: string | null;
+  apEnrolled?: number | null;
+  ibEnrolled?: number | null;
+  giftedEnrolled?: number | null;
+  satActStudents?: number | null;
+  ell?: number | null;
+  teachersCertified?: number | null;
+  teachersUncertified?: number | null;
+  counselors?: number | null;
+  security?: number | null;
 }
 
 function grades(low: string, high: string): string {
@@ -74,10 +87,26 @@ function toDetail(item: ScoredSchool, districtName: string, extra: Extra = {}): 
     };
   }
 
-  const lunchPct =
-    extra.freeReducedLunch != null && s.enrollment > 0
-      ? Math.min(100, Math.round((extra.freeReducedLunch / s.enrollment) * 100))
-      : null;
+  const isHigh = /(^|\b)(9|10|11|12)$/.test(s.gradeHigh) || s.gradeHigh === "12";
+  const ratings = computeRatings({
+    enrollment: s.enrollment,
+    isHigh,
+    testRead: extra.testRead ?? null,
+    testMath: extra.testMath ?? null,
+    testYear: extra.testYear ?? null,
+    gradRate: item.grad?.gradRate4yr ?? null,
+    apEnrolled: extra.apEnrolled ?? null,
+    ibEnrolled: extra.ibEnrolled ?? null,
+    giftedEnrolled: extra.giftedEnrolled ?? null,
+    satActStudents: extra.satActStudents ?? null,
+    freeReducedLunch: extra.freeReducedLunch ?? null,
+    ell: extra.ell ?? null,
+    teachersCertified: extra.teachersCertified ?? null,
+    teachersUncertified: extra.teachersUncertified ?? null,
+    counselors: extra.counselors ?? null,
+    security: extra.security ?? null,
+    safetyScore0to100: safetyScore(s, item.safety),
+  });
 
   return {
     ncesId: s.ncesId,
@@ -106,11 +135,22 @@ function toDetail(item: ScoredSchool, districtName: string, extra: Extra = {}): 
       titleI: extra.titleI ?? null,
       virtual: extra.virtual ?? null,
       urbanicity: extra.urbanicity ?? null,
-      freeReducedLunchPct: lunchPct,
+      freeReducedLunchPct: ratings.students.lowIncomePct,
     },
     demographics,
     district: { districtId: s.districtId, name: districtName },
     scores: schoolScoreBreakdown(item),
+    summaryRating: ratings.summaryRating,
+    testScores: ratings.testScores,
+    collegeReadiness: ratings.collegeReadiness,
+    advanced: ratings.advanced,
+    students: ratings.students,
+    teachers: {
+      ratio: s.studentTeacherRatio ?? null,
+      certifiedPct: ratings.teachers.certifiedPct,
+      counselors: ratings.teachers.counselors,
+      security: ratings.teachers.security,
+    },
     safety: item.safety ?? null,
     graduation: item.grad ?? null,
   };
@@ -126,6 +166,9 @@ async function getFromDb(ncesId: string): Promise<SchoolDetail | null> {
         s.free_reduced_lunch, s.urbanicity,
         s.enr_white, s.enr_black, s.enr_hispanic, s.enr_asian, s.enr_amerind,
         s.enr_pacific, s.enr_twomore, s.enr_male, s.enr_female,
+        s.test_read_prof, s.test_math_prof, s.test_year,
+        s.ap_enrolled, s.ib_enrolled, s.gifted_enrolled, s.sat_act_students, s.ell_students,
+        s.teachers_certified, s.teachers_uncertified, s.counselors_fte, s.security_fte,
         ST_Y(s.geom) as lat, ST_X(s.geom) as lon,
         coalesce(d.name, s.district_id) as district_name,
         sf.nces_id as s_nces_id, sf.school_year as s_school_year, sf.source as s_source,
@@ -209,6 +252,18 @@ async function getFromDb(ncesId: string): Promise<SchoolDetail | null> {
       twomore: r.enr_twomore ?? 0,
     },
     sex: { male: r.enr_male ?? 0, female: r.enr_female ?? 0 },
+    testRead: r.test_read_prof,
+    testMath: r.test_math_prof,
+    testYear: r.test_year,
+    apEnrolled: r.ap_enrolled,
+    ibEnrolled: r.ib_enrolled,
+    giftedEnrolled: r.gifted_enrolled,
+    satActStudents: r.sat_act_students,
+    ell: r.ell_students,
+    teachersCertified: r.teachers_certified != null ? Number(r.teachers_certified) : null,
+    teachersUncertified: r.teachers_uncertified != null ? Number(r.teachers_uncertified) : null,
+    counselors: r.counselors_fte != null ? Number(r.counselors_fte) : null,
+    security: r.security_fte != null ? Number(r.security_fte) : null,
   };
   const districtName =
     r.district_name || (r.level === "private" ? "Private school" : r.district_id);
