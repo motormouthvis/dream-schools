@@ -1,8 +1,22 @@
+"use client";
+
+import { useState } from "react";
+import dynamic from "next/dynamic";
 import { ScoreGauge } from "./ScoreGauge";
 import { CategoryCard } from "./CategoryCard";
 import { SafetySection } from "./SafetySection";
 import { NearbySchools } from "./NearbySchools";
+import { SchoolDetailModal } from "./SchoolDetailModal";
 import type { LookupResult } from "@/lib/types";
+
+const MapView = dynamic(() => import("./MapView").then((m) => m.MapView), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-80 w-full items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-sm text-slate-400">
+      Loading map…
+    </div>
+  ),
+});
 
 export function SchoolsTab({
   data,
@@ -14,6 +28,7 @@ export function SchoolsTab({
   fairHousing?: boolean;
 }) {
   const { district, categories, geocode } = data;
+  const [openId, setOpenId] = useState<string | null>(null);
 
   return (
     <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/60">
@@ -39,12 +54,28 @@ export function SchoolsTab({
       </header>
 
       <div className="px-6 py-6 sm:px-8">
+        {/* Map */}
+        <div className="mb-7">
+          <MapView data={data} onSelectSchool={setOpenId} />
+          <p className="mt-1.5 text-center text-[11px] text-slate-400">
+            Green/colored pins = public schools (by score) · amber = private · blue dot = your
+            address · shaded area = {district.name}. Click a pin for full data.
+          </p>
+        </div>
+
+        {/* Area quality summary */}
+        <div className="rounded-2xl bg-brand-50 p-4 text-center text-sm text-brand-900 ring-1 ring-inset ring-brand-600/15">
+          <strong>Area summary.</strong> The score and three categories below summarize the{" "}
+          <strong>public schools that serve this address</strong> (within ~10 miles), not a single
+          school. Individual schools are listed further down.
+        </div>
+
         {/* Overall quality score */}
-        <div className="flex flex-col items-center gap-5 rounded-2xl bg-slate-50 p-5 sm:flex-row sm:items-center sm:gap-7">
+        <div className="mt-4 flex flex-col items-center gap-5 rounded-2xl bg-slate-50 p-5 sm:flex-row sm:items-center sm:gap-7">
           <ScoreGauge score={data.overallScore} />
           <div className="text-center sm:text-left">
             <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
-              Overall quality score
+              Area quality score
             </p>
             <p className="mt-1 text-3xl font-bold text-slate-900">
               {data.overallScore}
@@ -56,7 +87,7 @@ export function SchoolsTab({
 
         {/* Three category section */}
         <h3 className="mb-3 mt-7 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Quality index
+          Area quality index
         </h3>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <CategoryCard category={categories.academic} />
@@ -66,7 +97,7 @@ export function SchoolsTab({
 
         {/* Nearby schools */}
         <div className="mt-6">
-          <NearbySchools schools={data.nearbySchools} fairHousing={fairHousing} />
+          <NearbySchools schools={data.nearbySchools} onSelect={setOpenId} />
         </div>
 
         {/* Footer note */}
@@ -79,6 +110,14 @@ export function SchoolsTab({
           All figures are real, per-school federal data.
         </p>
       </div>
+
+      {openId && (
+        <SchoolDetailModal
+          ncesId={openId}
+          fairHousing={fairHousing}
+          onClose={() => setOpenId(null)}
+        />
+      )}
     </section>
   );
 }

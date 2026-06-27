@@ -1,6 +1,7 @@
 import { areaScores, quickSchoolScore, type ScoredSchool } from "@/lib/scoring";
 import type {
   GeocodeResult,
+  GeoJsonGeometry,
   LookupResult,
   NearbySchool,
   SafetyDetail,
@@ -32,6 +33,7 @@ export function buildResult(params: {
   district: DistrictInfo;
   areaItems: ScoredSchool[]; // schools serving the area (for the 3-category index)
   nearby: { item: ScoredSchool; miles: number }[]; // closest schools, sorted asc
+  districtBoundary?: GeoJsonGeometry | null;
 }): LookupResult {
   const { query, geocode, district, areaItems, nearby } = params;
   const scores = areaScores(areaItems);
@@ -40,11 +42,14 @@ export function buildResult(params: {
     ncesId: item.school.ncesId,
     name: item.school.name,
     type: item.school.type,
+    level: item.school.level ?? "public",
     grades: grades(item.school),
     zip: item.school.zip,
     miles: Math.round(miles * 10) / 10,
     score: quickSchoolScore(item),
     enrollment: item.school.enrollment,
+    lat: item.school.lat,
+    lon: item.school.lon,
   }));
 
   const safetyDetails: SafetyDetail[] = nearby
@@ -109,5 +114,7 @@ export function buildResult(params: {
     },
     safetyDetails,
     nearbySchools,
+    center: { lat: geocode.lat, lon: geocode.lon },
+    districtBoundary: params.districtBoundary ?? null,
   };
 }

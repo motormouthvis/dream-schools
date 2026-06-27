@@ -20,6 +20,7 @@ export interface School {
   ncesId: string;
   name: string;
   type: string;
+  level?: string;
   gradeLow: string;
   gradeHigh: string;
   zip: string;
@@ -70,11 +71,14 @@ export interface NearbySchool {
   ncesId: string;
   name: string;
   type: string;
+  level: string;
   grades: string;
   zip: string;
   miles: number;
   score: number;
   enrollment: number;
+  lat: number;
+  lon: number;
 }
 
 export interface CategoryScore {
@@ -160,4 +164,12 @@ export interface LookupResult {
   };
   safetyDetails: SafetyDetail[];
   nearbySchools: NearbySchool[];
+  // For the map: the searched point and the resolved district boundary (GeoJSON
+  // geometry, may be null if boundaries aren't loaded for that district).
+  center: { lat: number; lon: number };
+  districtBoundary: GeoJsonGeometry | null;
 }
+
+export type GeoJsonGeometry =
+  | { type: "Polygon"; coordinates: number[][][] }
+  | { type: "MultiPolygon"; coordinates: number[][][][] };

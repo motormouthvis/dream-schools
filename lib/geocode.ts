@@ -42,7 +42,7 @@ function zipFallback(address: string): GeocodeResult | null {
   };
 }
 
-export async function geocode(address: string): Promise<GeocodeResult | null> {
+async function censusGeocode(address: string): Promise<GeocodeResult | null> {
   const params = new URLSearchParams({
     address,
     benchmark: "Public_AR_Current",
@@ -77,7 +77,52 @@ export async function geocode(address: string): Promise<GeocodeResult | null> {
       }
     }
   } catch {
-    // network unavailable / timed out — fall through to zip centroid
+    // fall through
   }
-  return zipFallback(address);
+  return null;
+}
+
+// Photon (OpenStreetMap) — covers places/streets the Census file may miss.
+async function photonGeocode(address: string): Promise<GeocodeResult | null> {
+  try {
+    const params = new URLSearchParams({ q: address, limit: "1", lang: "en", lat: "39.5", lon: "-98.35" });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(`https://photon.komoot.io/api/?${params.toString()}`, {
+      signal: controller.signal,
+      headers: { Accept: "application/json" },
+    });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const json = (await res.json()) as any;
+    const f = (json.features ?? []).find((x: any) => x.properties?.countrycode === "US");
+    if (!f) return null;
+    const [lon, lat] = f.geometry?.coordinates ?? [];
+    if (typeof lat !== "number" || typeof lon !== "number") return null;
+    const p = f.properties ?? {};
+    const line1 = [p.housenumber, p.street || p.name].filter(Boolean).join(" ");
+    const matched = [line1, [p.city, p.state].filter(Boolean).join(", "), p.postcode]
+      .filter(Boolean)
+      .join(", ");
+    return {
+      matchedAddress: matched || address,
+      lat,
+      lon,
+      zip: p.postcode ?? "",
+      source: "census",
+      approximate: false,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function geocode(address: string): Promise<GeocodeResult | null> {
+  // Census is best for US street addresses; Photon covers gaps; zip-centroid is
+  // the last resort for the offline demo.
+  return (
+    (await censusGeocode(address)) ??
+    (await photonGeocode(address)) ??
+    zipFallback(address)
+  );
 }

@@ -11,23 +11,6 @@ interface Suggestion {
   zip: string;
 }
 
-const DEMO_ADDRESSES = [
-  "1500 N 23rd St, Fort Pierce, FL 34950",
-  "2901 S 25th St, Fort Pierce, FL 34981",
-  "1801 Panther Ln, Fort Pierce, FL 34947",
-  "1485 SW Cashmere Blvd, Port St. Lucie, FL 34986",
-  "Lennard Rd, Port St. Lucie, FL 34983",
-  "Tradition, Port St. Lucie, FL 34987",
-];
-
-const NATIONWIDE_ADDRESSES = [
-  "233 S Wacker Dr, Chicago, IL 60606",
-  "1 Dr Carlton B Goodlett Pl, San Francisco, CA 94102",
-  "1600 Pennsylvania Ave NW, Washington, DC 20500",
-  "350 5th Ave, New York, NY 10118",
-  "1500 N 23rd St, Fort Pierce, FL 34950",
-];
-
 export default function Home() {
   const [address, setAddress] = useState("");
   const [data, setData] = useState<LookupResult | null>(null);
@@ -41,7 +24,6 @@ export default function Home() {
   const [nationwide, setNationwide] = useState(false);
   const [audience, setAudience] = useState<"full" | "fairhousing">("full");
   const fairHousing = audience === "fairhousing";
-  const sampleAddresses = nationwide ? NATIONWIDE_ADDRESSES : DEMO_ADDRESSES;
 
   useEffect(() => {
     fetch("/api/health")
@@ -222,23 +204,6 @@ export default function Home() {
           {loading ? "Searching…" : "Search"}
         </button>
       </form>
-
-      <div className="mx-auto mt-3 flex max-w-2xl flex-wrap gap-2">
-        <span className="self-center text-xs text-slate-400">Try:</span>
-        {sampleAddresses.map((a) => (
-          <button
-            key={a}
-            type="button"
-            onClick={() => {
-              setAddress(a);
-              runLookup(a);
-            }}
-            className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
-          >
-            {a.split(",")[0]} · {a.match(/3\d{4}/)?.[0]}
-          </button>
-        ))}
-      </div>
 
       <div className="mt-8">
         {loading && (

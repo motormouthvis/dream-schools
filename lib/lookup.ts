@@ -59,5 +59,6 @@ export async function lookupAddress(
     },
     areaItems,
     nearby,
+    districtBoundary: DISTRICT.geometry,
   });
 }

@@ -25,6 +25,7 @@ function rowToScored(r: any): { item: ScoredSchool; miles: number } {
     lat: r.lat,
     lon: r.lon,
     enrollment: r.enrollment,
+    level: r.level ?? "public",
     studentTeacherRatio: r.student_teacher_ratio != null ? Number(r.student_teacher_ratio) : null,
     chronicAbsentStudents: r.chronic_absent_students,
     districtId: r.district_id,
@@ -59,7 +60,7 @@ function rowToScored(r: any): { item: ScoredSchool; miles: number } {
 }
 
 const SELECT = `
-  s.nces_id, s.name, s.type, s.grade_low, s.grade_high, s.zip, s.district_id,
+  s.nces_id, s.name, s.type, s.level, s.grade_low, s.grade_high, s.zip, s.district_id,
   s.enrollment, s.student_teacher_ratio, s.chronic_absent_students,
   ST_Y(s.geom) as lat, ST_X(s.geom) as lon,
   ST_Distance(s.geom::geography, $1::geography) / ${METERS_PER_MILE} as miles,
@@ -149,5 +150,25 @@ export async function lookupAddressDb(
     inDistrict,
   };
 
-  return buildResult({ query: address, geocode: geo, district: info, areaItems, nearby });
+  // District boundary for the map (simplified GeoJSON to keep payload small).
+  let districtBoundary = null;
+  try {
+    const bRes = await pool.query(
+      `select ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom, 0.002)) as gj
+         from school_districts where district_id = $1 and geom is not null`,
+      [district.district_id]
+    );
+    if (bRes.rows[0]?.gj) districtBoundary = JSON.parse(bRes.rows[0].gj);
+  } catch {
+    // boundary optional
+  }
+
+  return buildResult({
+    query: address,
+    geocode: geo,
+    district: info,
+    areaItems,
+    nearby,
+    districtBoundary,
+  });
 }
