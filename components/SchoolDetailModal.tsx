@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { SchoolDetail } from "@/lib/types";
+import { Reviews } from "./Reviews";
 
 export function SchoolDetailModal({
   ncesId,
@@ -284,6 +285,8 @@ function DetailBody({
             <p className="col-span-2 text-sm text-slate-400">No safety data reported for this school.</p>
           )}
         </Section>
+
+        <Reviews ncesId={detail.ncesId} />
       </div>
     </>
   );
