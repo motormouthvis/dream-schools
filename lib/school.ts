@@ -57,9 +57,14 @@ function slices(
 
 function toDetail(item: ScoredSchool, districtName: string, extra: Extra = {}): SchoolDetail {
   const s = item.school;
+  // Chronic absenteeism: CRDC counts vs CCD enrollment can mismatch for
+  // alternative/charter schools, yielding implausible >100% values. Suppress
+  // those rather than show a misleading 100%.
   const chronicPct =
-    s.chronicAbsentStudents != null && s.enrollment > 0
-      ? Math.min(100, Math.round((s.chronicAbsentStudents / s.enrollment) * 100))
+    s.chronicAbsentStudents != null &&
+    s.enrollment > 0 &&
+    s.chronicAbsentStudents <= s.enrollment
+      ? Math.round((s.chronicAbsentStudents / s.enrollment) * 100)
       : null;
 
   let demographics: SchoolDetail["demographics"] = null;

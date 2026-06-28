@@ -7,6 +7,7 @@ import { CategoryCard } from "./CategoryCard";
 import { SafetySection } from "./SafetySection";
 import { NearbySchools } from "./NearbySchools";
 import { SchoolDetailModal } from "./SchoolDetailModal";
+import { CompareModal } from "./CompareModal";
 import type { LookupResult } from "@/lib/types";
 
 const MapView = dynamic(() => import("./MapView").then((m) => m.MapView), {
@@ -40,6 +41,19 @@ export function SchoolsTab({
   const { district, categories, geocode } = data;
   const [openId, setOpenId] = useState<string | null>(null);
   const [showArea, setShowArea] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [compareOpen, setCompareOpen] = useState(false);
+
+  function toggleCompare(ncesId: string) {
+    setCompareIds((prev) =>
+      prev.includes(ncesId)
+        ? prev.filter((id) => id !== ncesId)
+        : prev.length >= 3
+        ? prev
+        : [...prev, ncesId]
+    );
+  }
 
   return (
     <section className="space-y-5">
@@ -68,18 +82,42 @@ export function SchoolsTab({
         </div>
       </header>
 
-      {/* Map */}
-      <div>
-        <MapView data={data} onSelectSchool={setOpenId} />
-        <p className="mt-2 px-1 text-center text-[11px] leading-relaxed text-slate-400">
-          📍 your address · colored pins = public (by score) · 🟠 private · shaded = {district.name}
-        </p>
+      {/* Map — collapsed by default; pins are numbered to match the list */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <button
+          type="button"
+          onClick={() => setShowMap((v) => !v)}
+          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+          aria-expanded={showMap}
+        >
+          <span className="flex items-center gap-2.5">
+            <span className="h-5 w-1.5 rounded-full bg-brand-500" />
+            <span className="text-base font-bold text-slate-900">Map of these schools</span>
+          </span>
+          <span className={`text-brand-500 transition-transform ${showMap ? "rotate-180" : ""}`}>▾</span>
+        </button>
+        {showMap && (
+          <div className="px-3 pb-3">
+            <MapView data={data} onSelectSchool={setOpenId} />
+            <p className="mt-2 px-1 text-center text-[11px] leading-relaxed text-slate-400">
+              Numbered pins match the list below · 📍 your address · 🟠 private · shaded ={" "}
+              {district.name}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* PRIMARY: schools near you */}
       <div>
-        <SectionTitle hint="tap any school for full details">Schools near you</SectionTitle>
-        <NearbySchools schools={data.nearbySchools} onSelect={setOpenId} />
+        <SectionTitle hint="tap a school for details · check boxes to compare">
+          Schools near you
+        </SectionTitle>
+        <NearbySchools
+          schools={data.nearbySchools}
+          onSelect={setOpenId}
+          compareIds={compareIds}
+          onToggleCompare={toggleCompare}
+        />
       </div>
 
       {/* SECONDARY: neighborhood overview (collapsible) */}
@@ -124,6 +162,43 @@ export function SchoolsTab({
           ncesId={openId}
           fairHousing={fairHousing}
           onClose={() => setOpenId(null)}
+        />
+      )}
+
+      {/* Compare bar */}
+      {compareIds.length > 0 && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] backdrop-blur">
+          <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
+            <span className="text-sm font-semibold text-slate-700">
+              {compareIds.length} selected{" "}
+              <span className="font-normal text-slate-400">(up to 3)</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCompareIds([])}
+                className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={() => setCompareOpen(true)}
+                disabled={compareIds.length < 2}
+                className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-50"
+              >
+                Compare {compareIds.length} schools
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {compareOpen && (
+        <CompareModal
+          ncesIds={compareIds}
+          fairHousing={fairHousing}
+          onClose={() => setCompareOpen(false)}
         />
       )}
     </section>

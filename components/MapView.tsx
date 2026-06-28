@@ -62,30 +62,31 @@ export function MapView({
       }).addTo(map);
       home.bindPopup(`<b>Your address</b><br/>${escapeHtml(data.geocode.matchedAddress)}`);
 
-      // School markers.
+      // School markers — labeled with the same number as the list below.
       const bounds = L.latLngBounds([[data.center.lat, data.center.lon]]);
-      for (const s of data.nearbySchools) {
-        if (!Number.isFinite(s.lat) || !Number.isFinite(s.lon)) continue;
+      data.nearbySchools.forEach((s, i) => {
+        if (!Number.isFinite(s.lat) || !Number.isFinite(s.lon)) return;
         const isPrivate = s.level === "private";
+        const num = i + 1;
         const marker = L.marker([s.lat, s.lon], {
           icon: L.divIcon({
             className: "",
             html: `<div style="background:${
               isPrivate ? "#d97706" : scoreHex(s.score)
-            };color:#fff;border:2px solid #fff;border-radius:9999px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.4)">${s.score}</div>`,
-            iconSize: [26, 26],
-            iconAnchor: [13, 13],
+            };color:#fff;border:2px solid #fff;border-radius:9999px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;box-shadow:0 1px 3px rgba(0,0,0,.4)">${num}</div>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
           }),
         }).addTo(map);
         marker.bindPopup(
-          `<b>${escapeHtml(s.name)}</b><br/>${escapeHtml(s.type)} · Grades ${escapeHtml(
+          `<b>${num}. ${escapeHtml(s.name)}</b><br/>${escapeHtml(s.type)} · Grades ${escapeHtml(
             s.grades
-          )}<br/>${s.miles} mi · score ${s.score}<br/><a href="#" data-nces="${
+          )}<br/>${s.miles} mi · score ${s.score}/100<br/><a href="#" data-nces="${
             s.ncesId
           }" class="dn-school-link" style="color:#12854c;font-weight:600">View full data →</a>`
         );
         bounds.extend([s.lat, s.lon]);
-      }
+      });
 
       map.fitBounds(bounds.pad(0.2), { maxZoom: 14 });
 
