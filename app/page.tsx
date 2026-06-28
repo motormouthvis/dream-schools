@@ -159,7 +159,9 @@ export default function Home() {
     <main className="mx-auto max-w-4xl px-4 pb-16 pt-4">
       {/* Top bar: logo + settings hamburger */}
       <div className="flex items-center justify-between">
-        <Logo />
+        <a href="/" aria-label="Dream Neighborhood — home" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+          <Logo />
+        </a>
         <SettingsMenu
           view={view}
           onView={setView}

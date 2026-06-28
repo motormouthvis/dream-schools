@@ -37,7 +37,7 @@ export function Showcase() {
         <img
           src="/showcase.png"
           alt="Neighborhood with a school and children"
-          className="aspect-[3/2] w-full object-cover"
+          className="aspect-[2/1] w-full object-cover object-[center_72%]"
         />
 
         {/* Sample data bubbles (illustrative values) over the open sky */}
@@ -63,8 +63,11 @@ export function Showcase() {
         />
       </div>
       <p className="mx-auto mt-3 max-w-xl px-2 text-center text-sm text-slate-500">
-        Search any address to see <strong className="text-slate-700">real ratings, test scores,
-        graduation, safety</strong> and more for every nearby public &amp; private school.
+        Search any address to see{" "}
+        <strong className="text-slate-700">
+          real ratings, test scores, graduation, and safety data
+        </strong>{" "}
+        for every nearby public &amp; private school.
         <span className="block text-[11px] text-slate-400">Sample values shown.</span>
       </p>
     </div>
