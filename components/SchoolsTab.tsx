@@ -70,11 +70,32 @@ export function SchoolsTab({
         <div className="mb-3 flex items-center gap-2.5">
           <span className="h-5 w-1.5 rounded-full bg-brand-500" />
           <h3 className="text-base font-bold text-slate-900 sm:text-lg">Schools near you</h3>
-          <span className="ml-auto text-xs text-slate-400">
+          <span className="ml-auto hidden text-xs text-slate-400 sm:inline">
             {view === "map"
               ? `${visibleSchools.length} nearby`
               : `${Math.min(listLimit, visibleSchools.length)} of ${visibleSchools.length} nearest`}
           </span>
+          {/* List / Map toggle */}
+          <div className="ml-auto inline-flex rounded-full bg-slate-100 p-0.5 text-xs font-semibold sm:ml-2">
+            <button
+              type="button"
+              onClick={() => onViewChange("list")}
+              className={`rounded-full px-3 py-1.5 transition ${
+                view === "list" ? "bg-white text-brand-700 shadow-sm" : "text-slate-500"
+              }`}
+            >
+              List
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewChange("map")}
+              className={`rounded-full px-3 py-1.5 transition ${
+                view === "map" ? "bg-white text-brand-700 shadow-sm" : "text-slate-500"
+              }`}
+            >
+              Map
+            </button>
+          </div>
         </div>
 
         {view === "list" && (
