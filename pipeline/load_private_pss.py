@@ -141,6 +141,12 @@ def main():
         high = grade_label(col(r, "HIGR2022"))
         males = to_int(col(r, "MALES"))
         females = (enr - males) if (males is not None and enr >= males) else None
+        # Student-teacher ratio from PSS FTE teacher count (NUMTEACH).
+        try:
+            nt = float(col(r, "NUMTEACH"))
+            ratio = round(enr / nt, 1) if nt > 0 else ""
+        except (TypeError, ValueError):
+            ratio = ""
 
         def race(c):
             v = to_int(col(r, c))
@@ -149,7 +155,7 @@ def main():
         out.append([
             f"PSS{ppin}", titlecase(col(r, "PINST") or ""), stype, "private",
             low or "", high or "", (col(r, "PZIP") or "")[:5], "",  # district_id null
-            enr, "",  # student_teacher_ratio null
+            enr, ratio,  # student_teacher_ratio from NUMTEACH
             "",  # chronic_absent_students null
             titlecase(col(r, "PADDRS") or "") or "", titlecase(col(r, "PCITY") or "") or "",
             col(r, "PSTABB") or "", fmt_phone(col(r, "PPHONE")) or "",
