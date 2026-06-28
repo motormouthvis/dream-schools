@@ -2,7 +2,7 @@
 
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
-import type { LookupResult } from "@/lib/types";
+import type { LookupResult, NearbySchool } from "@/lib/types";
 import { scoreHex } from "./score";
 
 // Vanilla Leaflet (free OpenStreetMap tiles, no API key). Loaded only on the
@@ -11,13 +11,16 @@ import { scoreHex } from "./score";
 // marker opens its full detail via the provided callback.
 export function MapView({
   data,
+  schools,
   onSelectSchool,
   heightClass = "h-80",
 }: {
   data: LookupResult;
+  schools?: NearbySchool[];
   onSelectSchool: (ncesId: string) => void;
   heightClass?: string;
 }) {
+  const pins = schools ?? data.nearbySchools;
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
 
@@ -71,7 +74,7 @@ export function MapView({
 
       // School markers — labeled with the same number as the list below.
       const bounds = L.latLngBounds([[data.center.lat, data.center.lon]]);
-      data.nearbySchools.forEach((s, i) => {
+      pins.forEach((s, i) => {
         if (!Number.isFinite(s.lat) || !Number.isFinite(s.lon)) return;
         const isPrivate = s.level === "private";
         const num = i + 1;
@@ -110,7 +113,7 @@ export function MapView({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  }, [data, pins]);
 
   return (
     <div

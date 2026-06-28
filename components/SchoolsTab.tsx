@@ -39,6 +39,7 @@ export function SchoolsTab({
   const [compareOpen, setCompareOpen] = useState(false);
   const [sortBy, setSortBy] = useState<"distance" | "rating">("distance");
   const [filterLevel, setFilterLevel] = useState<"all" | "public" | "private">("all");
+  const [listLimit, setListLimit] = useState(12);
 
   function toggleCompare(ncesId: string) {
     setCompareIds((prev) =>
@@ -69,7 +70,11 @@ export function SchoolsTab({
         <div className="mb-3 flex items-center gap-2.5">
           <span className="h-5 w-1.5 rounded-full bg-brand-500" />
           <h3 className="text-base font-bold text-slate-900 sm:text-lg">Schools near you</h3>
-          <span className="ml-auto text-xs text-slate-400">{view === "map" ? "map" : `${visibleSchools.length} shown`}</span>
+          <span className="ml-auto text-xs text-slate-400">
+            {view === "map"
+              ? `${visibleSchools.length} nearby`
+              : `${Math.min(listLimit, visibleSchools.length)} of ${visibleSchools.length} nearest`}
+          </span>
         </div>
 
         {view === "list" && (
@@ -96,12 +101,24 @@ export function SchoolsTab({
 
         {view === "list" ? (
           visibleSchools.length > 0 ? (
-            <NearbySchools
-              schools={visibleSchools}
-              onSelect={setOpenId}
-              compareIds={compareIds}
-              onToggleCompare={toggleCompare}
-            />
+            <>
+              <NearbySchools
+                schools={visibleSchools.slice(0, listLimit)}
+                onSelect={setOpenId}
+                compareIds={compareIds}
+                onToggleCompare={toggleCompare}
+              />
+              {visibleSchools.length > listLimit && (
+                <button
+                  type="button"
+                  onClick={() => setListLimit((n) => n + 12)}
+                  className="mt-3 w-full rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-brand-700 shadow-sm transition hover:bg-brand-50"
+                >
+                  Show {Math.min(12, visibleSchools.length - listLimit)} more
+                  {" "}({visibleSchools.length - listLimit} more nearby)
+                </button>
+              )}
+            </>
           ) : (
             <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-400">
               No {filterLevel} schools in this area.
@@ -109,10 +126,15 @@ export function SchoolsTab({
           )
         ) : (
           <div>
-            <MapView data={data} onSelectSchool={setOpenId} heightClass="h-[62vh] min-h-[380px]" />
+            <MapView
+              data={data}
+              schools={visibleSchools}
+              onSelectSchool={setOpenId}
+              heightClass="h-[62vh] min-h-[380px]"
+            />
             <p className="mt-2 px-1 text-center text-[11px] leading-relaxed text-slate-400">
-              Tap a numbered pin for that school&apos;s full details · 📍 your address · 🟠 private ·
-              shaded area = {district.name}
+              Showing the {visibleSchools.length} nearest schools · tap a numbered pin for details ·
+              📍 your address · 🟠 private · shaded area = {district.name}
             </p>
           </div>
         )}
