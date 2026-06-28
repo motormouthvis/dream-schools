@@ -79,6 +79,14 @@ function DetailBody({
   const a = detail.attributes;
   const c = detail.contact;
   const b = detail.benchmarks;
+  const isPrivate = detail.level === "private";
+  const lowG = gradeNum(detail.gradeLow);
+  const highG = gradeNum(detail.gradeHigh);
+  // Only high schools have AP/IB/SAT/graduation outcomes; combo schools (e.g.
+  // K-12) serve those grades alongside lower ones, so we annotate rather than hide.
+  const servesHigh = highG != null && highG >= 9;
+  const isCombo = servesHigh && lowG != null && lowG <= 6;
+  const hsNote = isCombo ? "Reflects high-school grades only." : null;
   const reportHref =
     `mailto:corrections@dreamneighborhood.com` +
     `?subject=${encodeURIComponent(`Data correction: ${detail.name} (NCES ${detail.ncesId})`)}` +
@@ -148,37 +156,42 @@ function DetailBody({
       )}
 
       <div className="max-h-[82vh] overflow-y-auto px-5 py-5 sm:max-h-[75vh] sm:px-6">
-        {/* 1-10 Dream Rating, with context + data-coverage */}
+        {/* Dream Rating — plain-language header + interpretive 1-10 scores */}
         <div className="rounded-xl bg-brand-50 p-3.5 ring-1 ring-inset ring-brand-600/15">
           <div className="mb-2.5 flex items-start justify-between gap-2">
-            <p className="text-[11px] font-medium leading-relaxed text-brand-900">
-              Ratings are on a <strong>1–10 scale (10 = best)</strong> — higher means stronger.
-            </p>
-            <RatingInfo coverage={detail.coverage} />
+            <div>
+              <p className="text-sm font-bold leading-tight text-brand-900">Dream Rating</p>
+              <p className="text-[11px] leading-relaxed text-brand-900/70">
+                Our 1–10 score (10 = best). 1–3 below average · 4–7 average · 8–10 above average.
+              </p>
+            </div>
+            <RatingInfo coverage={detail.coverage} isPrivate={isPrivate} />
           </div>
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-            <Rating10 label="Overall" desc="combined quality" value={detail.summaryRating} big />
+            <Rating10 label="Overall" value={detail.summaryRating} big />
             {detail.testScores?.rating != null && (
-              <Rating10 label="Test scores" desc="state test proficiency" value={detail.testScores.rating} />
+              <Rating10 label="Test scores" value={detail.testScores.rating} />
             )}
-            {detail.collegeReadiness?.rating != null && (
-              <Rating10
-                label="College ready"
-                desc="grad + AP/IB + SAT/ACT"
-                value={detail.collegeReadiness.rating}
-              />
+            {servesHigh && detail.collegeReadiness?.rating != null && (
+              <Rating10 label="College readiness" value={detail.collegeReadiness.rating} />
             )}
           </div>
-          {/* Data-coverage indicator (Option 3) */}
-          <div className="mt-2.5 flex items-center gap-2">
-            <CoverageDots available={detail.coverage.available} total={detail.coverage.total} />
-            <span className="text-[11px] font-medium text-brand-900/80">
-              {detail.summaryRating == null
-                ? "Limited data — no outcome measures reported"
-                : `Based on ${detail.coverage.available} of ${detail.coverage.total} outcome measures`}
-            </span>
-          </div>
+          {/* Plain-language confidence + what the rating is based on */}
+          <ConfidenceLine
+            summaryRating={detail.summaryRating}
+            coverage={detail.coverage}
+            isPrivate={isPrivate}
+          />
         </div>
+
+        {isPrivate && (
+          <div className="mt-3 rounded-xl bg-amber-50 p-3 text-[12px] leading-relaxed text-amber-900 ring-1 ring-inset ring-amber-500/25">
+            <strong>Private school — limited data.</strong> The federal government doesn&apos;t
+            collect test scores, graduation, or safety records for most private schools, so this
+            profile shows only what schools self-report (enrollment, grades, student-teacher ratio).
+            Contact the school directly for academic results.
+          </div>
+        )}
 
         {tags.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
@@ -194,125 +207,97 @@ function DetailBody({
         )}
 
         {/* Test scores */}
-        {detail.testScores && (
+        {detail.testScores && (detail.testScores.read != null || detail.testScores.math != null) && (
           <Section title={`Test scores${detail.testScores.year ? ` · ${detail.testScores.year}` : ""}`}>
             {detail.testScores.read != null && (
-              <Fact
-                label="Reading proficiency"
-                value={`${detail.testScores.read}%`}
+              <MetricBar
+                label="Reading at grade level"
+                value={detail.testScores.read}
+                unit="%"
+                max={100}
                 color={tone(detail.testScores.read, 60, 35)}
-                sub={bench(b?.stateAvg?.testRead, b?.nationalAvg?.testRead, "%")}
+                state={b?.stateAvg?.testRead}
+                nat={b?.nationalAvg?.testRead}
               />
             )}
             {detail.testScores.math != null && (
-              <Fact
-                label="Math proficiency"
-                value={`${detail.testScores.math}%`}
+              <MetricBar
+                label="Math at grade level"
+                value={detail.testScores.math}
+                unit="%"
+                max={100}
                 color={tone(detail.testScores.math, 60, 35)}
-                sub={bench(b?.stateAvg?.testMath, b?.nationalAvg?.testMath, "%")}
+                state={b?.stateAvg?.testMath}
+                nat={b?.nationalAvg?.testMath}
               />
             )}
             <Note>
-              Share of students who met state standards on the annual state tests. Source: U.S. DOE
+              Percent of students who passed the annual state tests (&ldquo;proficient&rdquo; or
+              better). The bar marks show your state and US averages for comparison. Source: U.S. DOE
               EDFacts.
             </Note>
           </Section>
         )}
 
-        {/* College readiness (high schools) */}
-        {detail.collegeReadiness && (
+        {/* College readiness — high schools only, and only when we have data */}
+        {servesHigh &&
+          detail.collegeReadiness &&
+          (detail.collegeReadiness.gradRate != null ||
+            detail.collegeReadiness.apIbPct != null ||
+            detail.collegeReadiness.satActPct != null) && (
           <Section title="College readiness">
             {detail.collegeReadiness.gradRate != null && (
-              <Fact
-                label="4-yr graduation rate"
-                value={`${detail.collegeReadiness.gradRate}%`}
+              <MetricBar
+                label="Graduated in 4 years"
+                value={detail.collegeReadiness.gradRate}
+                unit="%"
+                max={100}
                 color={tone(detail.collegeReadiness.gradRate, 85, 67)}
-                sub={bench(b?.stateAvg?.gradRate, b?.nationalAvg?.gradRate, "%")}
+                state={b?.stateAvg?.gradRate}
+                nat={b?.nationalAvg?.gradRate}
               />
             )}
             {detail.collegeReadiness.apIbPct != null && (
               <Fact
-                label="In AP / IB courses"
+                label="Taking AP / IB classes"
                 value={`${detail.collegeReadiness.apIbPct}%`}
                 color={tone(detail.collegeReadiness.apIbPct, 30, 8)}
               />
             )}
             {detail.collegeReadiness.satActPct != null && (
               <Fact
-                label="Took SAT / ACT"
+                label="Took the SAT / ACT"
                 value={`${detail.collegeReadiness.satActPct}%`}
                 color={tone(detail.collegeReadiness.satActPct, 40, 10)}
               />
             )}
             <Note>
-              % of students. Typical US 4-year graduation rate is ≈87%; very low rates usually mean
-              an alternative, charter, or dropout-recovery school. Source: EDFacts + CRDC.
+              Share of students. A typical US 4-year graduation rate is about 87%; very low rates
+              usually mean an alternative or dropout-recovery school. {hsNote} Source: EDFacts + CRDC.
             </Note>
           </Section>
         )}
 
-        {/* Safety & climate — normalized for comparison */}
+        {/* Safety — at-a-glance summary, key comparisons, details on demand */}
         <Section title={`Safety & discipline${detail.safety ? ` · ${detail.safety.schoolYear}` : ""}`}>
           {detail.safety ? (
-            <>
-              <Fact
-                label="Violent / 100 students"
-                value={per100(detail.safety.violentIncidentsTotal, detail.enrollment)}
-                color={tone(
-                  (detail.safety.violentIncidentsTotal / Math.max(detail.enrollment, 1)) * 100,
-                  1,
-                  5,
-                  false
-                )}
-                sub={bench(b?.stateAvg?.violentPer100, b?.nationalAvg?.violentPer100)}
-              />
-              <Fact
-                label="Suspensions / 100"
-                value={per100(detail.safety.outOfSchoolSuspensions, detail.enrollment)}
-                color={tone(
-                  (detail.safety.outOfSchoolSuspensions / Math.max(detail.enrollment, 1)) * 100,
-                  5,
-                  20,
-                  false
-                )}
-                sub={bench(b?.stateAvg?.suspensionsPer100, b?.nationalAvg?.suspensionsPer100)}
-              />
-              <Fact
-                label="Security staff on site"
-                value={detail.teachers.security ? "Yes" : "No"}
-                color={detail.teachers.security ? "#059669" : "#d97706"}
-              />
-              <Fact label="Violent incidents (total)" value={detail.safety.violentIncidentsTotal} />
-              <Fact label="Attacks w/ weapon" value={detail.safety.physicalAttacksWithWeapon} />
-              <Fact label="Attacks, no weapon" value={detail.safety.physicalAttacksNoWeapon} />
-              <Fact label="Threats of violence" value={detail.safety.threatsOfViolence} />
-              <Fact label="Robberies" value={detail.safety.robberies} />
-              <Fact label="Rape / sexual battery" value={detail.safety.rapeOrSexualBattery} />
-              <Fact label="Firearm possession" value={detail.safety.firearmExplosivePossession} />
-              <Fact label="Suspensions (total)" value={detail.safety.outOfSchoolSuspensions} />
-              <Fact label="Bullying allegations" value={detail.safety.harassmentBullyingAllegations} />
-              <Fact label="Any firearm incident" value={detail.safety.firearmIncident ? "Yes" : "No"} />
-              <Note>
-                Counts are for the full {detail.safety.schoolYear} school year. &ldquo;Per 100
-                students&rdquo; lets you compare schools of different sizes (vs your state &amp; the
-                US). Source: U.S. DOE CRDC.
-              </Note>
-            </>
+            <SafetyBlock detail={detail} b={b} />
           ) : (
             <p className="col-span-full text-sm text-slate-400">
-              No federal safety data for this school (private schools aren&apos;t in this collection).
+              No federal safety data for this school
+              {isPrivate ? " (not collected for private schools)" : ""}.
             </p>
           )}
         </Section>
 
         {/* Students */}
         <Section title="Students">
-          <Fact label="Total enrolled" value={detail.enrollment.toLocaleString()} />
+          <Fact label="Total students" value={detail.enrollment.toLocaleString()} />
           {detail.students.lowIncomePct != null && (
-            <Fact label="Low-income" value={`${detail.students.lowIncomePct}%`} />
+            <Fact label="From low-income homes" value={`${detail.students.lowIncomePct}%`} />
           )}
           {detail.students.ellPct != null && (
-            <Fact label="English learners" value={`${detail.students.ellPct}%`} />
+            <Fact label="Still learning English" value={`${detail.students.ellPct}%`} />
           )}
           {detail.chronicAbsentPct != null && (
             <Fact
@@ -322,8 +307,9 @@ function DetailBody({
             />
           )}
           <Note>
-            &ldquo;Low-income&rdquo; = eligible for free/reduced-price lunch. &ldquo;Chronically
-            absent&rdquo; = missed ≥10% of school days.
+            &ldquo;Low-income&rdquo; means eligible for free or reduced-price lunch — a common
+            measure of economic need, not school quality. &ldquo;Chronically absent&rdquo; means
+            missing 10% or more of school days (lower is better).
           </Note>
         </Section>
 
@@ -345,22 +331,31 @@ function DetailBody({
             <Fact label="Counselors (full-time)" value={Math.round(detail.teachers.counselors)} />
           )}
           <Fact label="Security staff on site" value={detail.teachers.security ? "Yes" : "No"} />
+          <Note>
+            Student-teacher ratio is the number of students per teacher — fewer usually means more
+            individual attention (e.g. &ldquo;15 to 1&rdquo; = 15 students per teacher).
+          </Note>
         </Section>
 
-        {/* Advanced courses */}
-        {detail.advanced && (detail.advanced.apPct || detail.advanced.ibPct || detail.advanced.giftedPct) && (
-          <Section title="Advanced courses">
-            {detail.advanced.apPct != null && (
-              <Fact label="In AP courses" value={`${detail.advanced.apPct}%`} color={tone(detail.advanced.apPct, 15, 2)} />
-            )}
-            {detail.advanced.ibPct != null && (
-              <Fact label="In IB courses" value={`${detail.advanced.ibPct}%`} color={tone(detail.advanced.ibPct, 8, 0.5)} />
-            )}
-            {detail.advanced.giftedPct != null && (
-              <Fact label="Gifted & talented" value={`${detail.advanced.giftedPct}%`} color={tone(detail.advanced.giftedPct, 8, 1)} />
-            )}
-          </Section>
-        )}
+        {/* Advanced courses — AP/IB are high-school only; gifted can be any level */}
+        {detail.advanced &&
+          ((servesHigh && (detail.advanced.apPct != null || detail.advanced.ibPct != null)) ||
+            detail.advanced.giftedPct != null) && (
+            <Section title="Advanced & gifted programs">
+              {servesHigh && detail.advanced.apPct != null && (
+                <Fact label="Taking AP courses" value={`${detail.advanced.apPct}%`} color={tone(detail.advanced.apPct, 15, 2)} />
+              )}
+              {servesHigh && detail.advanced.ibPct != null && (
+                <Fact label="Taking IB courses" value={`${detail.advanced.ibPct}%`} color={tone(detail.advanced.ibPct, 8, 0.5)} />
+              )}
+              {detail.advanced.giftedPct != null && (
+                <Fact label="In gifted & talented" value={`${detail.advanced.giftedPct}%`} color={tone(detail.advanced.giftedPct, 8, 1)} />
+              )}
+              {hsNote && servesHigh && (detail.advanced.apPct != null || detail.advanced.ibPct != null) && (
+                <Note>AP / IB figures reflect high-school grades only.</Note>
+              )}
+            </Section>
+          )}
 
         <Reviews ncesId={detail.ncesId} />
 
@@ -410,17 +405,22 @@ function rating10Color(v: number): string {
   return "#e11d48";
 }
 
-function Rating10({
-  label,
-  desc,
-  value,
-  big,
-}: {
-  label: string;
-  desc?: string;
-  value: number | null;
-  big?: boolean;
-}) {
+function ratingWord(v: number): string {
+  if (v >= 8) return "Above average";
+  if (v >= 4) return "Average";
+  return "Below average";
+}
+
+function gradeNum(g: string | null | undefined): number | null {
+  if (!g) return null;
+  const u = g.toUpperCase().trim();
+  if (u === "PK" || u === "PRESCHOOL" || u === "PRE-K") return -1;
+  if (u === "KG" || u === "K" || u === "KINDERGARTEN") return 0;
+  const n = parseInt(g, 10);
+  return Number.isNaN(n) ? null : n;
+}
+
+function Rating10({ label, value, big }: { label: string; value: number | null; big?: boolean }) {
   if (value == null) return null;
   const color = rating10Color(value);
   return (
@@ -434,8 +434,55 @@ function Rating10({
       </div>
       <div className="min-w-0">
         <div className="text-sm font-bold leading-tight text-slate-900">{label}</div>
-        {desc && <div className="text-[11px] leading-tight text-slate-500">{desc}</div>}
+        <div className="text-[11px] font-semibold leading-tight" style={{ color }}>
+          {ratingWord(value)}
+        </div>
       </div>
+    </div>
+  );
+}
+
+// Plain-language statement of how confident the rating is and what it's based on.
+function ConfidenceLine({
+  summaryRating,
+  coverage,
+  isPrivate,
+}: {
+  summaryRating: number | null;
+  coverage: SchoolDetail["coverage"];
+  isPrivate: boolean;
+}) {
+  const have: string[] = [];
+  if (coverage.hasTest) have.push("test scores");
+  if (coverage.hasCollege) have.push("graduation");
+  if (coverage.hasSafety) have.push("safety");
+  const list =
+    have.length === 0
+      ? ""
+      : have.length === 1
+      ? have[0]
+      : `${have.slice(0, -1).join(", ")} and ${have[have.length - 1]}`;
+
+  let text: string;
+  let color: string;
+  if (summaryRating == null) {
+    text = isPrivate
+      ? "Not enough public data to rate this school"
+      : "Limited data — not enough information to rate this school";
+    color = "#e11d48";
+  } else if (coverage.available >= coverage.total) {
+    text = `Strong data — rating uses ${list}`;
+    color = "#059669";
+  } else {
+    text = `Partial data — rating uses ${list} (some measures missing)`;
+    color = "#d97706";
+  }
+  return (
+    <div className="mt-2.5 flex items-center gap-2">
+      <CoverageDots available={coverage.available} total={coverage.total} />
+      <span className="text-[11px] font-semibold" style={{ color }}>
+        {text}
+      </span>
     </div>
   );
 }
@@ -455,7 +502,7 @@ function CoverageDots({ available, total }: { available: number; total: number }
   );
 }
 
-function RatingInfo({ coverage }: { coverage: SchoolDetail["coverage"] }) {
+function RatingInfo({ coverage, isPrivate }: { coverage: SchoolDetail["coverage"]; isPrivate?: boolean }) {
   const [open, setOpen] = useState(false);
   const mark = (b: boolean) => (b ? "✓" : "✗");
   return (
@@ -506,7 +553,9 @@ function RatingInfo({ coverage }: { coverage: SchoolDetail["coverage"] }) {
               </li>
             </ul>
             <p className="mt-2 text-slate-400">
-              {`Based on ${coverage.available} of ${coverage.total} measures. Private schools have no outcome data collected federally, so they show “Limited data.”`}
+              {isPrivate
+                ? "Private schools have little outcome data collected federally, so most show “Limited data.”"
+                : `More measures available = higher confidence in the rating.`}
             </p>
           </div>
         </>
@@ -586,12 +635,191 @@ function Fact({
   );
 }
 
-// "State 48% · US 50%" benchmark caption (omits unknowns).
-function bench(stateV: number | null | undefined, natV: number | null | undefined, unit = ""): string | undefined {
-  const parts: string[] = [];
-  if (stateV != null) parts.push(`State ${stateV}${unit}`);
-  if (natV != null) parts.push(`US ${natV}${unit}`);
-  return parts.length ? parts.join(" · ") : undefined;
+function fmtNum(v: number): string {
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+
+// A metric shown as a labeled value plus a horizontal bar, with tick marks for
+// the state and US averages so a parent can see "how does this compare?" at a
+// glance. For "%" metrics higher is better (bar past the ticks = good); for
+// per-100 safety metrics lower is better (bar short of the ticks = good).
+function MetricBar({
+  label,
+  value,
+  unit = "",
+  color,
+  state,
+  nat,
+  max,
+}: {
+  label: string;
+  value: number;
+  unit?: string;
+  color: string;
+  state?: number | null;
+  nat?: number | null;
+  max?: number;
+}) {
+  const top = max ?? (Math.max(value, state ?? 0, nat ?? 0, unit === "%" ? 1 : 0.6) * 1.35 || 1);
+  const clamp = (v: number) => Math.max(1, Math.min(100, (v / top) * 100));
+  return (
+    <div className="border-b border-slate-200/70 py-2 last:border-0">
+      <div className="flex items-baseline justify-between gap-3 text-sm">
+        <dt className="text-slate-600">{label}</dt>
+        <dd className="shrink-0 font-bold tabular-nums" style={{ color }}>
+          {fmtNum(value)}
+          {unit}
+        </dd>
+      </div>
+      <div className="relative mt-2 h-2.5 rounded-full bg-slate-100">
+        <div
+          className="absolute inset-y-0 left-0 rounded-full"
+          style={{ width: `${clamp(value)}%`, backgroundColor: color }}
+        />
+        {state != null && <Tick pos={clamp(state)} shade="#475569" />}
+        {nat != null && <Tick pos={clamp(nat)} shade="#94a3b8" />}
+      </div>
+      {(state != null || nat != null) && (
+        <div className="mt-1 text-[10px] text-slate-400">
+          {state != null && (
+            <>
+              <span className="inline-block h-2 w-0.5 translate-y-[1px] bg-[#475569]" /> State avg{" "}
+              {fmtNum(state)}
+              {unit}
+            </>
+          )}
+          {state != null && nat != null ? "  ·  " : ""}
+          {nat != null && (
+            <>
+              <span className="inline-block h-2 w-0.5 translate-y-[1px] bg-[#94a3b8]" /> US avg{" "}
+              {fmtNum(nat)}
+              {unit}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Tick({ pos, shade }: { pos: number; shade: string }) {
+  return (
+    <span
+      className="absolute top-1/2 h-4 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded"
+      style={{ left: `${pos}%`, backgroundColor: shade }}
+    />
+  );
+}
+
+// Safety section body: a glanceable headline, the two key comparison bars, the
+// security-staff flag, any incidents that actually occurred, and an expander for
+// the full breakdown (most categories are zero for the typical school).
+function SafetyBlock({
+  detail,
+  b,
+}: {
+  detail: SchoolDetail;
+  b: SchoolDetail["benchmarks"];
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const sf = detail.safety!;
+  const enr = Math.max(detail.enrollment, 1);
+  const violPer100 = (sf.violentIncidentsTotal / enr) * 100;
+  const suspPer100 = (sf.outOfSchoolSuspensions / enr) * 100;
+
+  // Headline vs the national average (falls back to absolute thresholds).
+  const natViol = b?.nationalAvg?.violentPer100 ?? null;
+  let head: { text: string; color: string; bg: string };
+  const safe = natViol != null ? violPer100 <= natViol * 0.6 : violPer100 < 1;
+  const high = natViol != null ? violPer100 > natViol * 1.2 : violPer100 >= 5;
+  if (safe) head = { text: "Fewer incidents than average", color: "#047857", bg: "#ecfdf5" };
+  else if (!high) head = { text: "About average for safety", color: "#b45309", bg: "#fffbeb" };
+  else head = { text: "More incidents than average", color: "#be123c", bg: "#fff1f2" };
+
+  const items: [string, number][] = [
+    ["Physical attacks with a weapon", sf.physicalAttacksWithWeapon],
+    ["Physical attacks without a weapon", sf.physicalAttacksNoWeapon],
+    ["Threats of violence", sf.threatsOfViolence],
+    ["Robberies", sf.robberies],
+    ["Rape / sexual battery", sf.rapeOrSexualBattery],
+    ["Firearm or explosive possession", sf.firearmExplosivePossession],
+    ["Bullying / harassment allegations", sf.harassmentBullyingAllegations],
+  ];
+  const concerning = items.filter(([, v]) => v > 0);
+
+  return (
+    <div className="col-span-full">
+      <div
+        className="mb-3 rounded-lg px-3 py-2 text-sm font-bold"
+        style={{ color: head.color, backgroundColor: head.bg }}
+      >
+        {head.text}
+      </div>
+
+      <MetricBar
+        label="Violent incidents per 100 students"
+        value={Number(violPer100.toFixed(1))}
+        color={tone(violPer100, 1, 5, false)}
+        state={b?.stateAvg?.violentPer100}
+        nat={b?.nationalAvg?.violentPer100}
+      />
+      <MetricBar
+        label="Suspensions per 100 students"
+        value={Number(suspPer100.toFixed(1))}
+        color={tone(suspPer100, 5, 20, false)}
+        state={b?.stateAvg?.suspensionsPer100}
+        nat={b?.nationalAvg?.suspensionsPer100}
+      />
+      <Fact
+        label="Security staff on site"
+        value={detail.teachers.security ? "Yes" : "No"}
+        color={detail.teachers.security ? "#059669" : "#d97706"}
+      />
+
+      <div className="mt-3">
+        {concerning.length === 0 ? (
+          <p className="text-sm font-semibold text-emerald-700">
+            ✓ No incidents reported in any category for {sf.schoolYear}.
+          </p>
+        ) : (
+          <>
+            <p className="mb-1.5 text-xs font-semibold text-slate-600">Incidents reported:</p>
+            <dl className="grid grid-cols-1 gap-y-1.5">
+              {concerning.map(([label, v]) => (
+                <Fact key={label} label={label} value={v} color="#be123c" />
+              ))}
+            </dl>
+          </>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setShowAll((s) => !s)}
+          className="mt-2.5 text-xs font-semibold text-brand-600 hover:text-brand-700"
+        >
+          {showAll ? "Hide full breakdown" : "Show all categories (including 0s)"}
+        </button>
+        {showAll && (
+          <dl className="mt-2 grid grid-cols-1 gap-y-1.5">
+            {items.map(([label, v]) => (
+              <Fact key={label} label={label} value={v} color={v > 0 ? "#be123c" : undefined} />
+            ))}
+            <Fact
+              label="Any firearm incident on record"
+              value={sf.firearmIncident ? "Yes" : "No"}
+              color={sf.firearmIncident ? "#be123c" : undefined}
+            />
+          </dl>
+        )}
+      </div>
+
+      <Note>
+        Counts cover the full {sf.schoolYear} school year. &ldquo;Per 100 students&rdquo; lets you
+        compare schools of different sizes — the tick marks show your state and US averages. Source:
+        U.S. DOE Civil Rights Data Collection (CRDC).
+      </Note>
+    </div>
+  );
 }
 
 function CollapsibleSection({
