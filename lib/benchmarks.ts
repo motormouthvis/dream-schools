@@ -28,6 +28,10 @@ const EMPTY: MetricBench = {
   suspensionsPer100: null,
 };
 
+// A state benchmark is only shown if it's based on at least this many schools;
+// otherwise it's a coverage artifact (e.g., IL grad data covers ~1 school).
+const MIN_SCHOOLS = 25;
+
 async function compute(): Promise<Benchmarks> {
   const pool = getPool();
   const byState: Record<string, MetricBench> = {};
@@ -37,6 +41,7 @@ async function compute(): Promise<Benchmarks> {
   // not schools (otherwise many tiny alternative schools skew it).
   const tests = await pool.query(
     `select state,
+            count(test_read_prof) as nr, count(test_math_prof) as nm,
             round(sum(test_read_prof * enrollment)
                   / nullif(sum(enrollment) filter (where test_read_prof is not null), 0)) as tr,
             round(sum(test_math_prof * enrollment)
@@ -47,24 +52,25 @@ async function compute(): Promise<Benchmarks> {
   );
   for (const r of tests.rows) {
     const m = ensure(r.state);
-    m.testRead = r.tr != null ? Number(r.tr) : null;
-    m.testMath = r.tm != null ? Number(r.tm) : null;
+    m.testRead = r.tr != null && Number(r.nr) >= MIN_SCHOOLS ? Number(r.tr) : null;
+    m.testMath = r.tm != null && Number(r.nm) >= MIN_SCHOOLS ? Number(r.tm) : null;
   }
 
-  // Graduation by state — cohort-weighted.
+  // Graduation by state — cohort-weighted (suppressed where coverage is thin).
   const grad = await pool.query(
-    `select s.state,
+    `select s.state, count(*) as n,
             round(sum(g.grad_rate_4yr * nullif(g.cohort_size,0))
                   / nullif(sum(nullif(g.cohort_size,0)), 0)) as gr
        from school_graduation g join schools s on s.nces_id = g.nces_id
       where s.state is not null
       group by s.state`
   );
-  for (const r of grad.rows) ensure(r.state).gradRate = r.gr != null ? Number(r.gr) : null;
+  for (const r of grad.rows)
+    ensure(r.state).gradRate = r.gr != null && Number(r.n) >= MIN_SCHOOLS ? Number(r.gr) : null;
 
   // Safety per-100 by state
   const safety = await pool.query(
-    `select s.state,
+    `select s.state, count(*) as n,
             round(100.0 * sum(sf.violent_incidents_total) / nullif(sum(s.enrollment),0), 1) as vp,
             round(100.0 * sum(sf.out_of_school_suspensions) / nullif(sum(s.enrollment),0), 1) as sp
        from schools s join school_safety sf on sf.nces_id = s.nces_id
@@ -73,8 +79,9 @@ async function compute(): Promise<Benchmarks> {
   );
   for (const r of safety.rows) {
     const m = ensure(r.state);
-    m.violentPer100 = r.vp != null ? Number(r.vp) : null;
-    m.suspensionsPer100 = r.sp != null ? Number(r.sp) : null;
+    const ok = Number(r.n) >= MIN_SCHOOLS;
+    m.violentPer100 = r.vp != null && ok ? Number(r.vp) : null;
+    m.suspensionsPer100 = r.sp != null && ok ? Number(r.sp) : null;
   }
 
   // National (weighted, same as per-state)
