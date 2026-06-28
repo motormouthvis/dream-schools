@@ -172,6 +172,10 @@ export interface LookupResult {
     state: string;
     studentCount: number;
     schoolCount: number;
+    allSchools?: number;
+    allStudents?: number;
+    publicSchools?: number;
+    privateSchools?: number;
     inDistrict: boolean;
   };
   overallScore: number;

@@ -15,6 +15,24 @@ interface Suggestion {
   zip: string;
 }
 
+// "910 FAIRWAY DR NE, WARREN, OH, 44483" -> "Warren, OH"
+function cityState(matched: string, fallbackState: string): string {
+  const parts = (matched || "").split(",").map((s) => s.trim()).filter(Boolean);
+  // Drop a trailing zip if present.
+  if (parts.length && /^\d{5}(-\d{4})?$/.test(parts[parts.length - 1])) parts.pop();
+  const rawState = parts.length >= 2 ? parts[parts.length - 1] : "";
+  const rawCity = parts.length >= 2 ? parts[parts.length - 2] : parts[0] || "";
+  const title = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+      .trim();
+  const state =
+    /^[A-Za-z]{2}$/.test(rawState) ? rawState.toUpperCase() : (fallbackState || "").toUpperCase();
+  const city = title(rawCity);
+  return [city, state].filter(Boolean).join(", ");
+}
+
 export default function Home() {
   const [address, setAddress] = useState("");
   const [data, setData] = useState<LookupResult | null>(null);
@@ -168,12 +186,12 @@ export default function Home() {
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-slate-900">
               <span className="mr-1">📍</span>
-              {data.geocode.matchedAddress}
+              {cityState(data.geocode.matchedAddress, data.district.state)} ·{" "}
+              <span className="text-brand-700">{data.district.name} School District</span>
             </p>
             <p className="truncate text-xs text-slate-500">
-              <span className="font-semibold text-brand-700">{data.district.name}</span> School
-              District · {data.district.studentCount.toLocaleString()} students ·{" "}
-              {data.district.schoolCount} schools
+              {(data.district.allStudents ?? data.district.studentCount).toLocaleString()} students ·{" "}
+              {data.district.allSchools ?? data.district.schoolCount} schools (public + private)
             </p>
           </div>
           <button

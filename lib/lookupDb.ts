@@ -164,6 +164,33 @@ export async function lookupAddressDb(
     suspensionsPer100: safeEnr ? Math.round((sumWhere((r) => num(r.out_of_school_suspensions)) / safeEnr) * 1000) / 10 : null,
   };
 
+  // Total schools (public + private, including charters with their own LEA)
+  // physically within the district boundary — the count families actually see.
+  let allSchools = district.school_count ?? 0;
+  let allStudents = district.enrollment ?? 0;
+  let publicSchools = district.school_count ?? 0;
+  let privateSchools = 0;
+  try {
+    const totals = await pool.query(
+      `select count(*) filter (where level <> 'private') as pub,
+              count(*) filter (where level = 'private') as priv,
+              count(*) as total,
+              coalesce(sum(enrollment),0) as students
+         from schools s
+        where ST_Contains((select geom from school_districts where district_id = $1), s.geom)`,
+      [district.district_id]
+    );
+    const t = totals.rows[0];
+    if (t && Number(t.total) > 0) {
+      allSchools = Number(t.total);
+      allStudents = Number(t.students);
+      publicSchools = Number(t.pub);
+      privateSchools = Number(t.priv);
+    }
+  } catch {
+    /* boundary missing — fall back to district aggregates */
+  }
+
   const info: DistrictInfo = {
     districtId: district.district_id,
     name: district.name,
@@ -171,6 +198,10 @@ export async function lookupAddressDb(
     state: district.state ?? geo.zip,
     studentCount: district.enrollment ?? 0,
     schoolCount: district.school_count ?? 0,
+    allSchools,
+    allStudents,
+    publicSchools,
+    privateSchools,
     inDistrict,
   };
 
