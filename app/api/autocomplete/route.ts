@@ -19,6 +19,29 @@ interface Suggestion {
   zip: string;
 }
 
+// Title-case a label that arrived in ALL CAPS (the Census geocoder returns
+// e.g. "3309 N INDIAN RIVER DR, FORT PIERCE, FL, 34946"). Mixed-case labels
+// (Photon) are left untouched so we don't mangle names like "McAllen".
+function normalizeLabel(label: string): string {
+  if (/[a-z]/.test(label)) return label;
+  return label
+    .split(",")
+    .map((part) => {
+      const p = part.trim();
+      if (/^\d{5}(-\d{4})?$/.test(p)) return p; // ZIP
+      if (/^[A-Z]{2}$/.test(p)) return p; // state code (FL, OH…)
+      return p
+        .split(/\s+/)
+        .map((w) => {
+          if (/^\d/.test(w)) return w; // house numbers, "1st", "42nd"
+          if (/^[NSEW]{1,2}$/i.test(w)) return w.toUpperCase(); // directionals
+          return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+        })
+        .join(" ");
+    })
+    .join(", ");
+}
+
 function photonLabel(p: any): string {
   const line1 = [p.housenumber, p.street || p.name].filter(Boolean).join(" ");
   const cityState = [p.city || p.county, p.state].filter(Boolean).join(", ");
@@ -26,7 +49,7 @@ function photonLabel(p: any): string {
 }
 
 async function fromPhoton(q: string): Promise<Suggestion[]> {
-  const params = new URLSearchParams({ q, limit: "6", lang: "en", lat: "39.5", lon: "-98.35" });
+  const params = new URLSearchParams({ q, limit: "8", lang: "en", lat: "39.5", lon: "-98.35" });
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 2000);
@@ -88,6 +111,14 @@ async function fromCensus(q: string): Promise<Suggestion[]> {
   }
 }
 
+// How many street-name tokens of the query appear in a label. Lets us rank
+// "3309 N Indian River Drive" → "Indian River Drive" above "Saxon Drive",
+// which Photon would otherwise surface just because it also has a #3309.
+function relevance(label: string, tokens: string[]): number {
+  const l = label.toLowerCase();
+  return tokens.reduce((n, t) => n + (l.includes(t) ? 1 : 0), 0);
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get("q") ?? "").trim();
@@ -95,20 +126,38 @@ export async function GET(request: Request) {
     return NextResponse.json({ suggestions: [] });
   }
 
-  // Run both, but never let the slower one block the response beyond its own
-  // timeout. Census is authoritative for US street addresses, so it leads.
-  const [censusR, photonR] = await Promise.allSettled([fromCensus(q), fromPhoton(q)]);
-  const census = censusR.status === "fulfilled" ? censusR.value : [];
-  const photon = photonR.status === "fulfilled" ? photonR.value : [];
+  // When a street address is typed without a city, Census returns nothing and
+  // Photon over-weights the house number. So we also query Photon with the
+  // leading house number stripped, which surfaces the actual street.
+  const stripped = q.replace(/^\s*\d+\s+/, "").trim();
+  const photonQueries = stripped && stripped.toLowerCase() !== q.toLowerCase() ? [q, stripped] : [q];
 
-  // Census first (most precise for US), then Photon; de-dupe by normalized label.
+  const results = await Promise.allSettled([
+    fromCensus(q),
+    ...photonQueries.map((pq) => fromPhoton(pq)),
+  ]);
+  const census = results[0].status === "fulfilled" ? (results[0] as PromiseFulfilledResult<Suggestion[]>).value : [];
+  const photon = results
+    .slice(1)
+    .flatMap((r) => (r.status === "fulfilled" ? (r as PromiseFulfilledResult<Suggestion[]>).value : []));
+
+  // Rank Photon hits by how well they match the typed street name (ignore the
+  // house number and tiny words); Census stays first as it's exact for the US.
+  const tokens = q
+    .toLowerCase()
+    .split(/[\s,]+/)
+    .filter((t) => t.length >= 3 && !/^\d+$/.test(t));
+  photon.sort((a, b) => relevance(b.label, tokens) - relevance(a.label, tokens));
+
   const seen = new Set<string>();
   const suggestions: Suggestion[] = [];
   for (const s of [...census, ...photon]) {
-    const key = s.label.toLowerCase().replace(/\s+/g, " ").trim();
-    if (!s.label || seen.has(key)) continue;
+    if (!s.label) continue;
+    const label = normalizeLabel(s.label);
+    const key = label.toLowerCase().replace(/\s+/g, " ").trim();
+    if (seen.has(key)) continue;
     seen.add(key);
-    suggestions.push(s);
+    suggestions.push({ ...s, label });
     if (suggestions.length >= 7) break;
   }
   return NextResponse.json({ suggestions });
