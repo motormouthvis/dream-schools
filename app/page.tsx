@@ -90,7 +90,13 @@ export default function Home() {
       const ac = new AbortController();
       acRef.current = ac;
       try {
-        const res = await fetch(`/api/autocomplete?q=${encodeURIComponent(address)}`, {
+        // Bias suggestions toward the area being explored (current result, or
+        // the most recent search) so partial street addresses resolve to the
+        // right city instead of a same-named street across the country.
+        const bp =
+          data?.center ?? recents.find((r) => r.lat != null && r.lon != null) ?? null;
+        const bias = bp && bp.lat != null && bp.lon != null ? `&lat=${bp.lat}&lon=${bp.lon}` : "";
+        const res = await fetch(`/api/autocomplete?q=${encodeURIComponent(address)}${bias}`, {
           signal: ac.signal,
         });
         const json = await res.json();

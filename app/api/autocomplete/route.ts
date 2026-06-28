@@ -48,8 +48,14 @@ function photonLabel(p: any): string {
   return [line1, cityState, p.postcode].filter(Boolean).join(", ");
 }
 
-async function fromPhoton(q: string): Promise<Suggestion[]> {
-  const params = new URLSearchParams({ q, limit: "8", lang: "en", lat: "39.5", lon: "-98.35" });
+async function fromPhoton(q: string, bias?: { lat: number; lon: number }): Promise<Suggestion[]> {
+  const params = new URLSearchParams({
+    q,
+    limit: "8",
+    lang: "en",
+    lat: String(bias?.lat ?? 39.5),
+    lon: String(bias?.lon ?? -98.35),
+  });
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 2000);
@@ -125,16 +131,23 @@ export async function GET(request: Request) {
   if (q.length < 3) {
     return NextResponse.json({ suggestions: [] });
   }
+  const latN = Number(searchParams.get("lat"));
+  const lonN = Number(searchParams.get("lon"));
+  const bias =
+    Number.isFinite(latN) && Number.isFinite(lonN) && latN !== 0 ? { lat: latN, lon: lonN } : undefined;
 
   // When a street address is typed without a city, Census returns nothing and
   // Photon over-weights the house number. So we also query Photon with the
-  // leading house number stripped, which surfaces the actual street.
-  const stripped = q.replace(/^\s*\d+\s+/, "").trim();
+  // leading house number stripped, which surfaces the actual street (biased to
+  // the area being explored, so the right city floats to the top).
+  const houseMatch = q.match(/^\s*(\d+)\s+(.*)$/);
+  const houseNo = houseMatch ? houseMatch[1] : "";
+  const stripped = houseMatch ? houseMatch[2].trim() : "";
   const photonQueries = stripped && stripped.toLowerCase() !== q.toLowerCase() ? [q, stripped] : [q];
 
   const results = await Promise.allSettled([
     fromCensus(q),
-    ...photonQueries.map((pq) => fromPhoton(pq)),
+    ...photonQueries.map((pq) => fromPhoton(pq, bias)),
   ]);
   const census = results[0].status === "fulfilled" ? (results[0] as PromiseFulfilledResult<Suggestion[]>).value : [];
   const photon = results
@@ -149,9 +162,27 @@ export async function GET(request: Request) {
     .filter((t) => t.length >= 3 && !/^\d+$/.test(t));
   photon.sort((a, b) => relevance(b.label, tokens) - relevance(a.label, tokens));
 
+  // If a house number was typed but Census couldn't resolve it (no city given),
+  // take the best matching street and ask Census for the exact house address in
+  // that city — this surfaces e.g. "3309 N Indian River Dr, Fort Pierce, FL".
+  let enriched: Suggestion[] = [];
+  if (houseNo && census.length === 0 && photon.length > 0) {
+    const best = photon[0].label.split(",").map((s) => s.trim());
+    // best = [street, city, state, zip?]
+    if (best.length >= 3) {
+      const [street, city, state, zip] = best;
+      const probe = `${houseNo} ${street}, ${city}, ${state}${zip ? " " + zip : ""}`;
+      try {
+        enriched = await fromCensus(probe);
+      } catch {
+        /* enrichment is best-effort */
+      }
+    }
+  }
+
   const seen = new Set<string>();
   const suggestions: Suggestion[] = [];
-  for (const s of [...census, ...photon]) {
+  for (const s of [...census, ...enriched, ...photon]) {
     if (!s.label) continue;
     const label = normalizeLabel(s.label);
     const key = label.toLowerCase().replace(/\s+/g, " ").trim();
