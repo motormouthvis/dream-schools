@@ -191,6 +191,19 @@ export interface LookupResult {
   // geometry, may be null if boundaries aren't loaded for that district).
   center: { lat: number; lon: number };
   districtBoundary: GeoJsonGeometry | null;
+  // Area averages (for the compare view's baseline column).
+  areaAverages?: AreaAverages | null;
+}
+
+export interface AreaAverages {
+  overallRating: number | null;
+  testRead: number | null;
+  testMath: number | null;
+  gradRate: number | null;
+  ratio: number | null;
+  lowIncomePct: number | null;
+  violentPer100: number | null;
+  suspensionsPer100: number | null;
 }
 
 export type GeoJsonGeometry =

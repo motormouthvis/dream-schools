@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { SchoolsTab } from "@/components/SchoolsTab";
+import { Logo } from "@/components/Logo";
+import { SettingsMenu } from "@/components/SettingsMenu";
+import { DataSourcesModal } from "@/components/DataSourcesModal";
 import type { LookupResult } from "@/lib/types";
 
 interface Suggestion {
@@ -23,6 +26,8 @@ export default function Home() {
   const suppressRef = useRef(false);
   const [nationwide, setNationwide] = useState(false);
   const [audience, setAudience] = useState<"full" | "fairhousing">("full");
+  const [view, setView] = useState<"list" | "map">("list");
+  const [showDataSources, setShowDataSources] = useState(false);
   const fairHousing = audience === "fairhousing";
 
   useEffect(() => {
@@ -99,43 +104,43 @@ export default function Home() {
   }
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-10 sm:py-14">
-      <div className="mb-8 text-center">
-        <span className="inline-block rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-brand-700 ring-1 ring-inset ring-brand-600/20">
-          Dream Neighborhood
-        </span>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight text-ink-900 sm:text-4xl">
-          Neighborhood Schools Explorer
-        </h1>
-        <p className="mx-auto mt-3 max-w-xl text-sm text-slate-500">
-          Enter an address to see its school district, an overall quality score, the three-category
-          quality index, and nearby schools.{" "}
-          {nationwide
-            ? "Coverage: ~119k U.S. public & private schools (NCES CCD + CRDC + PSS)."
-            : "Demo coverage: 10 zip codes around 34946 (Fort Pierce / St. Lucie County, FL)."}
-        </p>
+    <main className="mx-auto max-w-4xl px-4 pb-16 pt-4">
+      {/* Top bar: logo + settings hamburger */}
+      <div className="flex items-center justify-between">
+        <Logo />
+        <SettingsMenu
+          view={view}
+          onView={setView}
+          audience={audience}
+          onAudience={setAudience}
+          onOpenDataSources={() => setShowDataSources(true)}
+        />
+      </div>
 
-        {/* Audience / compliance mode */}
-        <div className="mx-auto mt-4 flex max-w-md items-center justify-center gap-2">
-          <label htmlFor="audience" className="text-xs font-medium text-slate-500">
-            View mode
-          </label>
-          <select
-            id="audience"
-            value={audience}
-            onChange={(e) => setAudience(e.target.value as "full" | "fairhousing")}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
-          >
-            <option value="full">Full data (research / families)</option>
-            <option value="fairhousing">Fair Housing Compliant (real estate)</option>
-          </select>
+      {/* Compact hero with illustration */}
+      <div className="mt-5 overflow-hidden rounded-3xl bg-gradient-to-br from-brand-50 to-lime-50 ring-1 ring-inset ring-brand-600/10">
+        <div className="flex items-center justify-between gap-3 px-5 pt-5 sm:px-7">
+          <div>
+            <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-3xl">
+              Find the right schools <br className="hidden sm:block" />
+              for any address
+            </h1>
+            <p className="mt-1.5 text-sm text-slate-500">
+              Real ratings, test scores &amp; safety — public &amp; private, nationwide.
+            </p>
+          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/hero-schools.png"
+            alt="Illustration of children walking to school"
+            className="hidden h-28 w-auto sm:block"
+          />
         </div>
-        {fairHousing && (
-          <p className="mx-auto mt-2 max-w-md text-[11px] text-slate-400">
-            Protected-class data (race &amp; gender) is hidden to prevent steering, per Fair Housing
-            guidance.
-          </p>
-        )}
+        <img
+          src="/hero-schools.png"
+          alt=""
+          className="mt-3 block h-28 w-full object-cover object-top sm:hidden"
+        />
       </div>
 
       <form
@@ -143,7 +148,7 @@ export default function Home() {
           e.preventDefault();
           runLookup(address);
         }}
-        className="mx-auto flex max-w-2xl flex-col gap-3 sm:flex-row"
+        className="mx-auto mt-4 flex max-w-2xl flex-col gap-3 sm:flex-row"
       >
         <div className="relative flex-1">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
@@ -219,15 +224,31 @@ export default function Home() {
         )}
 
         {!loading && !error && data && (
-          <SchoolsTab data={data} nationwide={nationwide} fairHousing={fairHousing} />
+          <SchoolsTab
+            data={data}
+            nationwide={nationwide}
+            fairHousing={fairHousing}
+            view={view}
+            onViewChange={setView}
+          />
         )}
 
         {!loading && !error && !data && (
           <div className="rounded-3xl border border-dashed border-slate-300 bg-white/60 p-10 text-center text-slate-400">
-            Enter an address above or pick a sample to load the Schools tab.
+            Enter an address above to explore its schools.
           </div>
         )}
       </div>
+
+      {/* Footnote: coverage (moved off the top to declutter) */}
+      <p className="mx-auto mt-10 max-w-2xl text-center text-[11px] leading-relaxed text-slate-400">
+        {nationwide
+          ? "Coverage: ~119k U.S. public & private schools (NCES CCD, CRDC, EDFacts, PSS). "
+          : "Demo coverage: 10 zip codes around 34946 (Fort Pierce / St. Lucie County, FL). "}
+        Data sources &amp; methodology in the menu under “Data sources.”
+      </p>
+
+      {showDataSources && <DataSourcesModal onClose={() => setShowDataSources(false)} />}
     </main>
   );
 }

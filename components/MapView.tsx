@@ -1,5 +1,6 @@
 "use client";
 
+import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
 import type { LookupResult } from "@/lib/types";
 import { scoreHex } from "./score";
@@ -24,14 +25,6 @@ export function MapView({
     let cancelled = false;
     (async () => {
       const L = (await import("leaflet")).default;
-      // Inject Leaflet CSS once.
-      if (!document.getElementById("leaflet-css")) {
-        const link = document.createElement("link");
-        link.id = "leaflet-css";
-        link.rel = "stylesheet";
-        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-        document.head.appendChild(link);
-      }
       if (cancelled || !ref.current) return;
 
       if (mapRef.current) {
@@ -87,6 +80,14 @@ export function MapView({
       });
 
       map.fitBounds(bounds.pad(0.2), { maxZoom: 14 });
+      // The container may have been hidden (List view) when initialized; force a
+      // resize + refit so tiles and pins render correctly once visible.
+      setTimeout(() => {
+        if (!cancelled && mapRef.current) {
+          mapRef.current.invalidateSize();
+          mapRef.current.fitBounds(bounds.pad(0.2), { maxZoom: 14 });
+        }
+      }, 120);
     })();
 
     return () => {

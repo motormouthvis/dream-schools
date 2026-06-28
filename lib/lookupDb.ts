@@ -62,6 +62,7 @@ function rowToScored(r: any): { item: ScoredSchool; miles: number } {
 const SELECT = `
   s.nces_id, s.name, s.type, s.level, s.grade_low, s.grade_high, s.zip, s.district_id,
   s.enrollment, s.student_teacher_ratio, s.chronic_absent_students,
+  s.test_read_prof, s.test_math_prof, s.free_reduced_lunch,
   ST_Y(s.geom) as lat, ST_X(s.geom) as lon,
   ST_Distance(s.geom::geography, $1::geography) / ${METERS_PER_MILE} as miles,
   sf.nces_id as s_nces_id, sf.school_year as s_school_year, sf.source as s_source,
@@ -140,6 +141,29 @@ export async function lookupAddressDb(
   const areaItems = areaRes.rows.map((r) => rowToScored(r).item);
   if (nearby.length === 0) return null;
 
+  // Area averages for the compare baseline column.
+  const arows = areaRes.rows;
+  const num = (v: any) => (v == null ? null : Number(v));
+  const simpleAvg = (vals: (number | null)[]) => {
+    const v = vals.filter((x): x is number => x != null);
+    return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null;
+  };
+  const sumWhere = (pick: (r: any) => number | null) =>
+    arows.reduce((acc, r) => acc + (pick(r) ?? 0), 0);
+  const enrWith = (pick: (r: any) => number | null) =>
+    arows.reduce((acc, r) => acc + (pick(r) != null ? r.enrollment : 0), 0);
+  const lunchEnr = enrWith((r) => num(r.free_reduced_lunch));
+  const safeEnr = enrWith((r) => num(r.violent_incidents_total));
+  const areaAverages = {
+    testRead: simpleAvg(arows.map((r) => num(r.test_read_prof))),
+    testMath: simpleAvg(arows.map((r) => num(r.test_math_prof))),
+    gradRate: simpleAvg(arows.map((r) => num(r.grad_rate_4yr))),
+    ratio: simpleAvg(arows.map((r) => num(r.student_teacher_ratio))),
+    lowIncomePct: lunchEnr ? Math.round((sumWhere((r) => num(r.free_reduced_lunch)) / lunchEnr) * 100) : null,
+    violentPer100: safeEnr ? Math.round((sumWhere((r) => num(r.violent_incidents_total)) / safeEnr) * 1000) / 10 : null,
+    suspensionsPer100: safeEnr ? Math.round((sumWhere((r) => num(r.out_of_school_suspensions)) / safeEnr) * 1000) / 10 : null,
+  };
+
   const info: DistrictInfo = {
     districtId: district.district_id,
     name: district.name,
@@ -170,5 +194,6 @@ export async function lookupAddressDb(
     areaItems,
     nearby,
     districtBoundary,
+    areaAverages,
   });
 }

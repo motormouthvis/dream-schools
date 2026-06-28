@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { SchoolDetail } from "@/lib/types";
+import type { AreaAverages, SchoolDetail } from "@/lib/types";
 
 function rating10Color(v: number): string {
   if (v >= 8) return "#059669";
@@ -18,10 +18,14 @@ function per100(count: number | null | undefined, enrollment: number): string {
 
 export function CompareModal({
   ncesIds,
+  area,
+  areaName,
   fairHousing,
   onClose,
 }: {
   ncesIds: string[];
+  area: AreaAverages | null;
+  areaName: string;
   fairHousing: boolean;
   onClose: () => void;
 }) {
@@ -50,32 +54,43 @@ export function CompareModal({
 
   const valid = schools.filter(Boolean) as SchoolDetail[];
 
-  const rows: { label: string; get: (d: SchoolDetail) => React.ReactNode; rating?: boolean }[] = [
-    { label: "Overall rating", get: (d) => d.summaryRating, rating: true },
+  const pctOrDash = (v: number | null | undefined) => (v != null ? `${v}%` : "—");
+  const rows: {
+    label: string;
+    get: (d: SchoolDetail) => React.ReactNode;
+    area?: (a: AreaAverages) => React.ReactNode;
+    rating?: boolean;
+  }[] = [
+    { label: "Overall rating", get: (d) => d.summaryRating, area: (a) => a.overallRating, rating: true },
     { label: "Test scores rating", get: (d) => d.testScores?.rating ?? null, rating: true },
     { label: "College-ready rating", get: (d) => d.collegeReadiness?.rating ?? null, rating: true },
-    { label: "Reading proficient", get: (d) => (d.testScores?.read != null ? `${d.testScores.read}%` : "—") },
-    { label: "Math proficient", get: (d) => (d.testScores?.math != null ? `${d.testScores.math}%` : "—") },
+    { label: "Reading proficient", get: (d) => pctOrDash(d.testScores?.read), area: (a) => pctOrDash(a.testRead) },
+    { label: "Math proficient", get: (d) => pctOrDash(d.testScores?.math), area: (a) => pctOrDash(a.testMath) },
     {
       label: "Graduate in 4 yrs",
-      get: (d) => (d.collegeReadiness?.gradRate != null ? `${d.collegeReadiness.gradRate}%` : "—"),
+      get: (d) => pctOrDash(d.collegeReadiness?.gradRate),
+      area: (a) => pctOrDash(a.gradRate),
     },
     { label: "Enrollment", get: (d) => d.enrollment.toLocaleString() },
     {
       label: "Student-teacher ratio",
       get: (d) => (d.teachers.ratio ? `${Math.round(d.teachers.ratio)} to 1` : "—"),
+      area: (a) => (a.ratio ? `${Math.round(a.ratio)} to 1` : "—"),
     },
     {
       label: "Low-income students",
-      get: (d) => (d.students.lowIncomePct != null ? `${d.students.lowIncomePct}%` : "—"),
+      get: (d) => pctOrDash(d.students.lowIncomePct),
+      area: (a) => pctOrDash(a.lowIncomePct),
     },
     {
       label: "Violent incidents / 100",
       get: (d) => (d.safety ? per100(d.safety.violentIncidentsTotal, d.enrollment) : "—"),
+      area: (a) => (a.violentPer100 != null ? String(a.violentPer100) : "—"),
     },
     {
       label: "Suspensions / 100",
       get: (d) => (d.safety ? per100(d.safety.outOfSchoolSuspensions, d.enrollment) : "—"),
+      area: (a) => (a.suspensionsPer100 != null ? String(a.suspensionsPer100) : "—"),
     },
     { label: "Type", get: (d) => d.type },
     { label: "Grades", get: (d) => d.grades },
@@ -111,6 +126,14 @@ export function CompareModal({
               <thead>
                 <tr>
                   <th className="sticky left-0 z-10 bg-white p-2 text-left text-xs font-semibold text-slate-400"></th>
+                  {area && (
+                    <th className="bg-brand-50 p-2 align-bottom text-left">
+                      <div className="text-[13px] font-bold leading-tight text-brand-800">
+                        Area average
+                      </div>
+                      <div className="mt-0.5 text-[11px] font-normal text-brand-700/70">{areaName}</div>
+                    </th>
+                  )}
                   {valid.map((d) => (
                     <th key={d.ncesId} className="p-2 align-bottom text-left">
                       <div className="text-[13px] font-bold leading-tight text-slate-900">{d.name}</div>
@@ -127,6 +150,24 @@ export function CompareModal({
                     <td className="sticky left-0 z-10 bg-white p-2 text-xs font-medium text-slate-500">
                       {row.label}
                     </td>
+                    {area && (
+                      <td className="bg-brand-50/50 p-2">
+                        {(() => {
+                          const av = row.area ? row.area(area) : "—";
+                          if (row.rating && typeof av === "number") {
+                            return (
+                              <span
+                                className="inline-flex h-7 min-w-7 items-center justify-center rounded-lg px-1.5 text-xs font-bold text-white"
+                                style={{ backgroundColor: rating10Color(av) }}
+                              >
+                                {av}
+                              </span>
+                            );
+                          }
+                          return <span className="font-semibold text-brand-800">{av ?? "—"}</span>;
+                        })()}
+                      </td>
+                    )}
                     {valid.map((d) => {
                       const v = row.get(d);
                       if (row.rating && typeof v === "number") {

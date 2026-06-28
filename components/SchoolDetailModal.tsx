@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { SchoolDetail } from "@/lib/types";
+import { tone } from "./score";
 import { Reviews } from "./Reviews";
 
 export function SchoolDetailModal({
@@ -150,10 +151,18 @@ function DetailBody({
         {detail.testScores && (
           <Section title={`Test scores${detail.testScores.year ? ` · ${detail.testScores.year}` : ""}`}>
             {detail.testScores.read != null && (
-              <Fact label="Students proficient in reading" value={`${detail.testScores.read}%`} />
+              <Fact
+                label="Students proficient in reading"
+                value={`${detail.testScores.read}%`}
+                color={tone(detail.testScores.read, 60, 35)}
+              />
             )}
             {detail.testScores.math != null && (
-              <Fact label="Students proficient in math" value={`${detail.testScores.math}%`} />
+              <Fact
+                label="Students proficient in math"
+                value={`${detail.testScores.math}%`}
+                color={tone(detail.testScores.math, 60, 35)}
+              />
             )}
             <Note>
               Share of students who met state standards on the annual state tests. Source: U.S. DOE
@@ -169,10 +178,15 @@ function DetailBody({
               <Fact
                 label="Graduate within 4 years"
                 value={`${detail.collegeReadiness.gradRate}%`}
+                color={tone(detail.collegeReadiness.gradRate, 85, 67)}
               />
             )}
             {detail.collegeReadiness.apIbPct != null && (
-              <Fact label="Take an AP or IB course" value={`${detail.collegeReadiness.apIbPct}%`} />
+              <Fact
+                label="Take an AP or IB course"
+                value={`${detail.collegeReadiness.apIbPct}%`}
+                color={tone(detail.collegeReadiness.apIbPct, 30, 8)}
+              />
             )}
             {detail.collegeReadiness.satActPct != null && (
               <Fact label="Take the SAT or ACT" value={`${detail.collegeReadiness.satActPct}%`} />
@@ -191,10 +205,22 @@ function DetailBody({
               <Fact
                 label="Violent incidents (per 100 students)"
                 value={per100(detail.safety.violentIncidentsTotal, detail.enrollment)}
+                color={tone(
+                  (detail.safety.violentIncidentsTotal / Math.max(detail.enrollment, 1)) * 100,
+                  1,
+                  5,
+                  false
+                )}
               />
               <Fact
                 label="Suspensions (per 100 students)"
                 value={per100(detail.safety.outOfSchoolSuspensions, detail.enrollment)}
+                color={tone(
+                  (detail.safety.outOfSchoolSuspensions / Math.max(detail.enrollment, 1)) * 100,
+                  5,
+                  20,
+                  false
+                )}
               />
               <Fact label="Violent incidents (total)" value={detail.safety.violentIncidentsTotal} />
               <Fact label="Physical attacks w/ weapon" value={detail.safety.physicalAttacksWithWeapon} />
@@ -224,7 +250,11 @@ function DetailBody({
             <Fact label="English-language learners" value={`${detail.students.ellPct}%`} />
           )}
           {detail.chronicAbsentPct != null && (
-            <Fact label="Chronically absent" value={`${detail.chronicAbsentPct}%`} />
+            <Fact
+              label="Chronically absent"
+              value={`${detail.chronicAbsentPct}%`}
+              color={tone(detail.chronicAbsentPct, 15, 35, false)}
+            />
           )}
           <Note>
             &ldquo;Low-income&rdquo; = eligible for free/reduced-price lunch. &ldquo;Chronically
@@ -261,9 +291,14 @@ function DetailBody({
           <Fact
             label="Student-teacher ratio"
             value={detail.teachers.ratio ? `${Math.round(detail.teachers.ratio)} to 1` : "Not reported"}
+            color={detail.teachers.ratio ? tone(detail.teachers.ratio, 14, 20, false) : undefined}
           />
           {detail.teachers.certifiedPct != null && (
-            <Fact label="Certified teachers" value={`${detail.teachers.certifiedPct}%`} />
+            <Fact
+              label="Certified teachers"
+              value={`${detail.teachers.certifiedPct}%`}
+              color={tone(detail.teachers.certifiedPct, 90, 70)}
+            />
           )}
           {detail.teachers.counselors != null && detail.teachers.counselors > 0 && (
             <Fact label="Counselors (full-time)" value={Math.round(detail.teachers.counselors)} />
@@ -286,8 +321,8 @@ function DetailBody({
           </Section>
         )}
 
-        {/* Contact (near the end — not decision-critical) */}
-        <Section title="Contact & details">
+        {/* Contact (near the end — not decision-critical; collapsed) */}
+        <CollapsibleSection title="Contact & details">
           {addressLine && <Fact label="Address" value={addressLine} />}
           {c.phone && <Fact label="Phone" value={c.phone} />}
           <Fact label="Type" value={detail.type} />
@@ -295,7 +330,7 @@ function DetailBody({
           {a.coed && <Fact label="Coed status" value={a.coed} />}
           {a.urbanicity && <Fact label="Setting" value={a.urbanicity} />}
           <div className="col-span-2 pt-1 text-[10px] text-slate-300">NCES ID {detail.ncesId}</div>
-        </Section>
+        </CollapsibleSection>
 
         <Reviews ncesId={detail.ncesId} />
       </div>
@@ -383,11 +418,49 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Fact({ label, value }: { label: string; value: string | number }) {
+function Fact({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string | number;
+  color?: string;
+}) {
   return (
-    <div className="flex items-center justify-between gap-2 border-b border-slate-200/70 py-1.5 text-sm last:border-0">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="font-bold tabular-nums text-slate-900">{value}</dd>
+    <div className="flex items-center justify-between gap-3 border-b border-slate-200/70 py-1.5 text-sm last:border-0">
+      <dt className="min-w-0 flex-1 text-slate-500">{label}</dt>
+      <dd className="flex shrink-0 items-center gap-1.5 text-right font-bold tabular-nums" style={{ color: color ?? "#0f172a" }}>
+        {color && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />}
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function CollapsibleSection({
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="mt-4 rounded-xl bg-slate-50/70 p-3.5 sm:p-4">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2 text-left text-sm font-bold text-slate-900"
+        aria-expanded={open}
+      >
+        <span className="h-4 w-1.5 rounded-full bg-brand-500" />
+        {title}
+        <span className={`ml-auto text-brand-500 transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
+      </button>
+      {open && <dl className="mt-2.5 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">{children}</dl>}
     </div>
   );
 }
