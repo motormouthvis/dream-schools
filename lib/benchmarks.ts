@@ -33,11 +33,14 @@ async function compute(): Promise<Benchmarks> {
   const byState: Record<string, MetricBench> = {};
   const ensure = (st: string) => (byState[st] ??= { ...EMPTY });
 
-  // Test scores + (by state) from schools
+  // Test scores by state — enrollment-weighted so the average reflects students,
+  // not schools (otherwise many tiny alternative schools skew it).
   const tests = await pool.query(
     `select state,
-            round(avg(test_read_prof)) as tr,
-            round(avg(test_math_prof)) as tm
+            round(sum(test_read_prof * enrollment)
+                  / nullif(sum(enrollment) filter (where test_read_prof is not null), 0)) as tr,
+            round(sum(test_math_prof * enrollment)
+                  / nullif(sum(enrollment) filter (where test_math_prof is not null), 0)) as tm
        from schools
       where level <> 'private' and state is not null
       group by state`
@@ -48,9 +51,11 @@ async function compute(): Promise<Benchmarks> {
     m.testMath = r.tm != null ? Number(r.tm) : null;
   }
 
-  // Graduation by state
+  // Graduation by state — cohort-weighted.
   const grad = await pool.query(
-    `select s.state, round(avg(g.grad_rate_4yr)) as gr
+    `select s.state,
+            round(sum(g.grad_rate_4yr * nullif(g.cohort_size,0))
+                  / nullif(sum(nullif(g.cohort_size,0)), 0)) as gr
        from school_graduation g join schools s on s.nces_id = g.nces_id
       where s.state is not null
       group by s.state`
@@ -72,12 +77,19 @@ async function compute(): Promise<Benchmarks> {
     m.suspensionsPer100 = r.sp != null ? Number(r.sp) : null;
   }
 
-  // National
+  // National (weighted, same as per-state)
   const nt = await pool.query(
-    `select round(avg(test_read_prof)) tr, round(avg(test_math_prof)) tm
+    `select round(sum(test_read_prof * enrollment)
+                  / nullif(sum(enrollment) filter (where test_read_prof is not null), 0)) tr,
+            round(sum(test_math_prof * enrollment)
+                  / nullif(sum(enrollment) filter (where test_math_prof is not null), 0)) tm
        from schools where level <> 'private'`
   );
-  const ng = await pool.query(`select round(avg(grad_rate_4yr)) gr from school_graduation`);
+  const ng = await pool.query(
+    `select round(sum(grad_rate_4yr * nullif(cohort_size,0))
+                  / nullif(sum(nullif(cohort_size,0)), 0)) gr
+       from school_graduation`
+  );
   const ns = await pool.query(
     `select round(100.0 * sum(sf.violent_incidents_total) / nullif(sum(s.enrollment),0), 1) vp,
             round(100.0 * sum(sf.out_of_school_suspensions) / nullif(sum(s.enrollment),0), 1) sp
