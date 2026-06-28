@@ -44,6 +44,7 @@ export default function Home() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [nationwide, setNationwide] = useState(false);
   const [audience, setAudience] = useState<"full" | "fairhousing">("full");
   const [view, setView] = useState<"list" | "map">("list");
@@ -197,15 +198,17 @@ export default function Home() {
           <button
             type="button"
             onClick={() => {
+              // Reveal the form and focus the input SYNCHRONOUSLY within this tap
+              // so mobile browsers open the keyboard (they block focus() in async
+              // callbacks). React state catches up right after.
+              formRef.current?.classList.remove("hidden");
+              formRef.current?.classList.add("flex");
+              inputRef.current?.focus();
               setChanging(true);
               setAddress("");
               setSuggestions([]);
               setShowSuggest(false);
-              // Reveal the empty, focused box so recent searches appear instantly.
-              setTimeout(() => {
-                inputRef.current?.focus();
-                setFocused(true);
-              }, 0);
+              setFocused(true);
             }}
             className="shrink-0 rounded-lg border border-brand-600 px-3 py-2 text-xs font-bold text-brand-700 transition hover:bg-brand-50"
           >
@@ -215,6 +218,7 @@ export default function Home() {
       )}
 
       <form
+        ref={formRef}
         onSubmit={(e) => {
           e.preventDefault();
           runLookup(address);
