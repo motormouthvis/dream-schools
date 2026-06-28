@@ -75,8 +75,16 @@ function DetailBody({
   onClose: () => void;
   fairHousing: boolean;
 }) {
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
   const a = detail.attributes;
   const c = detail.contact;
+  const b = detail.benchmarks;
+  const reportHref =
+    `mailto:corrections@dreamneighborhood.com` +
+    `?subject=${encodeURIComponent(`Data correction: ${detail.name} (NCES ${detail.ncesId})`)}` +
+    `&body=${encodeURIComponent(
+      `School: ${detail.name}\nNCES ID: ${detail.ncesId}\n\nWhat is incorrect, and what should it be?\n`
+    )}`;
   const addressLine = [c.street, [c.city, c.state].filter(Boolean).join(", "), c.zip]
     .filter(Boolean)
     .join(" · ");
@@ -90,12 +98,20 @@ function DetailBody({
   ].filter(Boolean) as string[];
   return (
     <>
-      <header className="flex items-start justify-between gap-3 bg-gradient-to-r from-brand-700 to-brand-500 px-6 py-5 text-white">
+      <header className="flex items-start justify-between gap-3 bg-gradient-to-r from-brand-700 to-brand-500 px-5 py-4 text-white sm:px-6">
         <div className="min-w-0">
-          <h2 className="truncate text-lg font-semibold">{detail.name}</h2>
-          <p className="mt-0.5 text-sm text-brand-50">
+          <h2 className="text-base font-semibold leading-tight sm:text-lg">{detail.name}</h2>
+          <p className="mt-0.5 text-xs text-brand-50 sm:text-sm">
             {detail.type} • Grades {detail.grades} • {detail.district.name}
           </p>
+          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-brand-100">
+            <button type="button" onClick={() => setShowDisclaimer(true)} className="underline underline-offset-2 hover:text-white">
+              ⓘ Data disclaimer
+            </button>
+            <a href={reportHref} className="underline underline-offset-2 hover:text-white">
+              Report an error
+            </a>
+          </div>
         </div>
         <button
           onClick={onClose}
@@ -106,8 +122,33 @@ function DetailBody({
         </button>
       </header>
 
+      {showDisclaimer && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4" onClick={() => setShowDisclaimer(false)}>
+          <div className="max-w-sm rounded-xl bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-slate-900">Data disclaimer</h3>
+            <p className="mt-2 text-xs leading-relaxed text-slate-600">
+              Figures come from public federal datasets (NCES CCD, U.S. DOE CRDC, EDFacts, NCES PSS)
+              and may be <strong>several years old, incomplete, or contain errors</strong>. Ratings
+              are our own computed estimates, not official scores. This information is provided
+              &ldquo;as is&rdquo; for general guidance only — verify directly with the school or
+              district before making decisions. Dream Neighborhood is not responsible for any
+              decisions made based on this data. See the menu under &ldquo;Data sources&rdquo; for
+              details.
+            </p>
+            <div className="mt-3 flex items-center justify-between">
+              <a href={reportHref} className="text-xs font-semibold text-brand-600 hover:text-brand-700">
+                Report an error →
+              </a>
+              <button type="button" onClick={() => setShowDisclaimer(false)} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-h-[82vh] overflow-y-auto px-5 py-5 sm:max-h-[75vh] sm:px-6">
-        {/* GreatSchools-style 1-10 ratings, with context + data-coverage */}
+        {/* 1-10 Dream Rating, with context + data-coverage */}
         <div className="rounded-xl bg-brand-50 p-3.5 ring-1 ring-inset ring-brand-600/15">
           <div className="mb-2.5 flex items-start justify-between gap-2">
             <p className="text-[11px] font-medium leading-relaxed text-brand-900">
@@ -160,6 +201,7 @@ function DetailBody({
                 label="Reading proficiency"
                 value={`${detail.testScores.read}%`}
                 color={tone(detail.testScores.read, 60, 35)}
+                sub={bench(b?.stateAvg?.testRead, b?.nationalAvg?.testRead, "%")}
               />
             )}
             {detail.testScores.math != null && (
@@ -167,6 +209,7 @@ function DetailBody({
                 label="Math proficiency"
                 value={`${detail.testScores.math}%`}
                 color={tone(detail.testScores.math, 60, 35)}
+                sub={bench(b?.stateAvg?.testMath, b?.nationalAvg?.testMath, "%")}
               />
             )}
             <Note>
@@ -184,6 +227,7 @@ function DetailBody({
                 label="4-yr graduation rate"
                 value={`${detail.collegeReadiness.gradRate}%`}
                 color={tone(detail.collegeReadiness.gradRate, 85, 67)}
+                sub={bench(b?.stateAvg?.gradRate, b?.nationalAvg?.gradRate, "%")}
               />
             )}
             {detail.collegeReadiness.apIbPct != null && (
@@ -194,7 +238,11 @@ function DetailBody({
               />
             )}
             {detail.collegeReadiness.satActPct != null && (
-              <Fact label="Took SAT / ACT" value={`${detail.collegeReadiness.satActPct}%`} />
+              <Fact
+                label="Took SAT / ACT"
+                value={`${detail.collegeReadiness.satActPct}%`}
+                color={tone(detail.collegeReadiness.satActPct, 40, 10)}
+              />
             )}
             <Note>
               % of students. Typical US 4-year graduation rate is ≈87%; very low rates usually mean
@@ -216,6 +264,7 @@ function DetailBody({
                   5,
                   false
                 )}
+                sub={bench(b?.stateAvg?.violentPer100, b?.nationalAvg?.violentPer100)}
               />
               <Fact
                 label="Suspensions / 100"
@@ -226,6 +275,12 @@ function DetailBody({
                   20,
                   false
                 )}
+                sub={bench(b?.stateAvg?.suspensionsPer100, b?.nationalAvg?.suspensionsPer100)}
+              />
+              <Fact
+                label="Security staff on site"
+                value={detail.teachers.security ? "Yes" : "No"}
+                color={detail.teachers.security ? "#059669" : "#d97706"}
               />
               <Fact label="Violent incidents (total)" value={detail.safety.violentIncidentsTotal} />
               <Fact label="Attacks w/ weapon" value={detail.safety.physicalAttacksWithWeapon} />
@@ -239,7 +294,8 @@ function DetailBody({
               <Fact label="Any firearm incident" value={detail.safety.firearmIncident ? "Yes" : "No"} />
               <Note>
                 Counts are for the full {detail.safety.schoolYear} school year. &ldquo;Per 100
-                students&rdquo; lets you compare schools of different sizes. Source: U.S. DOE CRDC.
+                students&rdquo; lets you compare schools of different sizes (vs your state &amp; the
+                US). Source: U.S. DOE CRDC.
               </Note>
             </>
           ) : (
@@ -271,30 +327,6 @@ function DetailBody({
           </Note>
         </Section>
 
-        {/* Demographics (hidden in Fair Housing Compliant mode) */}
-        {fairHousing ? (
-          <Section title="Race & gender">
-            <p className="col-span-full text-xs text-slate-500">
-              Hidden in <strong>Fair Housing Compliant</strong> mode so it can&apos;t be used to
-              steer buyers, per Fair Housing guidance.
-            </p>
-          </Section>
-        ) : (
-          detail.demographics && (
-            <Section title="Race & gender">
-              <div className="col-span-full space-y-3">
-                {detail.demographics.byRace.length > 0 && (
-                  <DemoBars title="By race / ethnicity" data={detail.demographics.byRace} />
-                )}
-                {detail.demographics.byGender.length > 0 && (
-                  <DemoBars title="By gender" data={detail.demographics.byGender} />
-                )}
-                <Note>Source: NCES CCD 2023-24 enrollment.</Note>
-              </div>
-            </Section>
-          )
-        )}
-
         {/* Teachers & staff */}
         <Section title="Teachers & staff">
           <Fact
@@ -319,18 +351,44 @@ function DetailBody({
         {detail.advanced && (detail.advanced.apPct || detail.advanced.ibPct || detail.advanced.giftedPct) && (
           <Section title="Advanced courses">
             {detail.advanced.apPct != null && (
-              <Fact label="In AP courses" value={`${detail.advanced.apPct}%`} />
+              <Fact label="In AP courses" value={`${detail.advanced.apPct}%`} color={tone(detail.advanced.apPct, 15, 2)} />
             )}
             {detail.advanced.ibPct != null && (
-              <Fact label="In IB courses" value={`${detail.advanced.ibPct}%`} />
+              <Fact label="In IB courses" value={`${detail.advanced.ibPct}%`} color={tone(detail.advanced.ibPct, 8, 0.5)} />
             )}
             {detail.advanced.giftedPct != null && (
-              <Fact label="Gifted & talented" value={`${detail.advanced.giftedPct}%`} />
+              <Fact label="Gifted & talented" value={`${detail.advanced.giftedPct}%`} color={tone(detail.advanced.giftedPct, 8, 1)} />
             )}
           </Section>
         )}
 
-        {/* Contact (near the end — not decision-critical; collapsed) */}
+        <Reviews ncesId={detail.ncesId} />
+
+        {/* Race & gender — kept near the bottom, just above Contact */}
+        {fairHousing ? (
+          <Section title="Race & gender">
+            <p className="col-span-full text-xs text-slate-500">
+              Hidden in <strong>Fair Housing Compliant</strong> mode so it can&apos;t be used to
+              steer buyers, per Fair Housing guidance.
+            </p>
+          </Section>
+        ) : (
+          detail.demographics && (
+            <Section title="Race & gender">
+              <div className="col-span-full space-y-3">
+                {detail.demographics.byRace.length > 0 && (
+                  <DemoBars title="By race / ethnicity" data={detail.demographics.byRace} />
+                )}
+                {detail.demographics.byGender.length > 0 && (
+                  <DemoBars title="By gender" data={detail.demographics.byGender} />
+                )}
+                <Note>Source: NCES CCD 2023-24 enrollment.</Note>
+              </div>
+            </Section>
+          )
+        )}
+
+        {/* Contact (bottom — not decision-critical; collapsed) */}
         <CollapsibleSection title="Contact & details">
           {addressLine && <Fact label="Address" value={addressLine} />}
           {c.phone && <Fact label="Phone" value={c.phone} />}
@@ -340,8 +398,6 @@ function DetailBody({
           {a.urbanicity && <Fact label="Setting" value={a.urbanicity} />}
           <div className="col-span-full pt-1 text-[10px] text-slate-300">NCES ID {detail.ncesId}</div>
         </CollapsibleSection>
-
-        <Reviews ncesId={detail.ncesId} />
       </div>
     </>
   );
@@ -506,23 +562,36 @@ function Fact({
   label,
   value,
   color,
+  sub,
 }: {
   label: string;
   value: string | number;
   color?: string;
+  sub?: string;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-slate-200/70 py-1.5 text-sm last:border-0">
-      <dt className="min-w-0 text-slate-500">{label}</dt>
-      <dd
-        className="flex shrink-0 items-center gap-1.5 whitespace-nowrap font-bold tabular-nums"
-        style={{ color: color ?? "#0f172a" }}
-      >
-        {color && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />}
-        {value}
-      </dd>
+    <div className="border-b border-slate-200/70 py-1.5 last:border-0">
+      <div className="flex items-baseline justify-between gap-3 text-sm">
+        <dt className="min-w-0 text-slate-500">{label}</dt>
+        <dd
+          className="flex shrink-0 items-center gap-1.5 whitespace-nowrap font-bold tabular-nums"
+          style={{ color: color ?? "#0f172a" }}
+        >
+          {color && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />}
+          {value}
+        </dd>
+      </div>
+      {sub && <div className="mt-0.5 text-right text-[10px] text-slate-400">{sub}</div>}
     </div>
   );
+}
+
+// "State 48% · US 50%" benchmark caption (omits unknowns).
+function bench(stateV: number | null | undefined, natV: number | null | undefined, unit = ""): string | undefined {
+  const parts: string[] = [];
+  if (stateV != null) parts.push(`State ${stateV}${unit}`);
+  if (natV != null) parts.push(`US ${natV}${unit}`);
+  return parts.length ? parts.join(" · ") : undefined;
 }
 
 function CollapsibleSection({

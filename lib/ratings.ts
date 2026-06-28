@@ -1,4 +1,4 @@
-// GreatSchools-style 1-10 ratings, computed transparently from federal data.
+// Dream Rating: 1-10 ratings computed transparently from federal data.
 
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));

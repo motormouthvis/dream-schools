@@ -2,6 +2,7 @@ import { hasDatabase, getPool } from "@/lib/db";
 import { SCHOOLS, DISTRICT, safetyFor, graduationFor } from "@/lib/data";
 import { safetyScore, schoolScoreBreakdown, type ScoredSchool } from "@/lib/scoring";
 import { computeRatings } from "@/lib/ratings";
+import { getBenchmarks } from "@/lib/benchmarks";
 import type {
   DemographicSlice,
   GraduationRecord,
@@ -290,5 +291,22 @@ function getFromJson(ncesId: string): SchoolDetail | null {
 }
 
 export async function getSchoolDetail(ncesId: string): Promise<SchoolDetail | null> {
-  return hasDatabase() ? getFromDb(ncesId) : getFromJson(ncesId);
+  const detail = hasDatabase() ? await getFromDb(ncesId) : getFromJson(ncesId);
+  if (!detail) return null;
+  if (hasDatabase()) {
+    try {
+      const bench = await getBenchmarks();
+      if (bench) {
+        const st = detail.contact.state || "";
+        detail.benchmarks = {
+          state: st,
+          stateAvg: bench.byState[st] ?? null,
+          nationalAvg: bench.national,
+        };
+      }
+    } catch {
+      /* benchmarks optional */
+    }
+  }
+  return detail;
 }

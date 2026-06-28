@@ -168,6 +168,19 @@ export interface SchoolDetail {
   };
   safety: SafetyRecord | null;
   graduation: GraduationRecord | null;
+  benchmarks?: {
+    state: string;
+    stateAvg: MetricBenchmark | null;
+    nationalAvg: MetricBenchmark | null;
+  } | null;
+}
+
+export interface MetricBenchmark {
+  testRead: number | null;
+  testMath: number | null;
+  gradRate: number | null;
+  violentPer100: number | null;
+  suspensionsPer100: number | null;
 }
 
 export interface LookupResult {
