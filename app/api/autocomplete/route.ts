@@ -29,7 +29,7 @@ async function fromPhoton(q: string): Promise<Suggestion[]> {
   const params = new URLSearchParams({ q, limit: "6", lang: "en", lat: "39.5", lon: "-98.35" });
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 3500);
+    const timer = setTimeout(() => controller.abort(), 2000);
     const res = await fetch(`${PHOTON_URL}?${params.toString()}`, {
       signal: controller.signal,
       headers: { Accept: "application/json" },
@@ -62,7 +62,7 @@ async function fromCensus(q: string): Promise<Suggestion[]> {
   });
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 3500);
+    const timer = setTimeout(() => controller.abort(), 4500);
     const res = await fetch(`${CENSUS_URL}?${params.toString()}`, {
       signal: controller.signal,
       headers: { Accept: "application/json" },
@@ -95,7 +95,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ suggestions: [] });
   }
 
-  const [census, photon] = await Promise.all([fromCensus(q), fromPhoton(q)]);
+  // Run both, but never let the slower one block the response beyond its own
+  // timeout. Census is authoritative for US street addresses, so it leads.
+  const [censusR, photonR] = await Promise.allSettled([fromCensus(q), fromPhoton(q)]);
+  const census = censusR.status === "fulfilled" ? censusR.value : [];
+  const photon = photonR.status === "fulfilled" ? photonR.value : [];
 
   // Census first (most precise for US), then Photon; de-dupe by normalized label.
   const seen = new Set<string>();

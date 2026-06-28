@@ -45,6 +45,7 @@ export default function Home() {
   const suppressRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const acRef = useRef<AbortController | null>(null);
   const [nationwide, setNationwide] = useState(false);
   const [audience, setAudience] = useState<"full" | "fairhousing">("full");
   const [view, setView] = useState<"list" | "map">("list");
@@ -82,16 +83,23 @@ export default function Home() {
     }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
+      // Cancel any in-flight request so the latest keystroke always wins
+      // (prevents slow/out-of-order responses from showing stale suggestions).
+      acRef.current?.abort();
+      const ac = new AbortController();
+      acRef.current = ac;
       try {
-        const res = await fetch(`/api/autocomplete?q=${encodeURIComponent(address)}`);
+        const res = await fetch(`/api/autocomplete?q=${encodeURIComponent(address)}`, {
+          signal: ac.signal,
+        });
         const json = await res.json();
         setSuggestions(json.suggestions ?? []);
         setShowSuggest(true);
         setActiveIdx(-1);
       } catch {
-        setSuggestions([]);
+        /* aborted (newer query in flight) or network error — keep prior list */
       }
-    }, 250);
+    }, 200);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
@@ -164,9 +172,8 @@ export default function Home() {
       <div className="mt-4 overflow-hidden rounded-3xl bg-gradient-to-br from-brand-50 to-lime-50 ring-1 ring-inset ring-brand-600/10">
         <div className="flex items-center justify-between gap-3 px-5 py-4 sm:px-7 sm:py-5">
           <div>
-            <h1 className="text-xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-3xl">
-              Find the right schools <br className="hidden sm:block" />
-              for any address
+            <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-3xl">
+              Find Your Dream School
             </h1>
             <p className="mt-1.5 text-xs text-slate-500 sm:text-sm">
               Real ratings, test scores &amp; safety — public &amp; private, nationwide.
