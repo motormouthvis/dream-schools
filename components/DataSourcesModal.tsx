@@ -54,7 +54,7 @@ const SOURCES: { name: string; vintage: string; access: string; used: string }[]
 export function DataSourcesModal({ onClose }: { onClose: () => void }) {
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-slate-900/50 p-2 backdrop-blur-sm sm:p-8"
+      className="fixed inset-0 z-[1200] flex items-start justify-center overflow-y-auto bg-slate-900/50 p-2 backdrop-blur-sm sm:p-8"
       onClick={onClose}
     >
       <div

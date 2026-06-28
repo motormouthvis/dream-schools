@@ -42,7 +42,7 @@ export function SchoolDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-2 backdrop-blur-sm sm:p-8"
+      className="fixed inset-0 z-[1100] flex items-start justify-center overflow-y-auto bg-slate-900/50 p-2 backdrop-blur-sm sm:p-8"
       onClick={onClose}
     >
       <div
@@ -123,7 +123,7 @@ function DetailBody({
       </header>
 
       {showDisclaimer && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4" onClick={() => setShowDisclaimer(false)}>
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-900/50 p-4" onClick={() => setShowDisclaimer(false)}>
           <div className="max-w-sm rounded-xl bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-sm font-bold text-slate-900">Data disclaimer</h3>
             <p className="mt-2 text-xs leading-relaxed text-slate-600">

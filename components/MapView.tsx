@@ -118,8 +118,8 @@ export function MapView({
   return (
     <div
       ref={ref}
-      className={`${heightClass} w-full overflow-hidden rounded-2xl border border-slate-200 shadow-sm`}
-      style={{ background: "#e8eef3" }}
+      className={`${heightClass} isolate w-full overflow-hidden rounded-2xl border border-slate-200 shadow-sm`}
+      style={{ background: "#e8eef3", zIndex: 0 }}
     />
   );
 }
