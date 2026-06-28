@@ -5,6 +5,7 @@ import { SchoolsTab } from "@/components/SchoolsTab";
 import { Logo } from "@/components/Logo";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { DataSourcesModal } from "@/components/DataSourcesModal";
+import { getRecent, addRecent, type RecentSearch } from "@/lib/recent";
 import type { LookupResult } from "@/lib/types";
 
 interface Suggestion {
@@ -28,9 +29,12 @@ export default function Home() {
   const [audience, setAudience] = useState<"full" | "fairhousing">("full");
   const [view, setView] = useState<"list" | "map">("list");
   const [showDataSources, setShowDataSources] = useState(false);
+  const [recents, setRecents] = useState<RecentSearch[]>([]);
+  const [focused, setFocused] = useState(false);
   const fairHousing = audience === "fairhousing";
 
   useEffect(() => {
+    setRecents(getRecent());
     fetch("/api/health")
       .then((r) => r.json())
       .then((j) => setNationwide(Boolean(j.nationwide)))
@@ -75,8 +79,14 @@ export default function Home() {
     suppressRef.current = true;
     setAddress(s.label);
     setShowSuggest(false);
+    setFocused(false);
     setSuggestions([]);
     runLookup(s.label, s);
+  }
+
+  function pickRecent(r: RecentSearch) {
+    setFocused(false);
+    pickSuggestion({ label: r.label, lat: r.lat ?? NaN, lon: r.lon ?? NaN, zip: r.zip ?? "" });
   }
 
   async function runLookup(query: string, picked?: Suggestion) {
@@ -93,7 +103,17 @@ export default function Home() {
         setError(json.error ?? "Something went wrong.");
         setData(null);
       } else {
-        setData(json as LookupResult);
+        const result = json as LookupResult;
+        setData(result);
+        // Persist this search (canonical matched address + coords) to cookies.
+        setRecents(
+          addRecent({
+            label: result.geocode.matchedAddress || q,
+            lat: result.center?.lat,
+            lon: result.center?.lon,
+            zip: result.geocode?.zip,
+          })
+        );
       }
     } catch {
       setError("Network error. Is the dev server running?");
@@ -160,8 +180,16 @@ export default function Home() {
             type="text"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            onFocus={() => suggestions.length > 0 && setShowSuggest(true)}
-            onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
+            onFocus={() => {
+              setFocused(true);
+              if (suggestions.length > 0) setShowSuggest(true);
+            }}
+            onBlur={() =>
+              setTimeout(() => {
+                setShowSuggest(false);
+                setFocused(false);
+              }, 150)
+            }
             onKeyDown={(e) => {
               if (!showSuggest || suggestions.length === 0) return;
               if (e.key === "ArrowDown") {
@@ -178,9 +206,31 @@ export default function Home() {
               }
             }}
             autoComplete="off"
-            placeholder="Start typing any US address…"
+            placeholder="Search or change address…"
             className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-9 pr-3 text-sm shadow-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
           />
+          {focused && !address.trim() && recents.length > 0 && (
+            <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+              <li className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                Recent searches
+              </li>
+              {recents.map((r, i) => (
+                <li key={`${r.label}-${i}`}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      pickRecent(r);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                  >
+                    <span className="text-slate-300">🕘</span>
+                    <span className="truncate">{r.label}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           {showSuggest && suggestions.length > 0 && (
             <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
               {suggestions.map((s, i) => (
