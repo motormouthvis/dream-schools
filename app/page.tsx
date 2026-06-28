@@ -31,7 +31,9 @@ export default function Home() {
   const [showDataSources, setShowDataSources] = useState(false);
   const [recents, setRecents] = useState<RecentSearch[]>([]);
   const [focused, setFocused] = useState(false);
+  const [changing, setChanging] = useState(false);
   const fairHousing = audience === "fairhousing";
+  const showSearch = !data || changing;
 
   useEffect(() => {
     setRecents(getRecent());
@@ -105,6 +107,7 @@ export default function Home() {
       } else {
         const result = json as LookupResult;
         setData(result);
+        setChanging(false);
         // Persist this search (canonical matched address + coords) to cookies.
         setRecents(
           addRecent({
@@ -137,31 +140,51 @@ export default function Home() {
         />
       </div>
 
-      {/* Marketing hero — only on the landing screen, not once results show */}
-      {!data && !loading && (
-        <div className="mt-4 overflow-hidden rounded-3xl bg-gradient-to-br from-brand-50 to-lime-50 ring-1 ring-inset ring-brand-600/10">
-          <div className="flex items-center justify-between gap-3 px-5 pt-5 sm:px-7">
-            <div>
-              <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-3xl">
-                Find the right schools <br className="hidden sm:block" />
-                for any address
-              </h1>
-              <p className="mt-1.5 text-sm text-slate-500">
-                Real ratings, test scores &amp; safety — public &amp; private, nationwide.
-              </p>
-            </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/hero-schools.png"
-              alt="Illustration of children walking to school"
-              className="hidden h-28 w-auto sm:block"
-            />
+      {/* Line 2 — brand hero with illustration (always shown) */}
+      <div className="mt-4 overflow-hidden rounded-3xl bg-gradient-to-br from-brand-50 to-lime-50 ring-1 ring-inset ring-brand-600/10">
+        <div className="flex items-center justify-between gap-3 px-5 py-4 sm:px-7 sm:py-5">
+          <div>
+            <h1 className="text-xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-3xl">
+              Find the right schools <br className="hidden sm:block" />
+              for any address
+            </h1>
+            <p className="mt-1.5 text-xs text-slate-500 sm:text-sm">
+              Real ratings, test scores &amp; safety — public &amp; private, nationwide.
+            </p>
           </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/hero-schools.png"
-            alt=""
-            className="mt-3 block h-24 w-full object-cover object-top sm:hidden"
+            alt="Illustration of children walking to school"
+            className="h-20 w-auto shrink-0 sm:h-28"
           />
+        </div>
+      </div>
+
+      {/* Line 3 — search box (no address yet / changing) OR address bar */}
+      {!showSearch && data && (
+        <div className="mx-auto mt-4 flex max-w-2xl items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-slate-900">
+              <span className="mr-1">📍</span>
+              {data.geocode.matchedAddress}
+            </p>
+            <p className="truncate text-xs text-slate-500">
+              <span className="font-semibold text-brand-700">{data.district.name}</span> School
+              District · {data.district.studentCount.toLocaleString()} students ·{" "}
+              {data.district.schoolCount} schools
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setChanging(true);
+              setAddress("");
+            }}
+            className="shrink-0 rounded-lg border border-brand-600 px-3 py-2 text-xs font-bold text-brand-700 transition hover:bg-brand-50"
+          >
+            Change address
+          </button>
         </div>
       )}
 
@@ -170,7 +193,7 @@ export default function Home() {
           e.preventDefault();
           runLookup(address);
         }}
-        className="mx-auto mt-4 flex max-w-2xl flex-col gap-2 sm:flex-row"
+        className={`mx-auto mt-4 max-w-2xl flex-col gap-2 sm:flex-row ${showSearch ? "flex" : "hidden"}`}
       >
         <div className="relative flex-1">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
@@ -206,7 +229,7 @@ export default function Home() {
               }
             }}
             autoComplete="off"
-            placeholder="Search or change address…"
+            placeholder={data ? "Search or change address…" : "Enter a US address to find your Dream School"}
             className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-9 pr-3 text-sm shadow-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
           />
           {focused && !address.trim() && recents.length > 0 && (

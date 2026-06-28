@@ -63,20 +63,8 @@ export function SchoolsTab({
 
   return (
     <section className="space-y-5">
-      {/* Slim result header — address is already shown in the search box above,
-          so we only confirm the district + quick stats here. */}
-      <header className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
-        <p className="text-sm leading-snug">
-          <span className="mr-1">📍</span>
-          <span className="font-bold text-brand-700">{district.name}</span>
-          <span className="text-slate-400"> School District</span>
-          <span className="ml-2 text-xs text-slate-400">
-            {district.studentCount.toLocaleString()} students · {district.schoolCount} schools
-          </span>
-        </p>
-      </header>
-
-      {/* PRIMARY: schools near you */}
+      {/* PRIMARY: schools near you (the address + district now live in the
+          page-level "Line 3" address bar above) */}
       <div>
         <div className="mb-3 flex items-center gap-2.5">
           <span className="h-5 w-1.5 rounded-full bg-brand-500" />
