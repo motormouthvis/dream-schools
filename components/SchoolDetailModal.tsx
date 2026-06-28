@@ -347,18 +347,21 @@ function DemoBars({ title, data }: { title: string; data: { label: string; count
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mt-5">
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</h3>
-      <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">{children}</dl>
+    <div className="mt-4 rounded-xl bg-slate-50/70 p-3.5 sm:p-4">
+      <h3 className="mb-2.5 flex items-center gap-2 text-sm font-bold text-slate-900">
+        <span className="h-4 w-1.5 rounded-full bg-brand-500" />
+        {title}
+      </h3>
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">{children}</dl>
     </div>
   );
 }
 
 function Fact({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="flex items-center justify-between gap-2 border-b border-slate-100 py-1 text-sm">
+    <div className="flex items-center justify-between gap-2 border-b border-slate-200/70 py-1.5 text-sm last:border-0">
       <dt className="text-slate-500">{label}</dt>
-      <dd className="font-semibold tabular-nums text-slate-800">{value}</dd>
+      <dd className="font-bold tabular-nums text-slate-900">{value}</dd>
     </div>
   );
 }

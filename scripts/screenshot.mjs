@@ -36,9 +36,9 @@ if (CLICK_SCHOOL) {
   const btns = await page.$$("button");
   for (const b of btns) {
     const txt = await page.evaluate((el) => el.textContent || "", b);
-    if (txt.includes("View details")) {
+    if (txt.includes("mi away")) {
       await b.click();
-      await new Promise((r) => setTimeout(r, 1500));
+      await new Promise((r) => setTimeout(r, 1800));
       break;
     }
   }
