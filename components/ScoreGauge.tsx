@@ -37,14 +37,25 @@ export function ScoreGauge({
           strokeDasharray={`${dash} ${circumference - dash}`}
         />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
+      <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
         <div className="flex items-baseline">
-          <span className="text-4xl font-bold tabular-nums text-slate-900">{r10}</span>
-          <span className="text-sm font-medium text-slate-400">/10</span>
+          <span className="font-bold tabular-nums text-slate-900" style={{ fontSize: size * 0.32 }}>
+            {r10}
+          </span>
+          <span className="font-medium text-slate-400" style={{ fontSize: size * 0.13 }}>
+            /10
+          </span>
         </div>
-        <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color }}>
-          {rating10Word(r10)}
-        </span>
+        {/* The word only fits comfortably on a larger gauge; small gauges show the
+            number + color and let the adjacent text carry the label. */}
+        {size >= 110 && (
+          <span
+            className="mt-0.5 font-semibold uppercase tracking-wide"
+            style={{ color, fontSize: size * 0.085 }}
+          >
+            {rating10Word(r10)}
+          </span>
+        )}
       </div>
     </div>
   );

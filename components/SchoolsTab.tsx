@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { ScoreGauge } from "./ScoreGauge";
+import { to10, rating10Hex, rating10Word } from "./score";
 import { CategoryCard } from "./CategoryCard";
 import { SafetySection } from "./SafetySection";
 import { NearbySchools } from "./NearbySchools";
@@ -173,7 +174,15 @@ export function SchoolsTab({
         >
           <ScoreGauge score={data.overallScore} size={72} />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-slate-900">Neighborhood overview</p>
+            <p className="flex flex-wrap items-baseline gap-x-2 text-sm font-bold text-slate-900">
+              Neighborhood overview
+              <span
+                className="text-xs font-semibold uppercase tracking-wide"
+                style={{ color: rating10Hex(to10(data.overallScore)) }}
+              >
+                {rating10Word(to10(data.overallScore))}
+              </span>
+            </p>
             <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
               An <strong>area average</strong> of nearby public schools — not one school. Tap to
               {showArea ? " hide" : " see"} the breakdown.

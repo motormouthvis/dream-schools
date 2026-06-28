@@ -185,7 +185,8 @@ export default function Home() {
               Find Your Dream School
             </h1>
             <p className="mt-1.5 text-xs text-slate-500 sm:text-sm">
-              Real ratings, test scores &amp; safety — public &amp; private, nationwide.
+              Real ratings, test scores &amp; safety for public schools, nationwide. Private schools
+              included (limited data).
             </p>
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}

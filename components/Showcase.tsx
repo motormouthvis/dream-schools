@@ -67,8 +67,11 @@ export function Showcase() {
         <strong className="text-slate-700">
           real ratings, test scores, graduation, and safety data
         </strong>{" "}
-        for every nearby public &amp; private school.
-        <span className="block text-[11px] text-slate-400">Sample values shown.</span>
+        for nearby public schools.
+        <span className="mt-1 block text-[11px] text-slate-400">
+          Private schools are included, but the government collects little data on them, so most
+          show limited info. Sample values shown.
+        </span>
       </p>
     </div>
   );
