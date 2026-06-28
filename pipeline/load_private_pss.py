@@ -46,6 +46,7 @@ PSS_GRADE = {
 }
 
 RELIG_LABEL = {1: "Catholic", 2: "Religious", 3: "Nonsectarian"}
+COED_LABEL = {1: "Coeducational", 2: "All-girls", 3: "All-boys"}
 
 URBANICITY = {
     11: "City (large)", 12: "City (midsize)", 13: "City (small)",
@@ -137,6 +138,7 @@ def main():
         relig = to_int(col(r, "RELIG"))
         affil = RELIG_LABEL.get(relig, "")
         stype = f"Private ({affil})" if affil else "Private"
+        coed = COED_LABEL.get(to_int(col(r, "P335")), "")
         low = grade_label(col(r, "LOGR2022"))
         high = grade_label(col(r, "HIGR2022"))
         males = to_int(col(r, "MALES"))
@@ -165,6 +167,7 @@ def main():
             race("P_WHITE"), race("P_BLACK"), race("P_HISP"), race("P_ASIAN"),
             race("P_INDIAN"), race("P_PACIFIC"), race("P_TR"),
             males if males is not None else "", females if females is not None else "",
+            coed,
             f"SRID=4326;POINT({lonf} {latf})",
         ])
 
@@ -174,6 +177,7 @@ def main():
     conn.autocommit = False
     try:
         with conn.cursor() as cur:
+            cur.execute("ALTER TABLE schools ADD COLUMN IF NOT EXISTS coed text;")
             cur.execute("DELETE FROM schools WHERE level = 'private';")
             buf = io.StringIO()
             csv.writer(buf).writerows(out)
@@ -183,7 +187,8 @@ def main():
                    district_id, enrollment, student_teacher_ratio, chronic_absent_students,
                    street, city, state, phone, charter, magnet, title_i, virtual,
                    free_reduced_lunch, urbanicity, enr_white, enr_black, enr_hispanic,
-                   enr_asian, enr_amerind, enr_pacific, enr_twomore, enr_male, enr_female, geom)
+                   enr_asian, enr_amerind, enr_pacific, enr_twomore, enr_male, enr_female,
+                   coed, geom)
                    FROM STDIN WITH (FORMAT csv, NULL '')""",
                 buf,
             )

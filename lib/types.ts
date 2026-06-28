@@ -128,6 +128,7 @@ export interface SchoolDetail {
     virtual: boolean | null;
     urbanicity: string | null;
     freeReducedLunchPct: number | null;
+    coed: string | null;
   };
   demographics: {
     byRace: DemographicSlice[];

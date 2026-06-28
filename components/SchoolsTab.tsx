@@ -41,7 +41,7 @@ export function SchoolsTab({
   const { district, categories, geocode } = data;
   const [openId, setOpenId] = useState<string | null>(null);
   const [showArea, setShowArea] = useState(false);
-  const [showMap, setShowMap] = useState(false);
+  const [view, setView] = useState<"list" | "map">("list");
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
 
@@ -82,42 +82,51 @@ export function SchoolsTab({
         </div>
       </header>
 
-      {/* Map — collapsed by default; pins are numbered to match the list */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <button
-          type="button"
-          onClick={() => setShowMap((v) => !v)}
-          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
-          aria-expanded={showMap}
-        >
-          <span className="flex items-center gap-2.5">
+      {/* PRIMARY: schools near you, with a List / Map toggle */}
+      <div>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
             <span className="h-5 w-1.5 rounded-full bg-brand-500" />
-            <span className="text-base font-bold text-slate-900">Map of these schools</span>
-          </span>
-          <span className={`text-brand-500 transition-transform ${showMap ? "rotate-180" : ""}`}>▾</span>
-        </button>
-        {showMap && (
-          <div className="px-3 pb-3">
-            <MapView data={data} onSelectSchool={setOpenId} />
+            <h3 className="text-base font-bold text-slate-900 sm:text-lg">Schools near you</h3>
+          </div>
+          <div className="inline-flex rounded-full bg-slate-100 p-0.5 text-sm font-semibold">
+            <button
+              type="button"
+              onClick={() => setView("list")}
+              className={`rounded-full px-3 py-1.5 transition ${
+                view === "list" ? "bg-white text-brand-700 shadow-sm" : "text-slate-500"
+              }`}
+            >
+              List
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("map")}
+              className={`rounded-full px-3 py-1.5 transition ${
+                view === "map" ? "bg-white text-brand-700 shadow-sm" : "text-slate-500"
+              }`}
+            >
+              Map
+            </button>
+          </div>
+        </div>
+
+        {view === "list" ? (
+          <NearbySchools
+            schools={data.nearbySchools}
+            onSelect={setOpenId}
+            compareIds={compareIds}
+            onToggleCompare={toggleCompare}
+          />
+        ) : (
+          <div>
+            <MapView data={data} onSelectSchool={setOpenId} heightClass="h-[62vh] min-h-[380px]" />
             <p className="mt-2 px-1 text-center text-[11px] leading-relaxed text-slate-400">
-              Numbered pins match the list below · 📍 your address · 🟠 private · shaded ={" "}
-              {district.name}
+              Tap a pin to open that school&apos;s full details · numbered pins · 📍 your address ·
+              🟠 private · shaded area = {district.name}
             </p>
           </div>
         )}
-      </div>
-
-      {/* PRIMARY: schools near you */}
-      <div>
-        <SectionTitle hint="tap a school for details · check boxes to compare">
-          Schools near you
-        </SectionTitle>
-        <NearbySchools
-          schools={data.nearbySchools}
-          onSelect={setOpenId}
-          compareIds={compareIds}
-          onToggleCompare={toggleCompare}
-        />
       </div>
 
       {/* SECONDARY: neighborhood overview (collapsible) */}

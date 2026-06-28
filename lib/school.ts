@@ -22,6 +22,7 @@ interface Extra {
   virtual?: boolean | null;
   urbanicity?: string | null;
   freeReducedLunch?: number | null;
+  coed?: string | null;
   race?: { white: number; black: number; hispanic: number; asian: number; amerind: number; pacific: number; twomore: number } | null;
   sex?: { male: number; female: number } | null;
   testRead?: number | null;
@@ -141,6 +142,7 @@ function toDetail(item: ScoredSchool, districtName: string, extra: Extra = {}): 
       virtual: extra.virtual ?? null,
       urbanicity: extra.urbanicity ?? null,
       freeReducedLunchPct: ratings.students.lowIncomePct,
+      coed: extra.coed ?? null,
     },
     demographics,
     district: { districtId: s.districtId, name: districtName },
@@ -168,7 +170,7 @@ async function getFromDb(ncesId: string): Promise<SchoolDetail | null> {
         s.nces_id, s.name, s.type, s.level, s.grade_low, s.grade_high, s.zip, s.district_id,
         s.enrollment, s.student_teacher_ratio, s.chronic_absent_students,
         s.street, s.city, s.state, s.phone, s.charter, s.magnet, s.title_i, s.virtual,
-        s.free_reduced_lunch, s.urbanicity,
+        s.free_reduced_lunch, s.urbanicity, s.coed,
         s.enr_white, s.enr_black, s.enr_hispanic, s.enr_asian, s.enr_amerind,
         s.enr_pacific, s.enr_twomore, s.enr_male, s.enr_female,
         s.test_read_prof, s.test_math_prof, s.test_year,
@@ -247,6 +249,7 @@ async function getFromDb(ncesId: string): Promise<SchoolDetail | null> {
     virtual: r.virtual,
     urbanicity: r.urbanicity ?? null,
     freeReducedLunch: r.free_reduced_lunch,
+    coed: r.coed ?? null,
     race: {
       white: r.enr_white ?? 0,
       black: r.enr_black ?? 0,

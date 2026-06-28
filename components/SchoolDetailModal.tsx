@@ -84,6 +84,7 @@ function DetailBody({
     a.charter ? "Charter" : null,
     a.magnet ? "Magnet" : null,
     a.virtual ? "Virtual" : null,
+    a.coed && a.coed !== "Coeducational" ? a.coed : null,
     a.titleI ? "Title I" : null,
   ].filter(Boolean) as string[];
   return (
@@ -291,6 +292,7 @@ function DetailBody({
           {c.phone && <Fact label="Phone" value={c.phone} />}
           <Fact label="Type" value={detail.type} />
           <Fact label="Grades" value={detail.grades} />
+          {a.coed && <Fact label="Coed status" value={a.coed} />}
           {a.urbanicity && <Fact label="Setting" value={a.urbanicity} />}
           <div className="col-span-2 pt-1 text-[10px] text-slate-300">NCES ID {detail.ncesId}</div>
         </Section>

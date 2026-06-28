@@ -115,6 +115,7 @@ create table if not exists schools (
     virtual                 boolean,
     free_reduced_lunch      integer,
     urbanicity              text,
+    coed                    text,
     -- demographics (enrollment counts; all grades)
     enr_white               integer,
     enr_black               integer,

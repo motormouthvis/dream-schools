@@ -11,9 +11,11 @@ import { scoreHex } from "./score";
 export function MapView({
   data,
   onSelectSchool,
+  heightClass = "h-80",
 }: {
   data: LookupResult;
   onSelectSchool: (ncesId: string) => void;
+  heightClass?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -78,27 +80,13 @@ export function MapView({
             iconAnchor: [12, 12],
           }),
         }).addTo(map);
-        marker.bindPopup(
-          `<b>${num}. ${escapeHtml(s.name)}</b><br/>${escapeHtml(s.type)} · Grades ${escapeHtml(
-            s.grades
-          )}<br/>${s.miles} mi · score ${s.score}/100<br/><a href="#" data-nces="${
-            s.ncesId
-          }" class="dn-school-link" style="color:#12854c;font-weight:600">View full data →</a>`
-        );
+        // Hover/tap label with the name; clicking the pin opens full details.
+        marker.bindTooltip(`${num}. ${escapeHtml(s.name)}`, { direction: "top", offset: [0, -10] });
+        marker.on("click", () => onSelectSchool(s.ncesId));
         bounds.extend([s.lat, s.lon]);
       });
 
       map.fitBounds(bounds.pad(0.2), { maxZoom: 14 });
-
-      // Delegate clicks on the "View full data" links inside popups.
-      map.getContainer().addEventListener("click", (e: any) => {
-        const a = (e.target as HTMLElement)?.closest?.(".dn-school-link") as HTMLElement | null;
-        if (a) {
-          e.preventDefault();
-          const id = a.getAttribute("data-nces");
-          if (id) onSelectSchool(id);
-        }
-      });
     })();
 
     return () => {
@@ -114,7 +102,7 @@ export function MapView({
   return (
     <div
       ref={ref}
-      className="h-80 w-full overflow-hidden rounded-2xl border border-slate-200 shadow-sm"
+      className={`${heightClass} w-full overflow-hidden rounded-2xl border border-slate-200 shadow-sm`}
       style={{ background: "#e8eef3" }}
     />
   );
