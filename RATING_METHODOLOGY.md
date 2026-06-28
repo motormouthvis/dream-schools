@@ -1,9 +1,40 @@
 # Dream Neighborhood — School Rating Methodology (LIVING DOCUMENT)
 
-> **Status:** working draft for discussion. This file is the single source of
-> truth for how ratings are computed. Update it whenever the formulas change.
-> Code lives in `lib/ratings.ts` (1–10 "Dream Rating") and `lib/scoring.ts`
-> (0–100 quick/area scores).
+> **Status:** current. This file is the single source of truth for how ratings
+> are computed. Update it whenever the formulas change. Code lives in
+> `lib/ratings.ts` (`academicQuality`, `to10`, `computeRatings`) and
+> `lib/scoring.ts` (`listScore`, `areaScores`).
+
+## CURRENT SYSTEM (unified, June 2026)
+
+There is now **one rating**, shown identically in the nearby list, the map pins,
+the neighborhood gauge, and the school detail. The list shows it as `N/10`; the
+detail shows the same `N/10`. They can never disagree because both call the same
+`academicQuality()` function.
+
+- **It is academic-outcome driven.** Quality (0–100, then ÷10 → 1–10) =
+  - **Test scores** = average of reading% + math% proficient (EDFacts).
+  - **College readiness** (high schools only) = graduation rate (anchor) refined
+    by AP/IB participation and SAT/ACT participation. **Graduation rate is
+    required** — we do not rate college readiness on AP/SAT participation alone.
+  - Combined: `0.6 × test + 0.4 × college` when both exist; otherwise whichever
+    exists.
+- **No outcome data → `NR` / "Not rated".** We no longer infer a score from
+  student-teacher ratio or a default safety value. This fixed two bugs:
+  - A correctional school ("…Jail – Rock Road Academy") that scored **94/100**
+    purely from a tiny ratio + default safety. It is now **NR** (or a low score
+    where graduation data exists).
+  - Private schools that showed **88 "Excellent"** from defaults despite having
+    no outcome data. They now show **NR / "Limited data"** consistently.
+- **Safety is NOT in the headline rating.** It is shown as its own section with
+  per-100 comparisons vs state/US, so it can never inflate the academic rating.
+- **Neighborhood gauge** = enrollment-weighted `academicQuality` of nearby public
+  schools that have data (falls back to the legacy blended index only if none).
+
+The legacy two-system description below is retained for history.
+
+---
+
 
 ## Principles (proposed)
 
