@@ -33,18 +33,30 @@ export function MapView({
       }
       const map = L.map(ref.current, { scrollWheelZoom: false });
       mapRef.current = map;
+      // Give the map a valid view BEFORE adding any vector layers (e.g. the
+      // district-boundary polygon). Without an initial view the map has no pixel
+      // bounds and Leaflet's polygon clipping throws in production builds.
+      const startCenter: [number, number] =
+        Number.isFinite(data.center.lat) && Number.isFinite(data.center.lon)
+          ? [data.center.lat, data.center.lon]
+          : [39.5, -98.35];
+      map.setView(startCenter, 11);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap contributors",
         maxZoom: 19,
       }).addTo(map);
 
-      // District boundary.
+      // District boundary (non-critical — never let it block school markers).
       if (data.districtBoundary) {
-        const layer = L.geoJSON(
-          { type: "Feature", geometry: data.districtBoundary as any, properties: {} } as any,
-          { style: { color: "#12854c", weight: 2, fillColor: "#1fa55f", fillOpacity: 0.06 } }
-        ).addTo(map);
-        layer.bindTooltip(data.district.name, { sticky: true });
+        try {
+          const layer = L.geoJSON(
+            { type: "Feature", geometry: data.districtBoundary as any, properties: {} } as any,
+            { style: { color: "#12854c", weight: 2, fillColor: "#1fa55f", fillOpacity: 0.06 } }
+          ).addTo(map);
+          layer.bindTooltip(data.district.name, { sticky: true });
+        } catch {
+          /* ignore boundary render issues */
+        }
       }
 
       // Searched address.
