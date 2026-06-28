@@ -138,6 +138,14 @@ export interface SchoolDetail {
   scores: { overall: number; academic: number; safety: number; scale: number };
   // GreatSchools-style 1-10 ratings + profile sections
   summaryRating: number | null;
+  coverage: {
+    available: number;
+    total: number;
+    hasTest: boolean;
+    hasCollege: boolean;
+    hasSafety: boolean;
+    isHigh: boolean;
+  };
   testScores: {
     read: number | null;
     math: number | null;

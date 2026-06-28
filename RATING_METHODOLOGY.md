@@ -120,5 +120,11 @@ private schools" note, rather than a misleading green score.
 ---
 
 ## Change log
+- **Option 3 adopted:** the detail view now shows a **data-coverage indicator**
+  ("Based on N of M outcome measures") with filled/empty dots and an **ⓘ popover**
+  explaining exactly which measures (test scores, college readiness, safety) are
+  included or missing. Schools with 0 measures show "Limited data." Implemented in
+  `lib/ratings.ts` (`coverage`) + `components/SchoolDetailModal.tsx`. Option 1
+  (unifying the list 0–100 chip with the 1–10 rating) remains open — see `TODO.md`.
 - _(draft)_ Documented current dual system and the private-school "Excellent"
-  inconsistency; proposed options. Pending decision before changing code.
+  inconsistency; proposed options.

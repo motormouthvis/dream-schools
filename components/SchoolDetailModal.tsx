@@ -107,12 +107,14 @@ function DetailBody({
       </header>
 
       <div className="max-h-[82vh] overflow-y-auto px-5 py-5 sm:max-h-[75vh] sm:px-6">
-        {/* GreatSchools-style 1-10 ratings, with context */}
+        {/* GreatSchools-style 1-10 ratings, with context + data-coverage */}
         <div className="rounded-xl bg-brand-50 p-3.5 ring-1 ring-inset ring-brand-600/15">
-          <p className="mb-2.5 text-[11px] font-medium leading-relaxed text-brand-900">
-            Ratings are on a <strong>1–10 scale (10 = best)</strong>, like GreatSchools — higher
-            means stronger. Based on real federal data below.
-          </p>
+          <div className="mb-2.5 flex items-start justify-between gap-2">
+            <p className="text-[11px] font-medium leading-relaxed text-brand-900">
+              Ratings are on a <strong>1–10 scale (10 = best)</strong> — higher means stronger.
+            </p>
+            <RatingInfo coverage={detail.coverage} />
+          </div>
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
             <Rating10 label="Overall" desc="combined quality" value={detail.summaryRating} big />
             {detail.testScores?.rating != null && (
@@ -126,12 +128,15 @@ function DetailBody({
               />
             )}
           </div>
-          {detail.summaryRating == null && (
-            <p className="mt-2 text-xs text-brand-900/70">
-              Limited data — federal test/college metrics aren&apos;t reported for this school
-              (common for some private, charter, or alternative schools).
-            </p>
-          )}
+          {/* Data-coverage indicator (Option 3) */}
+          <div className="mt-2.5 flex items-center gap-2">
+            <CoverageDots available={detail.coverage.available} total={detail.coverage.total} />
+            <span className="text-[11px] font-medium text-brand-900/80">
+              {detail.summaryRating == null
+                ? "Limited data — no outcome measures reported"
+                : `Based on ${detail.coverage.available} of ${detail.coverage.total} outcome measures`}
+            </span>
+          </div>
         </div>
 
         {tags.length > 0 && (
@@ -376,6 +381,81 @@ function Rating10({
         {desc && <div className="text-[11px] leading-tight text-slate-500">{desc}</div>}
       </div>
     </div>
+  );
+}
+
+function CoverageDots({ available, total }: { available: number; total: number }) {
+  const color = available === 0 ? "#e11d48" : available >= total ? "#059669" : "#d97706";
+  return (
+    <span className="flex items-center gap-0.5" aria-label={`${available} of ${total} measures`}>
+      {Array.from({ length: total }).map((_, i) => (
+        <span
+          key={i}
+          className="h-2 w-2 rounded-full"
+          style={{ backgroundColor: i < available ? color : "#e2e8f0" }}
+        />
+      ))}
+    </span>
+  );
+}
+
+function RatingInfo({ coverage }: { coverage: SchoolDetail["coverage"] }) {
+  const [open, setOpen] = useState(false);
+  const mark = (b: boolean) => (b ? "✓" : "✗");
+  return (
+    <span className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="How this rating is calculated"
+        className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 text-[11px] font-bold text-white"
+      >
+        i
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 z-20 mt-1 w-64 rounded-xl border border-slate-200 bg-white p-3 text-left text-[11px] leading-relaxed text-slate-600 shadow-xl">
+            <p className="mb-1.5 font-bold text-slate-900">How this rating is calculated</p>
+            <p className="mb-2">
+              A 1–10 score combining the outcome measures we have for this school. More measures =
+              higher confidence.
+            </p>
+            <ul className="space-y-1">
+              <li>
+                <span className={coverage.hasTest ? "text-emerald-600" : "text-rose-500"}>
+                  {mark(coverage.hasTest)}
+                </span>{" "}
+                Test scores (state proficiency, EDFacts)
+              </li>
+              <li>
+                {coverage.isHigh ? (
+                  <>
+                    <span className={coverage.hasCollege ? "text-emerald-600" : "text-rose-500"}>
+                      {mark(coverage.hasCollege)}
+                    </span>{" "}
+                    College readiness (grad + AP/IB + SAT/ACT)
+                  </>
+                ) : (
+                  <>
+                    <span className="text-slate-300">—</span> College readiness (high schools only)
+                  </>
+                )}
+              </li>
+              <li>
+                <span className={coverage.hasSafety ? "text-emerald-600" : "text-rose-500"}>
+                  {mark(coverage.hasSafety)}
+                </span>{" "}
+                Safety &amp; discipline (CRDC)
+              </li>
+            </ul>
+            <p className="mt-2 text-slate-400">
+              {`Based on ${coverage.available} of ${coverage.total} measures. Private schools have no outcome data collected federally, so they show “Limited data.”`}
+            </p>
+          </div>
+        </>
+      )}
+    </span>
   );
 }
 

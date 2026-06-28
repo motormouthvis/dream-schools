@@ -112,6 +112,7 @@ function toDetail(item: ScoredSchool, districtName: string, extra: Extra = {}): 
     counselors: extra.counselors ?? null,
     security: extra.security ?? null,
     safetyScore0to100: safetyScore(s, item.safety),
+    hasSafety: item.safety != null,
   });
 
   return {
@@ -148,6 +149,7 @@ function toDetail(item: ScoredSchool, districtName: string, extra: Extra = {}): 
     district: { districtId: s.districtId, name: districtName },
     scores: schoolScoreBreakdown(item),
     summaryRating: ratings.summaryRating,
+    coverage: ratings.coverage,
     testScores: ratings.testScores,
     collegeReadiness: ratings.collegeReadiness,
     advanced: ratings.advanced,

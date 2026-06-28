@@ -53,6 +53,16 @@ export interface RatingInputs {
   security: number | null;
   // fallback when test data is missing
   safetyScore0to100: number;
+  hasSafety: boolean;
+}
+
+export interface Coverage {
+  available: number;
+  total: number;
+  hasTest: boolean;
+  hasCollege: boolean;
+  hasSafety: boolean;
+  isHigh: boolean;
 }
 
 export interface ComputedRatings {
@@ -62,6 +72,7 @@ export interface ComputedRatings {
   advanced: { apPct: number | null; ibPct: number | null; giftedPct: number | null } | null;
   students: { lowIncomePct: number | null; ellPct: number | null };
   teachers: { certifiedPct: number | null; counselors: number | null; security: boolean };
+  coverage: Coverage;
 }
 
 export function computeRatings(i: RatingInputs): ComputedRatings {
@@ -108,6 +119,23 @@ export function computeRatings(i: RatingInputs): ComputedRatings {
   else if (crRating != null) summary = Math.round(0.6 * crRating + 0.4 * safety10);
   if (summary != null) summary = clamp(summary, 1, 10);
 
+  // Data-coverage: how many of the applicable outcome measures we actually have.
+  // Non-high schools have 2 applicable measures (test scores, safety); high
+  // schools add college readiness (3).
+  const hasTest = tRating != null;
+  const hasCollege = i.isHigh && crRating != null;
+  const total = i.isHigh ? 3 : 2;
+  const available =
+    (hasTest ? 1 : 0) + (hasCollege ? 1 : 0) + (i.hasSafety ? 1 : 0);
+  const coverage: Coverage = {
+    available,
+    total,
+    hasTest,
+    hasCollege,
+    hasSafety: i.hasSafety,
+    isHigh: i.isHigh,
+  };
+
   return {
     summaryRating: summary,
     testScores,
@@ -115,5 +143,6 @@ export function computeRatings(i: RatingInputs): ComputedRatings {
     advanced,
     students: { lowIncomePct: pct(i.freeReducedLunch, i.enrollment), ellPct: pct(i.ell, i.enrollment) },
     teachers: { certifiedPct, counselors: i.counselors ?? null, security: (i.security ?? 0) > 0 },
+    coverage,
   };
 }
