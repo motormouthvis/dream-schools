@@ -157,14 +157,14 @@ function DetailBody({
           <Section title={`Test scores${detail.testScores.year ? ` · ${detail.testScores.year}` : ""}`}>
             {detail.testScores.read != null && (
               <Fact
-                label="Students proficient in reading"
+                label="Reading proficiency"
                 value={`${detail.testScores.read}%`}
                 color={tone(detail.testScores.read, 60, 35)}
               />
             )}
             {detail.testScores.math != null && (
               <Fact
-                label="Students proficient in math"
+                label="Math proficiency"
                 value={`${detail.testScores.math}%`}
                 color={tone(detail.testScores.math, 60, 35)}
               />
@@ -181,20 +181,20 @@ function DetailBody({
           <Section title="College readiness">
             {detail.collegeReadiness.gradRate != null && (
               <Fact
-                label="Graduate within 4 years"
+                label="4-yr graduation rate"
                 value={`${detail.collegeReadiness.gradRate}%`}
                 color={tone(detail.collegeReadiness.gradRate, 85, 67)}
               />
             )}
             {detail.collegeReadiness.apIbPct != null && (
               <Fact
-                label="Take an AP or IB course"
+                label="In AP / IB courses"
                 value={`${detail.collegeReadiness.apIbPct}%`}
                 color={tone(detail.collegeReadiness.apIbPct, 30, 8)}
               />
             )}
             {detail.collegeReadiness.satActPct != null && (
-              <Fact label="Take the SAT or ACT" value={`${detail.collegeReadiness.satActPct}%`} />
+              <Fact label="Took SAT / ACT" value={`${detail.collegeReadiness.satActPct}%`} />
             )}
             <Note>
               % of students. Typical US 4-year graduation rate is ≈87%; very low rates usually mean
@@ -208,7 +208,7 @@ function DetailBody({
           {detail.safety ? (
             <>
               <Fact
-                label="Violent incidents (per 100 students)"
+                label="Violent / 100 students"
                 value={per100(detail.safety.violentIncidentsTotal, detail.enrollment)}
                 color={tone(
                   (detail.safety.violentIncidentsTotal / Math.max(detail.enrollment, 1)) * 100,
@@ -218,7 +218,7 @@ function DetailBody({
                 )}
               />
               <Fact
-                label="Suspensions (per 100 students)"
+                label="Suspensions / 100"
                 value={per100(detail.safety.outOfSchoolSuspensions, detail.enrollment)}
                 color={tone(
                   (detail.safety.outOfSchoolSuspensions / Math.max(detail.enrollment, 1)) * 100,
@@ -228,14 +228,14 @@ function DetailBody({
                 )}
               />
               <Fact label="Violent incidents (total)" value={detail.safety.violentIncidentsTotal} />
-              <Fact label="Physical attacks w/ weapon" value={detail.safety.physicalAttacksWithWeapon} />
-              <Fact label="Physical attacks, no weapon" value={detail.safety.physicalAttacksNoWeapon} />
+              <Fact label="Attacks w/ weapon" value={detail.safety.physicalAttacksWithWeapon} />
+              <Fact label="Attacks, no weapon" value={detail.safety.physicalAttacksNoWeapon} />
               <Fact label="Threats of violence" value={detail.safety.threatsOfViolence} />
               <Fact label="Robberies" value={detail.safety.robberies} />
               <Fact label="Rape / sexual battery" value={detail.safety.rapeOrSexualBattery} />
-              <Fact label="Firearm/explosive possession" value={detail.safety.firearmExplosivePossession} />
-              <Fact label="Out-of-school suspensions" value={detail.safety.outOfSchoolSuspensions} />
-              <Fact label="Harassment/bullying allegations" value={detail.safety.harassmentBullyingAllegations} />
+              <Fact label="Firearm possession" value={detail.safety.firearmExplosivePossession} />
+              <Fact label="Suspensions (total)" value={detail.safety.outOfSchoolSuspensions} />
+              <Fact label="Bullying allegations" value={detail.safety.harassmentBullyingAllegations} />
               <Fact label="Any firearm incident" value={detail.safety.firearmIncident ? "Yes" : "No"} />
               <Note>
                 Counts are for the full {detail.safety.schoolYear} school year. &ldquo;Per 100
@@ -243,7 +243,7 @@ function DetailBody({
               </Note>
             </>
           ) : (
-            <p className="col-span-2 text-sm text-slate-400">
+            <p className="col-span-full text-sm text-slate-400">
               No federal safety data for this school (private schools aren&apos;t in this collection).
             </p>
           )}
@@ -253,10 +253,10 @@ function DetailBody({
         <Section title="Students">
           <Fact label="Total enrolled" value={detail.enrollment.toLocaleString()} />
           {detail.students.lowIncomePct != null && (
-            <Fact label="From low-income families" value={`${detail.students.lowIncomePct}%`} />
+            <Fact label="Low-income" value={`${detail.students.lowIncomePct}%`} />
           )}
           {detail.students.ellPct != null && (
-            <Fact label="English-language learners" value={`${detail.students.ellPct}%`} />
+            <Fact label="English learners" value={`${detail.students.ellPct}%`} />
           )}
           {detail.chronicAbsentPct != null && (
             <Fact
@@ -274,7 +274,7 @@ function DetailBody({
         {/* Demographics (hidden in Fair Housing Compliant mode) */}
         {fairHousing ? (
           <Section title="Race & gender">
-            <p className="col-span-2 text-xs text-slate-500">
+            <p className="col-span-full text-xs text-slate-500">
               Hidden in <strong>Fair Housing Compliant</strong> mode so it can&apos;t be used to
               steer buyers, per Fair Housing guidance.
             </p>
@@ -282,7 +282,7 @@ function DetailBody({
         ) : (
           detail.demographics && (
             <Section title="Race & gender">
-              <div className="col-span-2 space-y-3">
+              <div className="col-span-full space-y-3">
                 {detail.demographics.byRace.length > 0 && (
                   <DemoBars title="By race / ethnicity" data={detail.demographics.byRace} />
                 )}
@@ -338,7 +338,7 @@ function DetailBody({
           <Fact label="Grades" value={detail.grades} />
           {a.coed && <Fact label="Coed status" value={a.coed} />}
           {a.urbanicity && <Fact label="Setting" value={a.urbanicity} />}
-          <div className="col-span-2 pt-1 text-[10px] text-slate-300">NCES ID {detail.ncesId}</div>
+          <div className="col-span-full pt-1 text-[10px] text-slate-300">NCES ID {detail.ncesId}</div>
         </CollapsibleSection>
 
         <Reviews ncesId={detail.ncesId} />
@@ -460,7 +460,7 @@ function RatingInfo({ coverage }: { coverage: SchoolDetail["coverage"] }) {
 }
 
 function Note({ children }: { children: React.ReactNode }) {
-  return <p className="col-span-2 mt-1 text-[11px] leading-relaxed text-slate-400">{children}</p>;
+  return <p className="col-span-full mt-1 text-[11px] leading-relaxed text-slate-400">{children}</p>;
 }
 
 function per100(count: number, enrollment: number): string {
@@ -497,7 +497,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
         <span className="h-4 w-1.5 rounded-full bg-brand-500" />
         {title}
       </h3>
-      <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">{children}</dl>
+      <dl className="grid grid-cols-1 gap-y-1.5">{children}</dl>
     </div>
   );
 }
@@ -512,9 +512,12 @@ function Fact({
   color?: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-slate-200/70 py-1.5 text-sm last:border-0">
-      <dt className="min-w-0 flex-1 text-slate-500">{label}</dt>
-      <dd className="flex shrink-0 items-center gap-1.5 text-right font-bold tabular-nums" style={{ color: color ?? "#0f172a" }}>
+    <div className="flex items-baseline justify-between gap-3 border-b border-slate-200/70 py-1.5 text-sm last:border-0">
+      <dt className="min-w-0 text-slate-500">{label}</dt>
+      <dd
+        className="flex shrink-0 items-center gap-1.5 whitespace-nowrap font-bold tabular-nums"
+        style={{ color: color ?? "#0f172a" }}
+      >
         {color && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />}
         {value}
       </dd>
@@ -544,7 +547,7 @@ function CollapsibleSection({
         {title}
         <span className={`ml-auto text-brand-500 transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
       </button>
-      {open && <dl className="mt-2.5 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">{children}</dl>}
+      {open && <dl className="mt-2.5 grid grid-cols-1 gap-y-1.5">{children}</dl>}
     </div>
   );
 }
