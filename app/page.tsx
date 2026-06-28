@@ -117,38 +117,40 @@ export default function Home() {
         />
       </div>
 
-      {/* Compact hero with illustration */}
-      <div className="mt-5 overflow-hidden rounded-3xl bg-gradient-to-br from-brand-50 to-lime-50 ring-1 ring-inset ring-brand-600/10">
-        <div className="flex items-center justify-between gap-3 px-5 pt-5 sm:px-7">
-          <div>
-            <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-3xl">
-              Find the right schools <br className="hidden sm:block" />
-              for any address
-            </h1>
-            <p className="mt-1.5 text-sm text-slate-500">
-              Real ratings, test scores &amp; safety — public &amp; private, nationwide.
-            </p>
+      {/* Marketing hero — only on the landing screen, not once results show */}
+      {!data && !loading && (
+        <div className="mt-4 overflow-hidden rounded-3xl bg-gradient-to-br from-brand-50 to-lime-50 ring-1 ring-inset ring-brand-600/10">
+          <div className="flex items-center justify-between gap-3 px-5 pt-5 sm:px-7">
+            <div>
+              <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-3xl">
+                Find the right schools <br className="hidden sm:block" />
+                for any address
+              </h1>
+              <p className="mt-1.5 text-sm text-slate-500">
+                Real ratings, test scores &amp; safety — public &amp; private, nationwide.
+              </p>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/hero-schools.png"
+              alt="Illustration of children walking to school"
+              className="hidden h-28 w-auto sm:block"
+            />
           </div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/hero-schools.png"
-            alt="Illustration of children walking to school"
-            className="hidden h-28 w-auto sm:block"
+            alt=""
+            className="mt-3 block h-24 w-full object-cover object-top sm:hidden"
           />
         </div>
-        <img
-          src="/hero-schools.png"
-          alt=""
-          className="mt-3 block h-28 w-full object-cover object-top sm:hidden"
-        />
-      </div>
+      )}
 
       <form
         onSubmit={(e) => {
           e.preventDefault();
           runLookup(address);
         }}
-        className="mx-auto mt-4 flex max-w-2xl flex-col gap-3 sm:flex-row"
+        className="mx-auto mt-4 flex max-w-2xl flex-col gap-2 sm:flex-row"
       >
         <div className="relative flex-1">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
