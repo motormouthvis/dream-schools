@@ -5,6 +5,7 @@ import { SchoolsTab } from "@/components/SchoolsTab";
 import { Logo } from "@/components/Logo";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { DataSourcesModal } from "@/components/DataSourcesModal";
+import { Showcase } from "@/components/Showcase";
 import { getRecent, addRecent, type RecentSearch } from "@/lib/recent";
 import type { LookupResult } from "@/lib/types";
 
@@ -348,11 +349,7 @@ export default function Home() {
           />
         )}
 
-        {!loading && !error && !data && (
-          <div className="rounded-3xl border border-dashed border-slate-300 bg-white/60 p-10 text-center text-slate-400">
-            Enter an address above to explore its schools.
-          </div>
-        )}
+        {!loading && !error && !data && <Showcase />}
       </div>
 
       {/* Footnote: coverage (moved off the top to declutter) */}
