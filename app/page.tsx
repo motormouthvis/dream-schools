@@ -25,6 +25,7 @@ export default function Home() {
   const [activeIdx, setActiveIdx] = useState(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [nationwide, setNationwide] = useState(false);
   const [audience, setAudience] = useState<"full" | "fairhousing">("full");
   const [view, setView] = useState<"list" | "map">("list");
@@ -180,6 +181,13 @@ export default function Home() {
             onClick={() => {
               setChanging(true);
               setAddress("");
+              setSuggestions([]);
+              setShowSuggest(false);
+              // Reveal the empty, focused box so recent searches appear instantly.
+              setTimeout(() => {
+                inputRef.current?.focus();
+                setFocused(true);
+              }, 0);
             }}
             className="shrink-0 rounded-lg border border-brand-600 px-3 py-2 text-xs font-bold text-brand-700 transition hover:bg-brand-50"
           >
@@ -200,11 +208,13 @@ export default function Home() {
             ⌖
           </span>
           <input
+            ref={inputRef}
             type="text"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            onFocus={() => {
+            onFocus={(e) => {
               setFocused(true);
+              if (e.target.value) e.target.select(); // highlight existing text for easy replace
               if (suggestions.length > 0) setShowSuggest(true);
             }}
             onBlur={() =>
