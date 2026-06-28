@@ -224,6 +224,10 @@ function DetailBody({
               />
               <Fact label="Violent incidents (total)" value={detail.safety.violentIncidentsTotal} />
               <Fact label="Physical attacks w/ weapon" value={detail.safety.physicalAttacksWithWeapon} />
+              <Fact label="Physical attacks, no weapon" value={detail.safety.physicalAttacksNoWeapon} />
+              <Fact label="Threats of violence" value={detail.safety.threatsOfViolence} />
+              <Fact label="Robberies" value={detail.safety.robberies} />
+              <Fact label="Rape / sexual battery" value={detail.safety.rapeOrSexualBattery} />
               <Fact label="Firearm/explosive possession" value={detail.safety.firearmExplosivePossession} />
               <Fact label="Out-of-school suspensions" value={detail.safety.outOfSchoolSuspensions} />
               <Fact label="Harassment/bullying allegations" value={detail.safety.harassmentBullyingAllegations} />
