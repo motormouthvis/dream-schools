@@ -48,10 +48,10 @@ function photonLabel(p: any): string {
   return [line1, cityState, p.postcode].filter(Boolean).join(", ");
 }
 
-async function fromPhoton(q: string, bias?: { lat: number; lon: number }): Promise<Suggestion[]> {
+async function fromPhoton(q: string, bias?: { lat: number; lon: number }, limit = 8): Promise<Suggestion[]> {
   const params = new URLSearchParams({
     q,
-    limit: "8",
+    limit: String(limit),
     lang: "en",
     lat: String(bias?.lat ?? 39.5),
     lon: String(bias?.lon ?? -98.35),
@@ -117,12 +117,40 @@ async function fromCensus(q: string): Promise<Suggestion[]> {
   }
 }
 
-// How many street-name tokens of the query appear in a label. Lets us rank
-// "3309 N Indian River Drive" → "Indian River Drive" above "Saxon Drive",
-// which Photon would otherwise surface just because it also has a #3309.
+const STREET_TYPE =
+  /\b(st|street|ave|avenue|blvd|boulevard|dr|drive|rd|road|ln|lane|ct|court|cir|circle|way|pl|place|ter|terrace|hwy|highway|pkwy|parkway|trl|trail|loop|sq|square|pike|run|pass|path|row|cv|cove|xing|crossing)\b/gi;
+
+// Split a typed address into its parts. The trailing words after the street
+// type (e.g. the "fort" in "3309 N Indian River Drive fort") are treated as a
+// partial CITY hint — keeping them out of the street search (so Photon doesn't
+// drift to "Fort Wayne") while still letting us float the right city up.
+function parseAddress(q: string): { houseNo: string; street: string; cityHint: string } {
+  const m = q.match(/^\s*(\d+)\s+(.*)$/);
+  const houseNo = m ? m[1] : "";
+  const rest = (m ? m[2] : q).trim();
+  let end = -1;
+  let mm: RegExpExecArray | null;
+  STREET_TYPE.lastIndex = 0;
+  while ((mm = STREET_TYPE.exec(rest)) !== null) end = mm.index + mm[0].length;
+  if (end > 0 && end < rest.length) {
+    return { houseNo, street: rest.slice(0, end).trim(), cityHint: rest.slice(end).replace(/^[,\s]+/, "").trim().toLowerCase() };
+  }
+  return { houseNo, street: rest, cityHint: "" };
+}
+
 function relevance(label: string, tokens: string[]): number {
   const l = label.toLowerCase();
   return tokens.reduce((n, t) => n + (l.includes(t) ? 1 : 0), 0);
+}
+
+// How well a (resolved) label matches the typed partial city, e.g. "fort" →
+// "Fort Pierce". A full-substring match scores highest; a word-prefix next.
+function cityScore(label: string, hint: string): number {
+  if (!hint) return 0;
+  const l = label.toLowerCase();
+  if (l.includes(hint)) return 3;
+  const first = hint.split(/\s+/)[0];
+  return l.split(/[\s,]+/).some((w) => w.length > 1 && w.startsWith(first)) ? 2 : 0;
 }
 
 export async function GET(request: Request) {
@@ -136,53 +164,71 @@ export async function GET(request: Request) {
   const bias =
     Number.isFinite(latN) && Number.isFinite(lonN) && latN !== 0 ? { lat: latN, lon: lonN } : undefined;
 
-  // When a street address is typed without a city, Census returns nothing and
-  // Photon over-weights the house number. So we also query Photon with the
-  // leading house number stripped, which surfaces the actual street (biased to
-  // the area being explored, so the right city floats to the top).
-  const houseMatch = q.match(/^\s*(\d+)\s+(.*)$/);
-  const houseNo = houseMatch ? houseMatch[1] : "";
-  const stripped = houseMatch ? houseMatch[2].trim() : "";
-  const photonQueries = stripped && stripped.toLowerCase() !== q.toLowerCase() ? [q, stripped] : [q];
+  const { houseNo, street, cityHint } = parseAddress(q);
 
+  // Query Photon on the clean street (no house number, no partial-city tail) so
+  // the real street segments surface. When there's a house number we rely on the
+  // street search only — adding the full query just injects noise from the
+  // partial city (e.g. "fort" → "Fort Wayne") that crowds out the real match.
+  const photonQueries = houseNo
+    ? [street].filter((s) => s.length >= 3)
+    : Array.from(new Set([street, q].filter((s) => s.length >= 3)));
+
+  // A wider net on the street search so the right city's segment is present even
+  // without a location bias (there are many "Indian River Drive"s nationwide).
   const results = await Promise.allSettled([
     fromCensus(q),
-    ...photonQueries.map((pq) => fromPhoton(pq, bias)),
+    ...photonQueries.map((pq, idx) => fromPhoton(pq, bias, houseNo && idx === 0 ? 25 : 8)),
   ]);
   const census = results[0].status === "fulfilled" ? (results[0] as PromiseFulfilledResult<Suggestion[]>).value : [];
-  const photon = results
+  let photon = results
     .slice(1)
     .flatMap((r) => (r.status === "fulfilled" ? (r as PromiseFulfilledResult<Suggestion[]>).value : []));
 
-  // Rank Photon hits by how well they match the typed street name (ignore the
-  // house number and tiny words); Census stays first as it's exact for the US.
-  const tokens = q
-    .toLowerCase()
-    .split(/[\s,]+/)
-    .filter((t) => t.length >= 3 && !/^\d+$/.test(t));
-  photon.sort((a, b) => relevance(b.label, tokens) - relevance(a.label, tokens));
+  // De-dupe Photon and rank by street-name match.
+  const streetTokens = street.toLowerCase().split(/[\s,]+/).filter((t) => t.length >= 3 && !/^\d+$/.test(t));
+  const pseen = new Set<string>();
+  photon = photon.filter((s) => {
+    const k = s.label.toLowerCase();
+    if (pseen.has(k)) return false;
+    pseen.add(k);
+    return true;
+  });
+  photon.sort((a, b) => relevance(b.label, streetTokens) - relevance(a.label, streetTokens));
 
-  // If a house number was typed but Census couldn't resolve it (no city given),
-  // take the best matching street and ask Census for the exact house address in
-  // that city — this surfaces e.g. "3309 N Indian River Dr, Fort Pierce, FL".
+  // If a house number was typed, resolve exact house addresses for the best
+  // street candidates via Census (keyed by each candidate's ZIP, which is
+  // reliable even when Photon omits the city). This turns "North Indian River
+  // Drive … 34946" into "3309 N Indian River Dr, Fort Pierce, FL, 34946".
   let enriched: Suggestion[] = [];
-  if (houseNo && census.length === 0 && photon.length > 0) {
-    const best = photon[0].label.split(",").map((s) => s.trim());
-    // best = [street, city, state, zip?]
-    if (best.length >= 3) {
-      const [street, city, state, zip] = best;
-      const probe = `${houseNo} ${street}, ${city}, ${state}${zip ? " " + zip : ""}`;
-      try {
-        enriched = await fromCensus(probe);
-      } catch {
-        /* enrichment is best-effort */
-      }
+  if (houseNo && census.length === 0) {
+    const candidates = photon.filter((c) => relevance(c.label, streetTokens) >= Math.min(2, streetTokens.length));
+    const probes: string[] = [];
+    const zipsSeen = new Set<string>();
+    for (const c of candidates) {
+      const street0 = c.label.split(",")[0].trim();
+      const key = `${street0}|${c.zip}`;
+      if (zipsSeen.has(key) || !c.zip) continue;
+      zipsSeen.add(key);
+      probes.push(`${houseNo} ${street0} ${c.zip}`);
+      // When the user is typing a city, cast a wider net so the matching city is
+      // among the resolved addresses; otherwise a few is enough.
+      if (probes.length >= (cityHint ? 14 : 6)) break;
     }
+    const probeRes = await Promise.allSettled(probes.map((p) => fromCensus(p)));
+    enriched = probeRes.flatMap((r) =>
+      r.status === "fulfilled" ? (r as PromiseFulfilledResult<Suggestion[]>).value : []
+    );
+    // Float the candidate whose city matches what the user is typing.
+    if (cityHint) enriched.sort((a, b) => cityScore(b.label, cityHint) - cityScore(a.label, cityHint));
   }
 
+  // Order: exact Census match for the full query → resolved house addresses →
+  // street suggestions. When the user is typing a city, keep matching ones on top.
+  const ordered = [...census, ...enriched, ...photon];
   const seen = new Set<string>();
   const suggestions: Suggestion[] = [];
-  for (const s of [...census, ...enriched, ...photon]) {
+  for (const s of ordered) {
     if (!s.label) continue;
     const label = normalizeLabel(s.label);
     const key = label.toLowerCase().replace(/\s+/g, " ").trim();
