@@ -1,4 +1,4 @@
-import { areaScores, quickSchoolScore, type ScoredSchool } from "@/lib/scoring";
+import { areaScores, listScore, type ScoredSchool } from "@/lib/scoring";
 import type {
   AreaAverages,
   GeocodeResult,
@@ -52,7 +52,7 @@ export function buildResult(params: {
     grades: grades(item.school),
     zip: item.school.zip,
     miles: Math.round(miles * 10) / 10,
-    score: quickSchoolScore(item),
+    score: listScore(item),
     enrollment: item.school.enrollment,
     lat: item.school.lat,
     lon: item.school.lon,

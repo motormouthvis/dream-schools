@@ -75,7 +75,7 @@ export interface NearbySchool {
   grades: string;
   zip: string;
   miles: number;
-  score: number;
+  score: number | null;
   enrollment: number;
   lat: number;
   lon: number;
@@ -165,6 +165,7 @@ export interface SchoolDetail {
     certifiedPct: number | null;
     counselors: number | null;
     security: boolean;
+    securityFte: number | null;
   };
   safety: SafetyRecord | null;
   graduation: GraduationRecord | null;

@@ -58,7 +58,9 @@ export function SchoolsTab({
         filterLevel === "private" ? s.level === "private" : s.level !== "private"
       );
     }
-    list.sort((a, b) => (sortBy === "rating" ? b.score - a.score : a.miles - b.miles));
+    list.sort((a, b) =>
+      sortBy === "rating" ? (b.score ?? -1) - (a.score ?? -1) : a.miles - b.miles
+    );
     return list;
   }, [data.nearbySchools, filterLevel, sortBy]);
 

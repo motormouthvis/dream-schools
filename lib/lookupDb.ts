@@ -56,13 +56,26 @@ function rowToScored(r: any): { item: ScoredSchool; miles: number } {
         cohortSize: r.cohort_size,
       }
     : undefined;
-  return { item: { school, safety, grad }, miles: Number(r.miles) };
+  return {
+    item: {
+      school,
+      safety,
+      grad,
+      testRead: r.test_read_prof != null ? Number(r.test_read_prof) : null,
+      testMath: r.test_math_prof != null ? Number(r.test_math_prof) : null,
+      apEnrolled: r.ap_enrolled != null ? Number(r.ap_enrolled) : null,
+      ibEnrolled: r.ib_enrolled != null ? Number(r.ib_enrolled) : null,
+      satActStudents: r.sat_act_students != null ? Number(r.sat_act_students) : null,
+    },
+    miles: Number(r.miles),
+  };
 }
 
 const SELECT = `
   s.nces_id, s.name, s.type, s.level, s.grade_low, s.grade_high, s.zip, s.district_id,
   s.enrollment, s.student_teacher_ratio, s.chronic_absent_students,
   s.test_read_prof, s.test_math_prof, s.free_reduced_lunch,
+  s.ap_enrolled, s.ib_enrolled, s.sat_act_students,
   ST_Y(s.geom) as lat, ST_X(s.geom) as lon,
   ST_Distance(s.geom::geography, $1::geography) / ${METERS_PER_MILE} as miles,
   sf.nces_id as s_nces_id, sf.school_year as s_school_year, sf.source as s_source,

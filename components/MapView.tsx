@@ -3,7 +3,7 @@
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
 import type { LookupResult, NearbySchool } from "@/lib/types";
-import { scoreHex } from "./score";
+import { to10, rating10Hex } from "./score";
 
 // Vanilla Leaflet (free OpenStreetMap tiles, no API key). Loaded only on the
 // client. Shows the searched address, the district boundary, and a marker for
@@ -82,7 +82,7 @@ export function MapView({
           icon: L.divIcon({
             className: "",
             html: `<div style="background:${
-              isPrivate ? "#d97706" : scoreHex(s.score)
+              s.score == null ? "#94a3b8" : isPrivate ? "#d97706" : rating10Hex(to10(s.score))
             };color:#fff;border:2px solid #fff;border-radius:9999px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;box-shadow:0 1px 3px rgba(0,0,0,.4)">${num}</div>`,
             iconSize: [24, 24],
             iconAnchor: [12, 12],

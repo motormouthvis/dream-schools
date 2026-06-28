@@ -1,10 +1,42 @@
 import type { School, SafetyRecord, GraduationRecord } from "@/lib/types";
+import { academicQuality, isHighGrade } from "@/lib/ratings";
 
-/** A school paired with its (optional) safety + graduation records. */
+/** A school paired with its (optional) safety + graduation + test records. */
 export interface ScoredSchool {
   school: School;
   safety?: SafetyRecord;
   grad?: GraduationRecord;
+  testRead?: number | null;
+  testMath?: number | null;
+  apEnrolled?: number | null;
+  ibEnrolled?: number | null;
+  satActStudents?: number | null;
+}
+
+function pctOf(part: number | null | undefined, whole: number): number | null {
+  if (part == null || !whole || whole <= 0) return null;
+  return Math.min(100, Math.round((part / whole) * 100));
+}
+
+/**
+ * The 0-100 rating shown in the nearby list. It is the SAME academic-outcome
+ * quality used by the detail's Dream Rating (list = detail × 10), so the two
+ * never disagree. Returns null ("Not rated") when a school has no outcome data
+ * — we no longer fabricate a score from student-teacher ratio.
+ */
+export function listScore(item: ScoredSchool): number | null {
+  const apIbCount =
+    item.apEnrolled != null || item.ibEnrolled != null
+      ? (item.apEnrolled ?? 0) + (item.ibEnrolled ?? 0)
+      : null;
+  return academicQuality(
+    item.testRead ?? null,
+    item.testMath ?? null,
+    item.grad?.gradRate4yr ?? null,
+    pctOf(apIbCount, item.school.enrollment),
+    pctOf(item.satActStudents, item.school.enrollment),
+    isHighGrade(item.school.gradeHigh)
+  );
 }
 
 function clamp(v: number, lo: number, hi: number): number {
@@ -131,7 +163,15 @@ export function areaScores(items: ScoredSchool[]): AreaScores {
   const scale = Math.round(
     weightedAvg(items.map((i) => [scaleScore(i.school), i.school.enrollment]))
   );
-  const overall = Math.round(0.45 * academic + 0.35 * safety + 0.2 * scale);
+  // Neighborhood overall reflects real academic outcomes (enrollment-weighted),
+  // consistent with the per-school ratings; falls back to the blended index only
+  // if no area school has outcome data.
+  const qPairs = items
+    .map((i): [number | null, number] => [listScore(i), i.school.enrollment])
+    .filter((p): p is [number, number] => p[0] != null);
+  const overall = qPairs.length
+    ? Math.round(weightedAvg(qPairs))
+    : Math.round(0.45 * academic + 0.35 * safety + 0.2 * scale);
   const totalStudents = schools.reduce((s, x) => s + x.enrollment, 0);
 
   return {

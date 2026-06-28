@@ -330,7 +330,11 @@ function DetailBody({
           {detail.teachers.counselors != null && detail.teachers.counselors > 0 && (
             <Fact label="Counselors (full-time)" value={Math.round(detail.teachers.counselors)} />
           )}
-          <Fact label="Security staff on site" value={detail.teachers.security ? "Yes" : "No"} />
+          <Fact
+            label="Security staff on site"
+            value={securityStatus(detail).value}
+            color={securityStatus(detail).color}
+          />
           <Note>
             Student-teacher ratio is the number of students per teacher — fewer usually means more
             individual attention (e.g. &ldquo;15 to 1&rdquo; = 15 students per teacher).
@@ -405,6 +409,20 @@ function rating10Color(v: number): string {
   return "#e11d48";
 }
 
+// Security staff status from the reported FTE: No = red, Part-time = amber,
+// Yes = green, and "Not reported" (no CRDC record, e.g. private) = slate.
+function securityStatus(detail: SchoolDetail): { value: string; color: string } {
+  const fte = detail.teachers.securityFte;
+  if (fte == null) {
+    return detail.teachers.security
+      ? { value: "Yes", color: "#059669" }
+      : { value: "Not reported", color: "#64748b" };
+  }
+  if (fte <= 0) return { value: "No", color: "#e11d48" };
+  if (fte < 1) return { value: "Part-time", color: "#d97706" };
+  return { value: "Yes", color: "#059669" };
+}
+
 function ratingWord(v: number): string {
   if (v >= 8) return "Above average";
   if (v >= 4) return "Average";
@@ -452,34 +470,36 @@ function ConfidenceLine({
   coverage: SchoolDetail["coverage"];
   isPrivate: boolean;
 }) {
+  // The rating is academic: test scores (+ graduation for high schools).
   const have: string[] = [];
   if (coverage.hasTest) have.push("test scores");
-  if (coverage.hasCollege) have.push("graduation");
-  if (coverage.hasSafety) have.push("safety");
+  if (coverage.isHigh && coverage.hasCollege) have.push("graduation rates");
   const list =
     have.length === 0
       ? ""
       : have.length === 1
       ? have[0]
       : `${have.slice(0, -1).join(", ")} and ${have[have.length - 1]}`;
+  const expected = coverage.isHigh ? 2 : 1;
+  const haveN = have.length;
 
   let text: string;
   let color: string;
   if (summaryRating == null) {
     text = isPrivate
-      ? "Not enough public data to rate this school"
-      : "Limited data — not enough information to rate this school";
+      ? "Not rated — public schools' test & graduation data isn't collected for private schools"
+      : "Not rated — no test or graduation data reported for this school";
     color = "#e11d48";
-  } else if (coverage.available >= coverage.total) {
-    text = `Strong data — rating uses ${list}`;
+  } else if (haveN >= expected) {
+    text = `Confident rating — based on ${list}`;
     color = "#059669";
   } else {
-    text = `Partial data — rating uses ${list} (some measures missing)`;
+    text = `Lower-confidence rating — based on ${list} only (graduation data missing)`;
     color = "#d97706";
   }
   return (
     <div className="mt-2.5 flex items-center gap-2">
-      <CoverageDots available={coverage.available} total={coverage.total} />
+      <CoverageDots available={haveN} total={expected} />
       <span className="text-[11px] font-semibold" style={{ color }}>
         {text}
       </span>
@@ -772,8 +792,8 @@ function SafetyBlock({
       />
       <Fact
         label="Security staff on site"
-        value={detail.teachers.security ? "Yes" : "No"}
-        color={detail.teachers.security ? "#059669" : "#d97706"}
+        value={securityStatus(detail).value}
+        color={securityStatus(detail).color}
       />
 
       <div className="mt-3">

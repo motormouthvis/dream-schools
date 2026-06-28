@@ -160,6 +160,7 @@ function toDetail(item: ScoredSchool, districtName: string, extra: Extra = {}): 
       certifiedPct: ratings.teachers.certifiedPct,
       counselors: ratings.teachers.counselors,
       security: ratings.teachers.security,
+      securityFte: ratings.teachers.securityFte,
     },
     safety: item.safety ?? null,
     graduation: item.grad ?? null,

@@ -55,10 +55,25 @@ export function tone(
   }
 }
 
+// The list chip shares the detail's 1-10 Dream Rating scale so the two never
+// disagree (a 0-100 academic score maps to 1-10, then to a color + word).
+export function to10(score100: number): number {
+  return Math.max(1, Math.min(10, Math.round(score100 / 10) || 1));
+}
+
+export function rating10Hex(r10: number): string {
+  if (r10 >= 8) return "#059669";
+  if (r10 >= 6) return "#65a30d";
+  if (r10 >= 4) return "#d97706";
+  return "#e11d48";
+}
+
+export function rating10Word(r10: number): string {
+  if (r10 >= 8) return "Above average";
+  if (r10 >= 4) return "Average";
+  return "Below average";
+}
+
 export function scoreLabel(score: number): string {
-  if (score >= 85) return "Excellent";
-  if (score >= 75) return "Very good";
-  if (score >= 65) return "Good";
-  if (score >= 55) return "Fair";
-  return "Needs attention";
+  return rating10Word(to10(score));
 }

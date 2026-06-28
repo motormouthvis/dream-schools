@@ -1,6 +1,6 @@
 "use client";
 
-import { scoreHex, scoreLabel } from "./score";
+import { to10, rating10Hex, rating10Word } from "./score";
 import type { NearbySchool } from "@/lib/types";
 
 export function NearbySchools({
@@ -18,7 +18,9 @@ export function NearbySchools({
     <ul className="space-y-2.5">
       {schools.map((s, i) => {
         const isPrivate = s.level === "private";
-        const color = scoreHex(s.score);
+        const hasScore = s.score != null;
+        const r10 = hasScore ? to10(s.score as number) : null;
+        const color = r10 != null ? rating10Hex(r10) : "#94a3b8";
         const selected = compareIds.includes(s.ncesId);
         const atMax = compareIds.length >= 3 && !selected;
         return (
@@ -40,9 +42,11 @@ export function NearbySchools({
                 <span className="absolute left-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-black/25 text-[10px] font-bold">
                   {i + 1}
                 </span>
-                <span className="text-xl font-extrabold leading-none">{s.score}</span>
+                <span className={`font-extrabold leading-none ${hasScore ? "text-2xl" : "text-base"}`}>
+                  {hasScore ? r10 : "NR"}
+                </span>
                 <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide opacity-90">
-                  / 100
+                  {hasScore ? "/ 10" : "no data"}
                 </span>
               </button>
 
@@ -64,7 +68,7 @@ export function NearbySchools({
                 </span>
                 <span className="mt-1.5 flex items-center gap-2 text-xs">
                   <span className="font-semibold" style={{ color }}>
-                    {scoreLabel(s.score)}
+                    {r10 != null ? rating10Word(r10) : "Limited data"}
                   </span>
                   <span className="text-slate-300">•</span>
                   <span className="font-semibold text-slate-700">{s.miles} mi away</span>
