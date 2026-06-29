@@ -26,15 +26,23 @@ export function SchoolsTab({
   fairHousing = false,
   view,
   onViewChange,
+  onOpenSchool,
 }: {
   data: LookupResult;
   nationwide?: boolean;
   fairHousing?: boolean;
   view: "list" | "map";
   onViewChange: (v: "list" | "map") => void;
+  /**
+   * When provided, selecting a school calls this instead of opening the built-in
+   * detail modal. Used by the embeddable explorer to render the school detail
+   * inline within the iframe (avoids a modal-on-modal inside the popup panel).
+   */
+  onOpenSchool?: (ncesId: string) => void;
 }) {
   const { district, categories } = data;
   const [openId, setOpenId] = useState<string | null>(null);
+  const selectSchool = onOpenSchool ?? setOpenId;
   const [showArea, setShowArea] = useState(false);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
@@ -128,7 +136,7 @@ export function SchoolsTab({
             <>
               <NearbySchools
                 schools={visibleSchools.slice(0, listLimit)}
-                onSelect={setOpenId}
+                onSelect={selectSchool}
                 compareIds={compareIds}
                 onToggleCompare={toggleCompare}
               />
@@ -153,7 +161,7 @@ export function SchoolsTab({
             <MapView
               data={data}
               schools={visibleSchools}
-              onSelectSchool={setOpenId}
+              onSelectSchool={selectSchool}
               heightClass="h-[62vh] min-h-[380px]"
             />
             <p className="mt-2 px-1 text-center text-[11px] leading-relaxed text-slate-400">
@@ -201,7 +209,7 @@ export function SchoolsTab({
         )}
       </div>
 
-      {openId && (
+      {!onOpenSchool && openId && (
         <SchoolDetailModal
           ncesId={openId}
           fairHousing={fairHousing}

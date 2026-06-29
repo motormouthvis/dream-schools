@@ -9,13 +9,22 @@ export function SchoolDetailModal({
   ncesId,
   onClose,
   fairHousing = false,
+  variant = "modal",
 }: {
   ncesId: string;
   onClose: () => void;
   fairHousing?: boolean;
+  /**
+   * "modal" (default) renders the fixed overlay used on the main site.
+   * "inline" renders the detail in normal flow (scrollable, with a back
+   * affordance) — used by the embeddable explorer so the school detail shows
+   * inside the iframe instead of as a popup over the popup panel.
+   */
+  variant?: "modal" | "inline";
 }) {
   const [detail, setDetail] = useState<SchoolDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const inline = variant === "inline";
 
   useEffect(() => {
     let cancelled = false;
@@ -39,6 +48,26 @@ export function SchoolDetailModal({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  // Inline variant: render in normal flow so the iframe scrolls the whole page.
+  if (inline) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        {!detail && !error && (
+          <div className="p-10 text-center text-slate-400">Loading school details…</div>
+        )}
+        {error && (
+          <div className="p-6">
+            <div className="rounded-lg bg-rose-50 p-4 text-sm text-rose-700">{error}</div>
+            <button onClick={onClose} className="mt-4 text-sm font-semibold text-brand-600">
+              ← Back to schools
+            </button>
+          </div>
+        )}
+        {detail && <DetailBody detail={detail} onClose={onClose} fairHousing={fairHousing} inline />}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -70,10 +99,12 @@ function DetailBody({
   detail,
   onClose,
   fairHousing,
+  inline = false,
 }: {
   detail: SchoolDetail;
   onClose: () => void;
   fairHousing: boolean;
+  inline?: boolean;
 }) {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const a = detail.attributes;
@@ -106,6 +137,15 @@ function DetailBody({
   ].filter(Boolean) as string[];
   return (
     <>
+      {inline && (
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex w-full items-center gap-1.5 border-b border-slate-100 bg-white px-5 py-2.5 text-left text-sm font-semibold text-brand-700 transition hover:bg-brand-50 sm:px-6"
+        >
+          <span aria-hidden className="text-base leading-none">←</span> Back to schools
+        </button>
+      )}
       <header className="flex items-start justify-between gap-3 bg-gradient-to-r from-brand-700 to-brand-500 px-5 py-4 text-white sm:px-6">
         <div className="min-w-0">
           <h2 className="text-base font-semibold leading-tight sm:text-lg">{detail.name}</h2>
@@ -123,10 +163,10 @@ function DetailBody({
         </div>
         <button
           onClick={onClose}
-          aria-label="Close"
+          aria-label={inline ? "Back to schools" : "Close"}
           className="shrink-0 rounded-full bg-white/15 px-2.5 py-1 text-sm font-bold hover:bg-white/25"
         >
-          ✕
+          {inline ? "←" : "✕"}
         </button>
       </header>
 
@@ -155,7 +195,13 @@ function DetailBody({
         </div>
       )}
 
-      <div className="max-h-[82vh] overflow-y-auto px-5 py-5 sm:max-h-[75vh] sm:px-6">
+      <div
+        className={
+          inline
+            ? "px-5 py-5 sm:px-6"
+            : "max-h-[82vh] overflow-y-auto px-5 py-5 sm:max-h-[75vh] sm:px-6"
+        }
+      >
         {/* Dream Rating — plain-language header + interpretive 1-10 scores */}
         <div className="rounded-xl bg-brand-50 p-3.5 ring-1 ring-inset ring-brand-600/15">
           <div className="mb-2.5 flex items-start justify-between gap-2">
