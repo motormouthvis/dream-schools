@@ -15,7 +15,7 @@ export function NearbySchools({
   onToggleCompare: (ncesId: string) => void;
 }) {
   return (
-    <ul className="space-y-2.5">
+    <ul className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
       {schools.map((s, i) => {
         const isPrivate = s.level === "private";
         const hasScore = s.score != null;

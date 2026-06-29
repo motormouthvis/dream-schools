@@ -10,6 +10,7 @@ export function SchoolDetailModal({
   onClose,
   fairHousing = false,
   variant = "modal",
+  embed = false,
 }: {
   ncesId: string;
   onClose: () => void;
@@ -21,6 +22,12 @@ export function SchoolDetailModal({
    * inside the iframe instead of as a popup over the popup panel.
    */
   variant?: "modal" | "inline";
+  /**
+   * Embed (real-estate) mode: show a single 0–10 Diversity Index instead of any
+   * race/gender breakdown. Race data is only shown on the main (non-real-estate)
+   * website to avoid Fair Housing steering concerns on partner listing sites.
+   */
+  embed?: boolean;
 }) {
   const [detail, setDetail] = useState<SchoolDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +71,9 @@ export function SchoolDetailModal({
             </button>
           </div>
         )}
-        {detail && <DetailBody detail={detail} onClose={onClose} fairHousing={fairHousing} inline />}
+        {detail && (
+          <DetailBody detail={detail} onClose={onClose} fairHousing={fairHousing} inline embed={embed} />
+        )}
       </div>
     );
   }
@@ -89,7 +98,9 @@ export function SchoolDetailModal({
             </button>
           </div>
         )}
-        {detail && <DetailBody detail={detail} onClose={onClose} fairHousing={fairHousing} />}
+        {detail && (
+          <DetailBody detail={detail} onClose={onClose} fairHousing={fairHousing} embed={embed} />
+        )}
       </div>
     </div>
   );
@@ -100,11 +111,13 @@ function DetailBody({
   onClose,
   fairHousing,
   inline = false,
+  embed = false,
 }: {
   detail: SchoolDetail;
   onClose: () => void;
   fairHousing: boolean;
   inline?: boolean;
+  embed?: boolean;
 }) {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const a = detail.attributes;
@@ -409,8 +422,11 @@ function DetailBody({
 
         <Reviews ncesId={detail.ncesId} />
 
-        {/* Race & gender — kept near the bottom, just above Contact */}
-        {fairHousing ? (
+        {/* Diversity (embed/real-estate) — a single 0–10 index, no race data.
+            Race/gender breakdowns are shown only on the main website. */}
+        {embed ? (
+          <DiversitySection byRace={detail.demographics?.byRace ?? []} />
+        ) : fairHousing ? (
           <Section title="Race & gender">
             <p className="col-span-full text-xs text-slate-500">
               Hidden in <strong>Fair Housing Compliant</strong> mode so it can&apos;t be used to
@@ -658,6 +674,61 @@ function DemoBars({ title, data }: { title: string; data: { label: string; count
         ))}
       </div>
     </div>
+  );
+}
+
+// Diversity Index: the probability that two randomly chosen students come from
+// different racial/ethnic backgrounds (Simpson's index), scaled to 0–10. Shown
+// in the embed instead of any race breakdown.
+function diversityIndex10(byRace: { pct: number }[]): number | null {
+  const slices = (byRace || []).filter((s) => s && s.pct > 0);
+  if (slices.length === 0) return null;
+  const total = slices.reduce((a, s) => a + s.pct, 0) || 100;
+  const simpson = 1 - slices.reduce((a, s) => {
+    const p = s.pct / total;
+    return a + p * p;
+  }, 0);
+  return Math.max(0, Math.min(10, Math.round(simpson * 10)));
+}
+
+function diversityWord(v: number): string {
+  if (v >= 7) return "High diversity";
+  if (v >= 4) return "Moderate diversity";
+  return "Lower diversity";
+}
+
+function DiversitySection({ byRace }: { byRace: { pct: number }[] }) {
+  const idx = diversityIndex10(byRace);
+  return (
+    <Section title="Diversity Index">
+      {idx == null ? (
+        <p className="col-span-full text-sm text-slate-400">
+          Not enough data to compute a diversity index for this school.
+        </p>
+      ) : (
+        <div className="col-span-full">
+          <div className="flex items-center gap-3">
+            <div
+              className="flex shrink-0 items-baseline justify-center rounded-xl font-extrabold text-white"
+              style={{ backgroundColor: rating10Color(idx), width: 52, height: 52 }}
+            >
+              <span style={{ fontSize: 22 }}>{idx}</span>
+              <span className="text-[10px] font-semibold opacity-80">/10</span>
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-bold leading-tight text-slate-900">{diversityWord(idx)}</div>
+              <div className="text-[11px] leading-tight text-slate-500">
+                Higher = a more even mix of student backgrounds.
+              </div>
+            </div>
+          </div>
+          <Note>
+            The Diversity Index is the chance that two randomly chosen students come from different
+            racial/ethnic backgrounds, scaled 0–10. Source: NCES CCD enrollment.
+          </Note>
+        </div>
+      )}
+    </Section>
   );
 }
 
