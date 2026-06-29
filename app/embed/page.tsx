@@ -366,7 +366,7 @@ export default function EmbedExplorer() {
       <style>{`
         @keyframes dse-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
         .dse-marquee { overflow: hidden; }
-        .dse-marquee-track { display: inline-flex; white-space: nowrap; animation: dse-marquee 26s linear infinite; }
+        .dse-marquee-track { display: inline-flex; white-space: nowrap; animation: dse-marquee 75s linear infinite; }
         .dse-marquee:hover .dse-marquee-track { animation-play-state: paused; }
       `}</style>
 
