@@ -1,0 +1,27 @@
+{
+  "name": "Dream Neighborhood — Schools",
+  "description": "Schools tab: school district, quality index, and real per-school federal safety data (NCES CCD + U.S. DOE CRDC), nationwide, on Postgres + PostGIS.",
+  "repository": "https://github.com/motormouthvis/school-upgrade-test",
+  "keywords": ["next", "postgis", "schools", "nces", "crdc"],
+  "stack": "heroku-22",
+  "buildpacks": [
+    { "url": "heroku/python" },
+    { "url": "heroku/nodejs" }
+  ],
+  "addons": [
+    { "plan": "heroku-postgresql:essential-1" }
+  ],
+  "env": {
+    "PGSSLMODE": {
+      "description": "Force SSL for the managed Postgres connection.",
+      "value": "require"
+    },
+    "EMBED_ADMIN_PASSWORD": {
+      "description": "Shared secret for the embeddable-widget admin (/embed-admin) and /api/embed/admin. Leave unset to disable the admin.",
+      "required": false
+    }
+  },
+  "scripts": {
+    "postdeploy": "python3 pipeline/load_postgres.py"
+  }
+}

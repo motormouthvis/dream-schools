@@ -1,0 +1,5 @@
+# Root requirements for the Heroku Python buildpack (used by app.json postdeploy
+# and `heroku run python3 pipeline/load_postgres.py`). The web app itself is
+# Node/Next.js and does not need these.
+psycopg2-binary>=2.9
+pyshp>=2.3

@@ -1,0 +1,41 @@
+{
+  "districtId": "1201770",
+  "name": "The School District of St. Lucie County",
+  "shortName": "St. Lucie Public Schools",
+  "state": "FL",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          -80.275,
+          27.585
+        ],
+        [
+          -80.285,
+          27.4
+        ],
+        [
+          -80.305,
+          27.18
+        ],
+        [
+          -80.705,
+          27.182
+        ],
+        [
+          -80.705,
+          27.587
+        ],
+        [
+          -80.4,
+          27.586
+        ],
+        [
+          -80.275,
+          27.585
+        ]
+      ]
+    ]
+  }
+}

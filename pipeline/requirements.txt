@@ -1,0 +1,8 @@
+# pipeline/fetch_real_data.py (10-zip demo bundle) uses only the stdlib.
+#
+# pipeline/load_postgres.py (nationwide Postgres + PostGIS loader) needs a
+# Postgres driver:
+psycopg2-binary>=2.9
+#
+# pipeline/load_boundaries.py (optional district polygons, pure-Python) needs:
+pyshp>=2.3
