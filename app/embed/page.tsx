@@ -113,8 +113,12 @@ export default function EmbedExplorer() {
   // with internal scroll). The popup panel is fixed, so it ignores this.
   useEffect(() => {
     if (!isInline) return;
+    // The SDK sizes the iframe to this height, so the iframe itself never needs a
+    // scrollbar — internal regions (the results list) scroll on their own.
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
     const report = () => {
-      const h = Math.ceil(document.body.scrollHeight);
+      const h = Math.ceil(document.body.scrollHeight) + 2;
       if (h > 0) window.parent?.postMessage?.({ type: "dse:height", height: h }, "*");
     };
     report();

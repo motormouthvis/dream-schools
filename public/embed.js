@@ -629,9 +629,10 @@
       iframe.className = "dse-inline-iframe";
       iframe.setAttribute("allow", "geolocation");
       iframe.setAttribute("allowfullscreen", "");
-      iframe.setAttribute("title", "School Rating Explorer");
+      iframe.setAttribute("scrolling", "no");
+      iframe.setAttribute("title", "Dream Neighborhood School Explorer");
       iframe.setAttribute("loading", "lazy");
-      var base = "display:block;width:100%;max-width:1200px;margin:20px auto;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color-scheme:light;box-shadow:0 6px 24px rgba(0,0,0,.08)";
+      var base = "display:block;width:100%;max-width:1200px;margin:20px auto;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color-scheme:light;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.08)";
       iframe.style.cssText = config.inlineMinHeightExplicit ? base + ";min-height:" + config.inlineMinHeight + "px" : base;
       container.appendChild(iframe);
 
