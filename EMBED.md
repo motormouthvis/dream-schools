@@ -36,7 +36,8 @@ optional and overrides the server-resolved per-host config.
 | `data-tooltip-message` | popup | supports a `{{address}}` token |
 | `data-require-address` | popup | hide the bubble when no address resolves |
 | `data-search-page-content` | both | opt-in to the heavier visible-text address scan |
-| `data-suppress-on-inline` | popup | hide the popup when an inline embed is also present |
+| `data-suppress-on-inline` | popup | hide the popup when an inline schools embed is also present |
+| `data-suppress-if-neighborhood-explorer` | popup | hide the popup when the (paid) Dream Neighborhood Explorer popup/embed is on the page |
 | `data-min-height` | inline | iframe min-height in px |
 | `data-show-header` | inline | show the explorer header bar |
 | `data-address` | inline | explicit address; bypasses scraping |

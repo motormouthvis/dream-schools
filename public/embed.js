@@ -69,6 +69,7 @@
     requireAddress: false,
     searchPageContent: false,
     suppressOnInline: false,
+    suppressIfNeighborhoodExplorer: false,
     inlineMinHeight: 540,
     inlineMinHeightExplicit: false,
     inlineShowHeader: false,
@@ -85,6 +86,7 @@
       tooltipMessage: typeof popup.tooltipMessage === "string" ? popup.tooltipMessage : DEFAULTS.tooltipMessage,
       requireAddress: typeof popup.requireAddress === "boolean" ? popup.requireAddress : DEFAULTS.requireAddress,
       suppressOnInline: typeof popup.suppressOnInline === "boolean" ? popup.suppressOnInline : DEFAULTS.suppressOnInline,
+      suppressIfNeighborhoodExplorer: typeof popup.suppressIfNeighborhoodExplorer === "boolean" ? popup.suppressIfNeighborhoodExplorer : DEFAULTS.suppressIfNeighborhoodExplorer,
       searchPageContent: typeof remote.searchPageContent === "boolean" ? remote.searchPageContent : DEFAULTS.searchPageContent,
       inlineMinHeight: typeof inline.minHeight === "number" ? Math.max(200, inline.minHeight | 0) : DEFAULTS.inlineMinHeight,
       inlineMinHeightExplicit: false,
@@ -106,6 +108,8 @@
     if (sp !== null) next.searchPageContent = sp;
     var soi = boolAttr(el, "data-suppress-on-inline");
     if (soi !== null) next.suppressOnInline = soi;
+    var sne = boolAttr(el, "data-suppress-if-neighborhood-explorer");
+    if (sne !== null) next.suppressIfNeighborhoodExplorer = sne;
     var mh = intAttr(el, "data-min-height", 200);
     if (mh !== null) {
       next.inlineMinHeight = mh;
@@ -151,6 +155,7 @@
         requireAddress: pres.requireAddress,
         searchPageContent: pres.searchPageContent,
         suppressOnInline: pres.suppressOnInline,
+        suppressIfNeighborhoodExplorer: pres.suppressIfNeighborhoodExplorer,
         inlineMinHeight: pres.inlineMinHeight,
         inlineMinHeightExplicit: pres.inlineMinHeightExplicit,
         inlineShowHeader: pres.inlineShowHeader,
@@ -455,6 +460,21 @@
     return !!document.querySelector(INLINE_SELECTORS.join(",") + ",.dse-inline-iframe");
   }
 
+  // Detect the (paid) Dream Neighborhood "Neighborhood Explorer" on the page, so
+  // the free School Explorer can step aside when it's configured to.
+  function neighborhoodExplorerPresent() {
+    try {
+      if (window.__DN_EXPLORER_API_BASE__) return true;
+      if (document.querySelector('#dn-explorer,.dn-explorer,[data-dn-explorer],[data-dream-neighborhood-explorer]')) return true;
+      var s = document.querySelectorAll("script[src],iframe[src]");
+      for (var i = 0; i < s.length; i++) {
+        var src = s[i].getAttribute("src") || "";
+        if (/dreamneighborhood\.com\/explorer/i.test(src)) return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
   // -------------------------------------------------------------------------
   // Popup mode
   // -------------------------------------------------------------------------
@@ -559,6 +579,7 @@
       coordsPromise = geocodePage(config).then(function (c) {
         coords = c;
         if (config.suppressOnInline && inlinePresent()) { root.style.display = "none"; return; }
+        if (config.suppressIfNeighborhoodExplorer && neighborhoodExplorerPresent()) { root.style.display = "none"; return; }
         if (config.requireAddress && !coords) { root.style.display = "none"; return; }
         root.style.display = "";
         setTimeout(showTooltip, initial ? 800 : 0);
