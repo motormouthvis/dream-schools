@@ -6,17 +6,15 @@ import { SchoolDetailModal } from "@/components/SchoolDetailModal";
 import { getRecent, addRecent, type RecentSearch } from "@/lib/recent";
 import type { LookupResult } from "@/lib/types";
 
-// Chrome-less "School Rating Explorer" served for the embeddable widget.
-//
-// Loaded inside an iframe by public/embed.js (popup or inline mode):
+// Chrome-less "Dream Neighborhood School Explorer" served for the embeddable
+// widget. Loaded inside an iframe by public/embed.js (popup or inline):
 //   /embed?address=...&lat=..&lng=..&accent=%23..&mode=popup|inline&header=1
 //
-// Behaviour mirrors the main site: a home screen with a search bar + recent
-// searches (cookies) when no address is resolved, the schools list/map for a
-// resolved address, and the school detail rendered INLINE inside the iframe.
-//
-// Real-estate context: the detail shows a single 0–10 Diversity Index instead of
-// any race breakdown (race data is only on the main, non-real-estate website).
+// The free School Explorer is a loss leader for the paid full Neighborhood
+// Explorer (38 hyperlocal insights). The detail shows a 0–10 Diversity Index
+// instead of race data (real-estate Fair Housing safety). The widget is a
+// fixed-height app: the home fits without scrolling and the results list
+// scrolls within the frame.
 
 interface EmbedParams {
   address: string;
@@ -33,6 +31,14 @@ interface Suggestion {
   lon: number;
   zip: string;
 }
+
+// A representative slice of the 38 hyperlocal insights in the full Explorer.
+const INSIGHTS = [
+  "Schools", "Crime & safety", "Market trends", "Walkability", "Commute times",
+  "Flood risk", "Noise levels", "Demographics", "Parks & rec", "Dining",
+  "Air quality", "Internet speed", "Public transit", "Home values", "Property taxes",
+  "Shopping", "Healthcare", "Climate",
+];
 
 function readParams(): EmbedParams {
   const p = new URLSearchParams(window.location.search);
@@ -95,7 +101,6 @@ export default function EmbedExplorer() {
   const accent = params?.accent || "#1fa55f";
   const isInline = params?.mode === "inline";
   const screen: "home" | "results" = data ? "results" : "home";
-  const showSearch = screen === "home" || changing;
 
   const runLookup = useCallback(async (query: string, picked?: Suggestion) => {
     const q = query.trim();
@@ -276,10 +281,10 @@ export default function EmbedExplorer() {
         }}
         autoComplete="off"
         placeholder="Enter a US address to find nearby schools"
-        className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-9 pr-3 text-sm shadow-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+        className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm shadow-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
       />
       {focused && !address.trim() && recents.length > 0 && (
-        <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+        <ul className="absolute z-30 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
           <li className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
             Recent searches
           </li>
@@ -301,7 +306,7 @@ export default function EmbedExplorer() {
         </ul>
       )}
       {showSuggest && suggestions.length > 0 && (
-        <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+        <ul className="absolute z-30 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
           {suggestions.map((s, i) => (
             <li key={`${s.label}-${i}`}>
               <button
@@ -325,11 +330,18 @@ export default function EmbedExplorer() {
   );
 
   return (
-    <main className="flex min-h-screen flex-col bg-white">
+    <main className="flex h-screen flex-col overflow-hidden bg-white">
+      <style>{`
+        @keyframes dse-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        .dse-marquee { overflow: hidden; }
+        .dse-marquee-track { display: inline-flex; white-space: nowrap; animation: dse-marquee 26s linear infinite; }
+        .dse-marquee:hover .dse-marquee-track { animation-play-state: paused; }
+      `}</style>
+
       {/* Inline embeds have no SDK chrome, so brand the iframe itself. */}
       {isInline && (
         <header
-          className="flex items-center gap-2.5 px-4 py-2.5 text-white sm:px-5"
+          className="flex shrink-0 items-center gap-2.5 px-4 py-2.5 text-white sm:px-5"
           style={{ background: accent }}
         >
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/20">
@@ -344,173 +356,179 @@ export default function EmbedExplorer() {
         </header>
       )}
 
-      <div className="flex-1">
-        {/* ---- HOME SCREEN ---- */}
-        {screen === "home" && (
-          <div className="mx-auto max-w-5xl px-4 pb-10 pt-5 sm:pt-7">
-            {/* Hero */}
-            <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-brand-50 via-white to-lime-50 ring-1 ring-inset ring-brand-600/10">
-              <div className="grid items-center gap-4 px-5 py-6 sm:grid-cols-2 sm:px-8 sm:py-8">
-                <div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-600/15">
-                    School Rating Explorer
-                  </span>
-                  <h1 className="mt-3 text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">
-                    Find Your Dream School
-                  </h1>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                    See a 1–10 rating, test scores, college readiness &amp; safety for every public
-                    school near any address — nationwide. Private schools included (limited data).
-                  </p>
-                </div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/showcase.png"
-                  alt="Neighborhood with a school and children"
-                  className="hidden h-44 w-full rounded-2xl object-cover object-[center_72%] shadow-sm sm:block"
-                />
-              </div>
+      {/* ---- HOME SCREEN (fits without scrolling on desktop) ---- */}
+      {screen === "home" && (
+        <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col justify-start gap-3 overflow-y-auto px-4 py-3 md:justify-center md:overflow-hidden">
+          {/* Hero */}
+          <div className="flex items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-br from-brand-50 via-white to-lime-50 px-4 py-3 ring-1 ring-inset ring-brand-600/10 sm:px-5">
+            <div className="min-w-0 flex-1">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-600/15">
+                ★ Free forever · no ads
+              </span>
+              <h1 className="mt-1.5 text-xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-2xl">
+                Find Your Dream School
+              </h1>
+              <p className="mt-1 text-xs leading-snug text-slate-600">
+                A 1–10 rating, test scores, college readiness &amp; safety for every school near any
+                address — nationwide.
+              </p>
             </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/hero-schools.png"
+              alt="Children walking to school"
+              className="hidden h-20 w-auto shrink-0 sm:block"
+            />
+          </div>
 
-            {/* Search */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                runLookup(address);
-              }}
-              className="mt-5 flex flex-col gap-2 sm:flex-row"
+          {/* Search */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              runLookup(address);
+            }}
+            className="flex flex-col gap-2 sm:flex-row"
+          >
+            {SearchField}
+            <button
+              type="submit"
+              disabled={loading}
+              className="rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60"
+              style={{ background: accent }}
             >
-              {SearchField}
-              <button
-                type="submit"
-                disabled={loading}
-                className="rounded-xl px-6 py-3 text-sm font-bold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60"
-                style={{ background: accent }}
-              >
-                {loading ? "Searching…" : "Search schools"}
-              </button>
-            </form>
+              {loading ? "Searching…" : "Search schools"}
+            </button>
+          </form>
 
-            {error && (
-              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-                {error}
-              </div>
-            )}
-
-            {/* What you get */}
-            <div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
-              {[
-                ["★", "Dream Rating", "One 1–10 score per school"],
-                ["✎", "Test scores", "Reading & math proficiency"],
-                ["🎓", "College readiness", "Graduation, AP/IB & SAT/ACT"],
-                ["🛡", "Safety", "Incidents vs. state & US"],
-              ].map(([icon, t, d]) => (
-                <div key={t} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-                  <div className="text-lg" aria-hidden>{icon}</div>
-                  <p className="mt-1 text-sm font-bold text-slate-800">{t}</p>
-                  <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{d}</p>
-                </div>
-              ))}
+          {error && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+              {error}
             </div>
+          )}
 
-            {/* Realtor CTA — get the widget */}
-            <div className="mt-7 overflow-hidden rounded-3xl bg-gradient-to-br from-[#0d5c52] to-brand-700 p-5 text-white shadow-sm sm:p-7">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <h2 className="text-lg font-extrabold leading-tight sm:text-xl">
-                    Get the Neighborhood Explorer Here
-                  </h2>
-                  <p className="mt-1 text-sm leading-relaxed text-white/85">
-                    Add this to your real-estate site and give buyers instant neighborhood &amp;
-                    school insight on every listing.
-                  </p>
-                  <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-sm font-semibold text-[#d9f99d]">
-                    <li className="flex items-center gap-1.5"><span aria-hidden>✓</span> Free for life</li>
-                    <li className="flex items-center gap-1.5"><span aria-hidden>✓</span> No ads, ever</li>
-                    <li className="flex items-center gap-1.5"><span aria-hidden>✓</span> One line of code</li>
-                  </ul>
-                </div>
-                <div className="flex shrink-0 flex-col gap-2 sm:w-44">
-                  <a
-                    href="https://www.dreamneighborhood.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-xl bg-white px-4 py-2.5 text-center text-sm font-bold text-brand-800 shadow-sm transition hover:bg-white/90"
+          {/* Buyer benefits */}
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              ["★", "Dream Rating"],
+              ["✎", "Test scores"],
+              ["🎓", "College ready"],
+              ["🛡", "Safety"],
+            ].map(([icon, t]) => (
+              <div key={t} className="rounded-xl border border-slate-100 bg-slate-50/70 p-2 text-center">
+                <div className="text-base leading-none" aria-hidden>{icon}</div>
+                <p className="mt-1 text-[11px] font-bold leading-tight text-slate-700">{t}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Upgrade CTA — toned down, pitches the PAID full Explorer */}
+          <div className="overflow-hidden rounded-2xl border border-brand-200 bg-brand-50/70 p-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
+                <h2 className="text-sm font-extrabold leading-tight text-brand-900">
+                  Get the Full Neighborhood Explorer Here
+                </h2>
+                <p className="text-[11px] leading-snug text-slate-600">
+                  Schools are free forever. Unlock <strong>38 hyperlocal insights</strong> per listing.
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <a
+                  href="https://www.dreamneighborhood.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg border border-brand-600 px-3 py-1.5 text-xs font-bold text-brand-700 transition hover:bg-brand-100"
+                >
+                  See benefits
+                </a>
+                <a
+                  href="https://app.dreamneighborhood.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-brand-700"
+                >
+                  Sign up
+                </a>
+              </div>
+            </div>
+            {/* Scrolling list of the 38 insights */}
+            <div className="dse-marquee mt-2.5 border-t border-brand-200/70 pt-2">
+              <div className="dse-marquee-track">
+                {[...INSIGHTS, ...INSIGHTS].map((label, i) => (
+                  <span
+                    key={`${label}-${i}`}
+                    className="mr-2 inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-[11px] font-semibold text-brand-700 ring-1 ring-inset ring-brand-600/15"
                   >
-                    See the benefits
-                  </a>
-                  <a
-                    href="https://app.dreamneighborhood.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-xl bg-[#d9f99d] px-4 py-2.5 text-center text-sm font-bold text-[#0d5c52] shadow-sm transition hover:bg-[#cded8f]"
-                  >
-                    Sign up free
-                  </a>
-                </div>
+                    <span aria-hidden className="text-brand-500">●</span>
+                    {label}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* ---- RESULTS SCREEN ---- */}
-        {screen === "results" && data && (
-          <div className="mx-auto max-w-5xl px-3 py-3 sm:px-4 sm:py-4">
-            <div className="mb-4 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={goHome}
-                aria-label="Home"
-                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-                  <path d="M3 11.5 12 4l9 7.5" />
-                  <path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9" />
-                </svg>
-                <span className="hidden sm:inline">Home</span>
-              </button>
+      {/* ---- RESULTS SCREEN (fixed chrome, list scrolls within) ---- */}
+      {screen === "results" && data && (
+        <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col px-3 pt-3 sm:px-4">
+          <div className="mb-3 flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={goHome}
+              aria-label="Home"
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                <path d="M3 11.5 12 4l9 7.5" />
+                <path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9" />
+              </svg>
+              <span className="hidden sm:inline">Home</span>
+            </button>
 
-              {!changing ? (
-                <div className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-                  <p className="min-w-0 truncate text-sm font-bold text-slate-900">
-                    <span className="mr-1">📍</span>
-                    {resolvedCityState}
-                    {data.district?.name ? (
-                      <>
-                        {" · "}
-                        <span className="text-brand-700">{data.district.name} School District</span>
-                      </>
-                    ) : null}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={beginChange}
-                    className="shrink-0 rounded-lg border border-brand-600 px-3 py-1.5 text-xs font-bold text-brand-700 transition hover:bg-brand-50"
-                  >
-                    Change
-                  </button>
-                </div>
-              ) : (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    runLookup(address);
-                  }}
-                  className="flex min-w-0 flex-1 gap-2"
+            {!changing ? (
+              <div className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+                <p className="min-w-0 truncate text-sm font-bold text-slate-900">
+                  <span className="mr-1">📍</span>
+                  {resolvedCityState}
+                  {data.district?.name ? (
+                    <>
+                      {" · "}
+                      <span className="text-brand-700">{data.district.name} School District</span>
+                    </>
+                  ) : null}
+                </p>
+                <button
+                  type="button"
+                  onClick={beginChange}
+                  className="shrink-0 rounded-lg border border-brand-600 px-3 py-1.5 text-xs font-bold text-brand-700 transition hover:bg-brand-50"
                 >
-                  {SearchField}
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="shrink-0 rounded-xl px-4 py-2 text-sm font-bold text-white shadow-sm transition disabled:opacity-60"
-                    style={{ background: accent }}
-                  >
-                    {loading ? "…" : "Go"}
-                  </button>
-                </form>
-              )}
-            </div>
+                  Change
+                </button>
+              </div>
+            ) : (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  runLookup(address);
+                }}
+                className="flex min-w-0 flex-1 gap-2"
+              >
+                {SearchField}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="shrink-0 rounded-xl px-4 py-2 text-sm font-bold text-white shadow-sm transition disabled:opacity-60"
+                  style={{ background: accent }}
+                >
+                  {loading ? "…" : "Go"}
+                </button>
+              </form>
+            )}
+          </div>
 
+          {/* Scroll region: only the results/detail scroll, chrome stays put. */}
+          <div className="min-h-0 flex-1 overflow-y-auto pb-4">
             {loading && (
               <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
                 Looking up schools…
@@ -529,6 +547,7 @@ export default function EmbedExplorer() {
                 fairHousing={false}
                 variant="inline"
                 embed
+                backLabel={view === "map" ? "Back to map" : "Back to list"}
                 onClose={() => setSelected(null)}
               />
             )}
@@ -541,15 +560,16 @@ export default function EmbedExplorer() {
                 view={view}
                 onViewChange={setView}
                 onOpenSchool={setSelected}
+                listColumns={isInline ? 1 : 2}
               />
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Inline embeds: brand footer (popup mode gets this from the SDK panel). */}
       {isInline && (
-        <footer className="border-t border-slate-100 px-4 py-2 text-center text-[11px] text-slate-400">
+        <footer className="shrink-0 border-t border-slate-100 px-4 py-1.5 text-center text-[11px] text-slate-400">
           Powered by{" "}
           <a
             href="https://www.dreamneighborhoodschools.com"
