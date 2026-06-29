@@ -484,7 +484,7 @@
     backdrop.className = "dse-backdrop";
     backdrop.style.display = "none";
     backdrop.innerHTML =
-      '<div class="dse-panel"><div class="dse-header"><div class="dse-hl"><div class="dse-hicon">' + ICON_PIN + '</div><span class="dse-title">School Rating Explorer</span></div>' +
+      '<div class="dse-panel"><div class="dse-header"><div class="dse-hl"><div class="dse-hicon">' + ICON_PIN + '</div><span class="dse-title">Dream Neighborhood School Explorer</span></div>' +
       '<button class="dse-close" aria-label="Close">' + ICON_CLOSE + '</button></div>' +
       '<div class="dse-loading dse-hidden"><div class="dse-spinner"></div></div>' +
       '<iframe class="dse-iframe" allow="geolocation" allowfullscreen></iframe>' +
@@ -597,7 +597,7 @@
       iframe.setAttribute("allowfullscreen", "");
       iframe.setAttribute("title", "School Rating Explorer");
       iframe.setAttribute("loading", "lazy");
-      var base = "width:100%;border:0;display:block;background:#fff;color-scheme:light";
+      var base = "width:100%;border:1px solid #e2e8f0;border-radius:16px;display:block;background:#fff;color-scheme:light;box-shadow:0 1px 3px rgba(0,0,0,.06)";
       iframe.style.cssText = config.inlineMinHeightExplicit ? base + ";min-height:" + config.inlineMinHeight + "px" : base;
       container.appendChild(iframe);
 

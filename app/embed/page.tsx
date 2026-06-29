@@ -11,10 +11,12 @@ import type { LookupResult } from "@/lib/types";
 // Loaded inside an iframe by public/embed.js (popup or inline mode):
 //   /embed?address=...&lat=..&lng=..&accent=%23..&mode=popup|inline&header=1
 //
-// Behaviour mirrors the main site: a beautiful home screen with a search bar +
-// recent searches (saved in cookies) when no address is resolved, the schools
-// list/map for a resolved address, and the school detail rendered INLINE inside
-// the iframe (scrollable, with a back arrow) — never a popup over the popup.
+// Behaviour mirrors the main site: a home screen with a search bar + recent
+// searches (cookies) when no address is resolved, the schools list/map for a
+// resolved address, and the school detail rendered INLINE inside the iframe.
+//
+// Real-estate context: the detail shows a single 0–10 Diversity Index instead of
+// any race breakdown (race data is only on the main, non-real-estate website).
 
 interface EmbedParams {
   address: string;
@@ -62,6 +64,13 @@ function cityState(matched: string, fallbackState: string): string {
   return [title(rawCity), state].filter(Boolean).join(", ");
 }
 
+const PIN_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z" />
+    <circle cx="12" cy="10" r="3" />
+  </svg>
+);
+
 export default function EmbedExplorer() {
   const [params, setParams] = useState<EmbedParams | null>(null);
   const [data, setData] = useState<LookupResult | null>(null);
@@ -71,7 +80,6 @@ export default function EmbedExplorer() {
   const [view, setView] = useState<"list" | "map">("list");
   const [selected, setSelected] = useState<string | null>(null);
 
-  // Search box state (mirrors the main site).
   const [address, setAddress] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggest, setShowSuggest] = useState(false);
@@ -85,52 +93,48 @@ export default function EmbedExplorer() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const accent = params?.accent || "#1fa55f";
-  // A resolved result switches us to the "results" screen; otherwise "home".
+  const isInline = params?.mode === "inline";
   const screen: "home" | "results" = data ? "results" : "home";
   const showSearch = screen === "home" || changing;
 
-  const runLookup = useCallback(
-    async (query: string, picked?: Suggestion) => {
-      const q = query.trim();
-      const hasCoords = picked && Number.isFinite(picked.lat) && Number.isFinite(picked.lon);
-      if (!q && !hasCoords) return;
-      setShowSuggest(false);
-      setSelected(null);
-      setLoading(true);
-      setError(null);
-      try {
-        const coords = hasCoords
-          ? `&lat=${picked!.lat}&lon=${picked!.lon}&zip=${encodeURIComponent(picked!.zip || "")}`
-          : "";
-        const res = await fetch(`/api/lookup?address=${encodeURIComponent(q || `${picked!.lat},${picked!.lon}`)}${coords}`);
-        const json = await res.json();
-        if (!res.ok) {
-          setError(json.error ?? "Something went wrong.");
-          setData(null);
-        } else {
-          const result = json as LookupResult;
-          setData(result);
-          setChanging(false);
-          setRecents(
-            addRecent({
-              label: result.geocode.matchedAddress || q,
-              lat: result.center?.lat,
-              lon: result.center?.lon,
-              zip: result.geocode?.zip,
-            })
-          );
-        }
-      } catch {
-        setError("Network error.");
+  const runLookup = useCallback(async (query: string, picked?: Suggestion) => {
+    const q = query.trim();
+    const hasCoords = picked && Number.isFinite(picked.lat) && Number.isFinite(picked.lon);
+    if (!q && !hasCoords) return;
+    setShowSuggest(false);
+    setSelected(null);
+    setLoading(true);
+    setError(null);
+    try {
+      const coords = hasCoords
+        ? `&lat=${picked!.lat}&lon=${picked!.lon}&zip=${encodeURIComponent(picked!.zip || "")}`
+        : "";
+      const res = await fetch(`/api/lookup?address=${encodeURIComponent(q || `${picked!.lat},${picked!.lon}`)}${coords}`);
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? "Something went wrong.");
         setData(null);
-      } finally {
-        setLoading(false);
+      } else {
+        const result = json as LookupResult;
+        setData(result);
+        setChanging(false);
+        setRecents(
+          addRecent({
+            label: result.geocode.matchedAddress || q,
+            lat: result.center?.lat,
+            lon: result.center?.lon,
+            zip: result.geocode?.zip,
+          })
+        );
       }
-    },
-    []
-  );
+    } catch {
+      setError("Network error.");
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  // Read params on mount; resolve immediately if an address/coords were passed.
   useEffect(() => {
     const parsed = readParams();
     setParams(parsed);
@@ -148,8 +152,6 @@ export default function EmbedExplorer() {
     }
   }, [runLookup]);
 
-  // iOS-safe close protocol: retire transient layers (the inline detail) on
-  // request and acknowledge so the host SDK can detach the iframe cleanly.
   const closeRef = useRef<() => void>(() => {});
   useEffect(() => {
     closeRef.current = () => setSelected(null);
@@ -169,7 +171,6 @@ export default function EmbedExplorer() {
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
-  // Debounced address autocomplete (free, via Photon/OSM), biased to the area.
   useEffect(() => {
     if (suppressRef.current) {
       suppressRef.current = false;
@@ -239,7 +240,6 @@ export default function EmbedExplorer() {
 
   const resolvedCityState = data ? cityState(data.geocode.matchedAddress, data.district.state) : "";
 
-  // The search field + its autocomplete / recent dropdowns (shared by both screens).
   const SearchField = (
     <div className="relative flex-1">
       <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">⌖</span>
@@ -325,103 +325,154 @@ export default function EmbedExplorer() {
   );
 
   return (
-    <main className="min-h-screen bg-white">
-      {/* ---- HOME SCREEN: hero + search, no schools listed ---- */}
-      {screen === "home" && (
-        <div className="mx-auto flex min-h-screen max-w-2xl flex-col px-4 pb-10 pt-6 sm:pt-10">
-          <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-brand-50 to-lime-50 ring-1 ring-inset ring-brand-600/10">
-            <div className="flex items-center justify-between gap-3 px-5 py-5 sm:px-7 sm:py-6">
-              <div>
-                <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-3xl">
-                  Find Your Dream School
-                </h1>
-                <p className="mt-1.5 text-xs text-slate-500 sm:text-sm">
-                  Real ratings, test scores &amp; safety for public schools, nationwide. Private
-                  schools included (limited data).
-                </p>
-              </div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/hero-schools.png"
-                alt="Illustration of children walking to school"
-                className="h-20 w-auto shrink-0 sm:h-28"
-              />
-            </div>
+    <main className="flex min-h-screen flex-col bg-white">
+      {/* Inline embeds have no SDK chrome, so brand the iframe itself. */}
+      {isInline && (
+        <header
+          className="flex items-center gap-2.5 px-4 py-2.5 text-white sm:px-5"
+          style={{ background: accent }}
+        >
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/20">
+            {PIN_SVG}
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-bold leading-tight">Dream Neighborhood School Explorer</p>
+            <p className="hidden text-[11px] leading-tight text-white/85 sm:block">
+              Ratings, test scores &amp; safety for nearby schools
+            </p>
           </div>
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              runLookup(address);
-            }}
-            className="mt-5 flex flex-col gap-2 sm:flex-row"
-          >
-            {SearchField}
-            <button
-              type="submit"
-              disabled={loading}
-              className="rounded-xl px-6 py-3 text-sm font-bold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60"
-              style={{ background: accent }}
-            >
-              {loading ? "Searching…" : "Search"}
-            </button>
-          </form>
-
-          {error && (
-            <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-              {error}
-            </div>
-          )}
-
-          <div className="mt-6 grid grid-cols-3 gap-3 text-center">
-            {[
-              ["Test scores", "State proficiency in reading & math"],
-              ["College readiness", "Graduation, AP/IB & SAT/ACT"],
-              ["Safety", "Incidents vs. state & US averages"],
-            ].map(([t, d]) => (
-              <div key={t} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
-                <p className="text-xs font-bold text-slate-800 sm:text-sm">{t}</p>
-                <p className="mt-1 hidden text-[11px] leading-snug text-slate-500 sm:block">{d}</p>
-              </div>
-            ))}
-          </div>
-
-          <p className="mt-auto pt-6 text-center text-[11px] text-slate-400">
-            Powered by{" "}
-            <a
-              href="https://www.dreamneighborhoodschools.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-slate-500 hover:underline"
-            >
-              Dream Neighborhood Schools
-            </a>
-          </p>
-        </div>
+        </header>
       )}
 
-      {/* ---- RESULTS SCREEN: address bar + (list/map | inline detail) ---- */}
-      {screen === "results" && data && (
-        <div className="mx-auto max-w-3xl px-3 py-3 sm:py-4">
-          {/* Sticky top bar: Home + address + change */}
-          <div className="mb-4 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={goHome}
-              aria-label="Home"
-              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-                <path d="M3 11.5 12 4l9 7.5" />
-                <path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9" />
-              </svg>
-              <span className="hidden sm:inline">Home</span>
-            </button>
+      <div className="flex-1">
+        {/* ---- HOME SCREEN ---- */}
+        {screen === "home" && (
+          <div className="mx-auto max-w-5xl px-4 pb-10 pt-5 sm:pt-7">
+            {/* Hero */}
+            <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-brand-50 via-white to-lime-50 ring-1 ring-inset ring-brand-600/10">
+              <div className="grid items-center gap-4 px-5 py-6 sm:grid-cols-2 sm:px-8 sm:py-8">
+                <div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-600/15">
+                    School Rating Explorer
+                  </span>
+                  <h1 className="mt-3 text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">
+                    Find Your Dream School
+                  </h1>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                    See a 1–10 rating, test scores, college readiness &amp; safety for every public
+                    school near any address — nationwide. Private schools included (limited data).
+                  </p>
+                </div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/showcase.png"
+                  alt="Neighborhood with a school and children"
+                  className="hidden h-44 w-full rounded-2xl object-cover object-[center_72%] shadow-sm sm:block"
+                />
+              </div>
+            </div>
 
-            {!changing ? (
-              <div className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+            {/* Search */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                runLookup(address);
+              }}
+              className="mt-5 flex flex-col gap-2 sm:flex-row"
+            >
+              {SearchField}
+              <button
+                type="submit"
+                disabled={loading}
+                className="rounded-xl px-6 py-3 text-sm font-bold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ background: accent }}
+              >
+                {loading ? "Searching…" : "Search schools"}
+              </button>
+            </form>
+
+            {error && (
+              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                {error}
+              </div>
+            )}
+
+            {/* What you get */}
+            <div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              {[
+                ["★", "Dream Rating", "One 1–10 score per school"],
+                ["✎", "Test scores", "Reading & math proficiency"],
+                ["🎓", "College readiness", "Graduation, AP/IB & SAT/ACT"],
+                ["🛡", "Safety", "Incidents vs. state & US"],
+              ].map(([icon, t, d]) => (
+                <div key={t} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                  <div className="text-lg" aria-hidden>{icon}</div>
+                  <p className="mt-1 text-sm font-bold text-slate-800">{t}</p>
+                  <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{d}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Realtor CTA — get the widget */}
+            <div className="mt-7 overflow-hidden rounded-3xl bg-gradient-to-br from-[#0d5c52] to-brand-700 p-5 text-white shadow-sm sm:p-7">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-slate-900">
+                  <h2 className="text-lg font-extrabold leading-tight sm:text-xl">
+                    Get the Neighborhood Explorer Here
+                  </h2>
+                  <p className="mt-1 text-sm leading-relaxed text-white/85">
+                    Add this to your real-estate site and give buyers instant neighborhood &amp;
+                    school insight on every listing.
+                  </p>
+                  <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-sm font-semibold text-[#d9f99d]">
+                    <li className="flex items-center gap-1.5"><span aria-hidden>✓</span> Free for life</li>
+                    <li className="flex items-center gap-1.5"><span aria-hidden>✓</span> No ads, ever</li>
+                    <li className="flex items-center gap-1.5"><span aria-hidden>✓</span> One line of code</li>
+                  </ul>
+                </div>
+                <div className="flex shrink-0 flex-col gap-2 sm:w-44">
+                  <a
+                    href="https://www.dreamneighborhood.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-xl bg-white px-4 py-2.5 text-center text-sm font-bold text-brand-800 shadow-sm transition hover:bg-white/90"
+                  >
+                    See the benefits
+                  </a>
+                  <a
+                    href="https://app.dreamneighborhood.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-xl bg-[#d9f99d] px-4 py-2.5 text-center text-sm font-bold text-[#0d5c52] shadow-sm transition hover:bg-[#cded8f]"
+                  >
+                    Sign up free
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ---- RESULTS SCREEN ---- */}
+        {screen === "results" && data && (
+          <div className="mx-auto max-w-5xl px-3 py-3 sm:px-4 sm:py-4">
+            <div className="mb-4 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={goHome}
+                aria-label="Home"
+                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                  <path d="M3 11.5 12 4l9 7.5" />
+                  <path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9" />
+                </svg>
+                <span className="hidden sm:inline">Home</span>
+              </button>
+
+              {!changing ? (
+                <div className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+                  <p className="min-w-0 truncate text-sm font-bold text-slate-900">
                     <span className="mr-1">📍</span>
                     {resolvedCityState}
                     {data.district?.name ? (
@@ -431,82 +482,84 @@ export default function EmbedExplorer() {
                       </>
                     ) : null}
                   </p>
+                  <button
+                    type="button"
+                    onClick={beginChange}
+                    className="shrink-0 rounded-lg border border-brand-600 px-3 py-1.5 text-xs font-bold text-brand-700 transition hover:bg-brand-50"
+                  >
+                    Change
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={beginChange}
-                  className="shrink-0 rounded-lg border border-brand-600 px-3 py-1.5 text-xs font-bold text-brand-700 transition hover:bg-brand-50"
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    runLookup(address);
+                  }}
+                  className="flex min-w-0 flex-1 gap-2"
                 >
-                  Change
-                </button>
+                  {SearchField}
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="shrink-0 rounded-xl px-4 py-2 text-sm font-bold text-white shadow-sm transition disabled:opacity-60"
+                    style={{ background: accent }}
+                  >
+                    {loading ? "…" : "Go"}
+                  </button>
+                </form>
+              )}
+            </div>
+
+            {loading && (
+              <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
+                Looking up schools…
               </div>
-            ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  runLookup(address);
-                }}
-                className="flex min-w-0 flex-1 gap-2"
-              >
-                {SearchField}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="shrink-0 rounded-xl px-4 py-2 text-sm font-bold text-white shadow-sm transition disabled:opacity-60"
-                  style={{ background: accent }}
-                >
-                  {loading ? "…" : "Go"}
-                </button>
-              </form>
+            )}
+
+            {!loading && error && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                {error}
+              </div>
+            )}
+
+            {!loading && !error && selected && (
+              <SchoolDetailModal
+                ncesId={selected}
+                fairHousing={false}
+                variant="inline"
+                embed
+                onClose={() => setSelected(null)}
+              />
+            )}
+
+            {!loading && !error && !selected && (
+              <SchoolsTab
+                data={data}
+                nationwide={nationwide}
+                fairHousing={false}
+                view={view}
+                onViewChange={setView}
+                onOpenSchool={setSelected}
+              />
             )}
           </div>
+        )}
+      </div>
 
-          {loading && (
-            <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
-              Looking up schools…
-            </div>
-          )}
-
-          {!loading && error && (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-              {error}
-            </div>
-          )}
-
-          {!loading && !error && selected && (
-            <SchoolDetailModal
-              ncesId={selected}
-              fairHousing={false}
-              variant="inline"
-              onClose={() => setSelected(null)}
-            />
-          )}
-
-          {!loading && !error && !selected && (
-            <SchoolsTab
-              data={data}
-              nationwide={nationwide}
-              fairHousing={false}
-              view={view}
-              onViewChange={setView}
-              onOpenSchool={setSelected}
-            />
-          )}
-
-          {params?.mode === "inline" && (
-            <p className="mt-6 text-center text-[11px] text-slate-400">
-              Powered by{" "}
-              <a
-                href="https://www.dreamneighborhoodschools.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-slate-500 hover:underline"
-              >
-                Dream Neighborhood Schools
-              </a>
-            </p>
-          )}
-        </div>
+      {/* Inline embeds: brand footer (popup mode gets this from the SDK panel). */}
+      {isInline && (
+        <footer className="border-t border-slate-100 px-4 py-2 text-center text-[11px] text-slate-400">
+          Powered by{" "}
+          <a
+            href="https://www.dreamneighborhoodschools.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-slate-500 hover:underline"
+          >
+            Dream Neighborhood Schools
+          </a>
+        </footer>
       )}
     </main>
   );
