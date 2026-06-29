@@ -15,6 +15,10 @@
     "PGSSLMODE": {
       "description": "Force SSL for the managed Postgres connection.",
       "value": "require"
+    },
+    "EMBED_ADMIN_PASSWORD": {
+      "description": "Shared secret for the embeddable-widget admin (/embed-admin) and /api/embed/admin. Leave unset to disable the admin.",
+      "required": false
     }
   },
   "scripts": {
