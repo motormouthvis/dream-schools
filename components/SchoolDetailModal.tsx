@@ -11,10 +11,13 @@ export function SchoolDetailModal({
   fairHousing = false,
   variant = "modal",
   embed = false,
+  backLabel = "Back to schools",
 }: {
   ncesId: string;
   onClose: () => void;
   fairHousing?: boolean;
+  /** Label for the inline back affordance (e.g. "Back to list" / "Back to map"). */
+  backLabel?: string;
   /**
    * "modal" (default) renders the fixed overlay used on the main site.
    * "inline" renders the detail in normal flow (scrollable, with a back
@@ -67,12 +70,19 @@ export function SchoolDetailModal({
           <div className="p-6">
             <div className="rounded-lg bg-rose-50 p-4 text-sm text-rose-700">{error}</div>
             <button onClick={onClose} className="mt-4 text-sm font-semibold text-brand-600">
-              ← Back to schools
+              ← {backLabel}
             </button>
           </div>
         )}
         {detail && (
-          <DetailBody detail={detail} onClose={onClose} fairHousing={fairHousing} inline embed={embed} />
+          <DetailBody
+            detail={detail}
+            onClose={onClose}
+            fairHousing={fairHousing}
+            inline
+            embed={embed}
+            backLabel={backLabel}
+          />
         )}
       </div>
     );
@@ -112,12 +122,14 @@ function DetailBody({
   fairHousing,
   inline = false,
   embed = false,
+  backLabel = "Back to schools",
 }: {
   detail: SchoolDetail;
   onClose: () => void;
   fairHousing: boolean;
   inline?: boolean;
   embed?: boolean;
+  backLabel?: string;
 }) {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const a = detail.attributes;
@@ -156,7 +168,7 @@ function DetailBody({
           onClick={onClose}
           className="flex w-full items-center gap-1.5 border-b border-slate-100 bg-white px-5 py-2.5 text-left text-sm font-semibold text-brand-700 transition hover:bg-brand-50 sm:px-6"
         >
-          <span aria-hidden className="text-base leading-none">←</span> Back to schools
+          <span aria-hidden className="text-base leading-none">←</span> {backLabel}
         </button>
       )}
       <header className="flex items-start justify-between gap-3 bg-gradient-to-r from-brand-700 to-brand-500 px-5 py-4 text-white sm:px-6">
@@ -176,7 +188,7 @@ function DetailBody({
         </div>
         <button
           onClick={onClose}
-          aria-label={inline ? "Back to schools" : "Close"}
+          aria-label={inline ? backLabel : "Close"}
           className="shrink-0 rounded-full bg-white/15 px-2.5 py-1 text-sm font-bold hover:bg-white/25"
         >
           {inline ? "←" : "✕"}

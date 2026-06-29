@@ -27,6 +27,7 @@ export function SchoolsTab({
   view,
   onViewChange,
   onOpenSchool,
+  listColumns = 1,
 }: {
   data: LookupResult;
   nationwide?: boolean;
@@ -39,6 +40,8 @@ export function SchoolsTab({
    * inline within the iframe (avoids a modal-on-modal inside the popup panel).
    */
   onOpenSchool?: (ncesId: string) => void;
+  /** 2 = two-column list on wide screens (embed popup); 1 = single column. */
+  listColumns?: 1 | 2;
 }) {
   const { district, categories } = data;
   const [openId, setOpenId] = useState<string | null>(null);
@@ -139,6 +142,7 @@ export function SchoolsTab({
                 onSelect={selectSchool}
                 compareIds={compareIds}
                 onToggleCompare={toggleCompare}
+                twoCol={listColumns === 2}
               />
               {visibleSchools.length > listLimit && (
                 <button

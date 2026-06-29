@@ -8,14 +8,17 @@ export function NearbySchools({
   onSelect,
   compareIds,
   onToggleCompare,
+  twoCol = false,
 }: {
   schools: NearbySchool[];
   onSelect: (ncesId: string) => void;
   compareIds: string[];
   onToggleCompare: (ncesId: string) => void;
+  /** Two columns on wide screens (used by the embed popup to fill the panel). */
+  twoCol?: boolean;
 }) {
   return (
-    <ul className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+    <ul className={twoCol ? "grid grid-cols-1 gap-2.5 lg:grid-cols-2" : "space-y-2.5"}>
       {schools.map((s, i) => {
         const isPrivate = s.level === "private";
         const hasScore = s.score != null;
