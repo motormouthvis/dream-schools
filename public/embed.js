@@ -597,7 +597,7 @@
       iframe.setAttribute("allowfullscreen", "");
       iframe.setAttribute("title", "School Rating Explorer");
       iframe.setAttribute("loading", "lazy");
-      var base = "width:100%;border:1px solid #e2e8f0;border-radius:16px;display:block;background:#fff;color-scheme:light;box-shadow:0 1px 3px rgba(0,0,0,.06)";
+      var base = "display:block;width:100%;max-width:760px;margin:0 auto;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color-scheme:light;box-shadow:0 6px 24px rgba(0,0,0,.08)";
       iframe.style.cssText = config.inlineMinHeightExplicit ? base + ";min-height:" + config.inlineMinHeight + "px" : base;
       container.appendChild(iframe);
 
