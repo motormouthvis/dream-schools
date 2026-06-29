@@ -6,6 +6,7 @@ import { Logo } from "@/components/Logo";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { DataSourcesModal } from "@/components/DataSourcesModal";
 import { Showcase } from "@/components/Showcase";
+import { ExplorerPromo } from "@/components/ExplorerPromo";
 import { getRecent, addRecent, type RecentSearch } from "@/lib/recent";
 import type { LookupResult } from "@/lib/types";
 
@@ -193,7 +194,7 @@ export default function Home() {
           <img
             src="/hero-schools.png"
             alt="Illustration of children walking to school"
-            className="h-20 w-auto shrink-0 sm:h-28"
+            className="h-16 w-auto shrink-0 sm:h-24"
           />
         </div>
       </div>
@@ -355,10 +356,18 @@ export default function Home() {
             fairHousing={fairHousing}
             view={view}
             onViewChange={setView}
+            listColumns={2}
           />
         )}
 
-        {!loading && !error && !data && <Showcase />}
+        {!loading && !error && !data && (
+          <>
+            <ExplorerPromo />
+            <div className="mt-6">
+              <Showcase />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Footnote: coverage (moved off the top to declutter) */}
