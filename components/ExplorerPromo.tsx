@@ -55,16 +55,14 @@ export function ExplorerPromo() {
         </div>
 
         {/* RIGHT — Neighborhood Explorer (paid upgrade) */}
-        <div className="relative flex flex-col overflow-hidden rounded-3xl bg-gradient-to-br from-[#0d5c52] via-brand-800 to-brand-700 p-6 text-white shadow-md">
-          <div
-            className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-lime-300/15 blur-3xl"
-            aria-hidden
-          />
-          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-[#d9f99d] ring-1 ring-inset ring-white/15">
-            <Sparkles className="h-3.5 w-3.5" /> The full picture
+        <div className="flex flex-col overflow-hidden rounded-3xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-lime-50 p-6 shadow-sm">
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-600/15">
+            <Sparkles className="h-3.5 w-3.5" /> Upgrade · the full picture
           </span>
-          <h3 className="mt-3 text-xl font-extrabold tracking-tight">Neighborhood Explorer</h3>
-          <p className="mt-1 text-sm leading-relaxed text-white/85">
+          <h3 className="mt-3 text-xl font-extrabold tracking-tight text-ink-900">
+            Neighborhood Explorer
+          </h3>
+          <p className="mt-1 text-sm leading-relaxed text-slate-600">
             Schools are just the start. Give buyers <strong>38 hyperlocal insights</strong> on every
             listing — and turn your site into the most informative in your market.
           </p>
@@ -72,7 +70,7 @@ export function ExplorerPromo() {
             {FULL_INSIGHTS.map((t) => (
               <span
                 key={t}
-                className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/90 ring-1 ring-inset ring-white/10"
+                className="rounded-full bg-brand-100 px-2.5 py-1 text-[11px] font-semibold text-brand-700 ring-1 ring-inset ring-brand-600/15"
               >
                 {t}
               </span>
@@ -83,7 +81,7 @@ export function ExplorerPromo() {
               href="https://www.dreamneighborhood.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-xl border border-white/40 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/10"
+              className="rounded-xl border border-brand-600 px-4 py-2 text-sm font-bold text-brand-700 transition hover:bg-brand-50"
             >
               Learn more
             </a>
@@ -91,7 +89,7 @@ export function ExplorerPromo() {
               href="https://app.dreamneighborhood.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#d9f99d] px-4 py-2 text-sm font-bold text-[#0d5c52] shadow-sm transition hover:bg-[#cded8f]"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700"
             >
               Sign up here <ArrowRight className="h-4 w-4" />
             </a>

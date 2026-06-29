@@ -5,7 +5,6 @@ import { SchoolsTab } from "@/components/SchoolsTab";
 import { Logo } from "@/components/Logo";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { DataSourcesModal } from "@/components/DataSourcesModal";
-import { Showcase } from "@/components/Showcase";
 import { ExplorerPromo } from "@/components/ExplorerPromo";
 import { getRecent, addRecent, type RecentSearch } from "@/lib/recent";
 import type { LookupResult } from "@/lib/types";
@@ -178,26 +177,35 @@ export default function Home() {
         />
       </div>
 
-      {/* Line 2 — brand hero with illustration (always shown) */}
-      <div className="mt-4 overflow-hidden rounded-3xl bg-gradient-to-br from-brand-50 to-lime-50 ring-1 ring-inset ring-brand-600/10">
-        <div className="flex items-center justify-between gap-3 px-5 py-4 sm:px-7 sm:py-5">
-          <div>
-            <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-3xl">
-              Find Your Dream School
-            </h1>
-            <p className="mt-1.5 text-xs text-slate-500 sm:text-sm">
-              Real ratings, test scores &amp; safety for public schools, nationwide. Private schools
-              included (limited data).
-            </p>
-          </div>
+      {/* Line 2 — hero. Landing: one image banner with the heading overlaid;
+          results: a slim heading to keep the page compact. */}
+      {!data ? (
+        <div className="relative mt-4 overflow-hidden rounded-3xl ring-1 ring-inset ring-brand-600/10">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/hero-schools.png"
-            alt="Illustration of children walking to school"
-            className="h-16 w-auto shrink-0 sm:h-24"
+            src="/hero-banner.png"
+            alt="A friendly neighborhood with a school and children walking"
+            className="h-[180px] w-full object-cover object-right sm:h-[260px]"
           />
+          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/75 to-transparent" />
+          <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10">
+            <h1 className="max-w-md text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">
+              Find Your Dream School
+            </h1>
+            <p className="mt-1.5 max-w-sm text-xs font-medium text-slate-600 sm:text-sm">
+              Real ratings, test scores &amp; safety for any address —{" "}
+              <span className="font-bold text-brand-700">free, forever.</span>
+            </p>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="mt-4 flex items-center gap-2.5">
+          <span className="h-6 w-1.5 rounded-full bg-brand-500" />
+          <h1 className="text-xl font-extrabold tracking-tight text-ink-900 sm:text-2xl">
+            Find Your Dream School
+          </h1>
+        </div>
+      )}
 
       {/* Line 3 — search box (no address yet / changing) OR address bar */}
       {!showSearch && data && (
@@ -242,7 +250,13 @@ export default function Home() {
           e.preventDefault();
           runLookup(address);
         }}
-        className={`mx-auto mt-4 max-w-2xl flex-col gap-2 sm:flex-row ${showSearch ? "flex" : "hidden"}`}
+        className={`relative z-10 mx-auto max-w-2xl flex-col gap-2 sm:flex-row ${
+          showSearch ? "flex" : "hidden"
+        } ${
+          !data
+            ? "-mt-7 rounded-2xl bg-white/95 p-2 shadow-lg ring-1 ring-black/5 backdrop-blur sm:-mt-8"
+            : "mt-4"
+        }`}
       >
         <div className="relative flex-1">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
@@ -360,14 +374,7 @@ export default function Home() {
           />
         )}
 
-        {!loading && !error && !data && (
-          <>
-            <ExplorerPromo />
-            <div className="mt-6">
-              <Showcase />
-            </div>
-          </>
-        )}
+        {!loading && !error && !data && <ExplorerPromo />}
       </div>
 
       {/* Footnote: coverage (moved off the top to declutter) */}
