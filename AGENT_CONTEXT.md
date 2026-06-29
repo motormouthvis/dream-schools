@@ -5,14 +5,26 @@
 > in‑progress task in the "CURRENT TASK" section.
 
 ## Repositories
-- **This repo:** `motormouthvis/dream-schools` (Next.js app). Work branch:
-  `cursor/dream-neighborhood-schools-tab-86c9` (PR open against `main`).
+- **This repo:** `motormouthvis/dream-schools` (Next.js app). Active branches:
+  `cursor/dream-neighborhood-schools-tab-86c9` (PR #1 → `main`, the app) and
+  `cursor/embeddable-school-explorer-7000` (PR #2, stacked on the former, adds
+  the embeddable widget). See the EMBEDDABLE WIDGET section for the branch map.
 - **Reference repo (READ‑ONLY — never modify):** `motormouthvis/dreamneighborhood`
-  — the existing "Dream Neighborhood Explorer" embeddable widget. Use it only as
-  a behavior/design reference. Confirm read access first:
-  `gh api repos/motormouthvis/dreamneighborhood --jq .full_name`
-  (Access was granted to the Cursor GitHub App installation; a fresh agent run
-  should be able to read it. If it 404s, the token still needs to rotate.)
+  — the existing "Dream Neighborhood Explorer" embeddable widget (Django). Used
+  only as a behaviour/design reference. **It has already been read** and the
+  relevant patterns (SDK, scraping, config schema, resolve/popup‑config
+  handlers) were mirrored fresh into this repo — see the EMBEDDABLE WIDGET
+  section below. You usually do **not** need to read it again.
+  - **Access gotcha (important):** Cursor mints each cloud‑agent's GitHub token
+    scoped to ONLY the repo the run was launched from (`dream-schools`), even
+    when the GitHub App is set to "All repositories". So private repos like
+    `dreamneighborhood` return **404** no matter how many fresh runs you start —
+    `repository_selection` on the token is `selected`, not `all`. Public repos
+    (`dream-neighborhood-admin`, `dream-neighborhood-realty`) read fine because
+    they're public. To read `dreamneighborhood` again either (a) the owner makes
+    it temporarily public, or (b) add a fine‑grained read‑only PAT as a Cursor
+    secret and clone with it. It was read on 2026‑06‑29 by making it public
+    briefly; a full clone is no longer needed for the widget work.
 
 ## What this product is
 A nationwide school‑search web app. A user enters an address and sees the school
@@ -40,10 +52,19 @@ teachers, etc. Plus side‑by‑side compare, reviews, and a Fair‑Housing disp
   (`https://dream-schools-c2ccd302adef.herokuapp.com`), custom domain
   **`https://www.dreamneighborhoodschools.com`** (Basic dyno; auto‑SSL on; the
   root domain forwards to `www` via Squarespace).
-- Deploy: `git push origin <branch>` then
-  `HEROKU_API_KEY=<key> git push heroku <branch>:main`. The Heroku API key was
-  provided by the owner in chat; if not present in env, ask the owner.
-- Git workflow: branch `cursor/<name>-86c9`, one commit per logical change,
+- Deploy: push the branch to Heroku's `main`:
+  `git push https://heroku:$HEROKU_API_KEY@git.heroku.com/dream-schools.git <branch>:main`
+  (or `HEROKU_API_KEY=<key> git push heroku <branch>:main`). **`HEROKU_API_KEY`
+  is now stored as a Cursor cloud‑agent secret** (Environment Variable, scoped
+  to `dream-schools`), so it is present in the env of every NEW run — it does
+  NOT need to be pasted in chat. A run that started before the secret was added
+  won't have it; start a fresh run to deploy.
+- `EMBED_ADMIN_PASSWORD` (optional) gates the embeddable‑widget admin
+  (`/embed-admin` + `/api/embed/admin`). Set it on Heroku to enable the admin:
+  `heroku config:set EMBED_ADMIN_PASSWORD='<secret>' -a dream-schools`. The
+  widget itself works without it. `DATABASE_URL` is already set by the Postgres
+  addon; the `embed_partners` table self‑creates on first use.
+- Git workflow: branch `cursor/<name>-<suffix>`, one commit per logical change,
   `git push -u origin <branch>`, keep/maintain the PR. Don't force‑push/amend.
   Ask before anything destructive or paid.
 
@@ -69,7 +90,69 @@ teachers, etc. Plus side‑by‑side compare, reviews, and a Fair‑Housing disp
   the headline rating. GreatSchools likewise does **not** rate private schools;
   ours shows "Limited data" for them by design. See `RATING_METHODOLOGY.md`.
 
-## CURRENT TASK — Embeddable "School Rating Explorer" widget
+## EMBEDDABLE WIDGET — STATUS: IMPLEMENTED (PR #2), DEPLOY PENDING
+
+The embeddable "School Rating Explorer" is **built, builds clean, and was
+smoke‑tested** (endpoints + a headless‑Chrome popup/inline run against a mock
+partner page). It is **not yet deployed/merged**. Full usage docs: **`EMBED.md`**.
+
+### Branches / PRs (read this before deploying or merging)
+- `main` — production default; Heroku deploys from here. Currently old/empty
+  relative to the work below.
+- `cursor/dream-neighborhood-schools-tab-86c9` — PR #1 → `main`. The full
+  schools app (~54 commits ahead of main). Not merged yet.
+- `cursor/embeddable-school-explorer-7000` — PR #2 → base `…-86c9`. **Stacked on
+  top of PR #1**, so it contains EVERYTHING (whole app + this embed feature).
+  This is the complete, latest branch and the one to deploy.
+- Recommended cleanup (do AFTER deploy is verified live): retarget PR #2's base
+  from `…-86c9` to `main` and merge it (brings in all 58 commits at once), then
+  close PR #1 as already‑included. That collapses the stack back to a single
+  line on `main`.
+
+### What was built (all in `dream-schools`, fresh — nothing copied from the ref)
+- **One‑line SDK:** `public/embed.js` — self‑contained IIFE (no build step).
+  Auto‑detects an inline container (`#dream-schools-explorer` /
+  `.dream-schools-explorer` / `[data-dream-schools-explorer]`) vs the floating
+  popup; resolves per‑host config; merges `data-*` overrides; scrapes the page
+  address; opens the `/embed` iframe; re‑resolves on SPA navigation; iOS‑safe
+  close handshake (`dse:close` / `dse:close-ack`).
+- **Chrome‑less explorer:** `app/embed/page.tsx` (`/embed`) — reuses `SchoolsTab`
+  + the normal lookup/rating UI, scoped to a scraped address; accent theming;
+  manual‑entry fallback. Params: `address`, `lat`, `lng`, `accent`,
+  `mode=popup|inline`, `header=1`.
+- **APIs:** `app/api/embed/config` (GET per‑host config + default address, CORS),
+  `app/api/embed/scrape` (POST page_url/page_title/page_address → geocoded
+  {address,lat,lon}, CORS), `app/api/embed/admin` (password‑protected CRUD).
+- **Admin UI:** `app/embed-admin/page.tsx` (`/embed-admin`) — password‑gated
+  partner config editor.
+- **Libs:** `lib/embedConfig.ts` (Postgres `embed_partners` store + permissive
+  default for unregistered hosts + presentation payload), `lib/addressExtract.ts`
+  (server‑side URL/title/slug/neighborhood parsing, ported from the ref
+  `utils.py`), `lib/embedCors.ts`, `lib/embedAuth.ts`.
+- **Embeddability:** `next.config.js` sets `frame-ancestors *` on `/embed` and
+  `*` CORS on `/embed.js`.
+- **`data-*` knobs** (mirror the ref names): `data-partner-id`,
+  `data-widget-number`, `data-accent-color`, `data-position`,
+  `data-bottom-offset`, `data-tooltip-message`, `data-require-address`,
+  `data-search-page-content`, `data-suppress-on-inline`, `data-min-height`,
+  `data-show-header`, `data-address`, `data-lat`/`data-lng`, `data-api-base`.
+- **Scraping order:** title → JSON‑LD/`og:`/microdata → (optional) visible text
+  → footer → URL slug → neighbourhood → configured default → manual entry.
+
+### One‑line embed snippets (once live)
+- Popup: `<script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`
+- Inline: add `<div id="dream-schools-explorer"></div>` before that script tag.
+
+### TO DEPLOY (next step — needs a FRESH run with the HEROKU_API_KEY secret)
+1. `git fetch origin && git checkout cursor/embeddable-school-explorer-7000`
+2. `heroku config:set EMBED_ADMIN_PASSWORD='<strong-secret>' -a dream-schools`
+3. `git push https://heroku:$HEROKU_API_KEY@git.heroku.com/dream-schools.git cursor/embeddable-school-explorer-7000:main`
+4. Verify: `/embed.js` (200 + CORS), `/embed` (200 + `frame-ancestors *`),
+   `/api/embed/config?host=test.com` (`enabled:true`). Report the admin password.
+
+---
+
+## ORIGINAL TASK SPEC — Embeddable "School Rating Explorer" widget (reference)
 Build a **standalone embeddable widget** served from this app
 (`dreamneighborhoodschools.com`) so a partner adds **one line of code** and gets a
 configurable floating popup (chat‑style) + inline embed that shows a compact
