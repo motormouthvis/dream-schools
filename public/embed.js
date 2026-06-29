@@ -69,7 +69,7 @@
     requireAddress: false,
     searchPageContent: false,
     suppressOnInline: false,
-    inlineMinHeight: 750,
+    inlineMinHeight: 540,
     inlineMinHeightExplicit: false,
     inlineShowHeader: false,
   };
@@ -584,20 +584,33 @@
     if (!document.querySelector("style[data-dse-inline]")) {
       var style = document.createElement("style");
       style.setAttribute("data-dse-inline", "");
-      style.textContent = ".dse-inline-iframe{min-height:" + DEFAULTS.inlineMinHeight + "px}@media (max-width:767px){.dse-inline-iframe{min-height:720px}}";
+      style.textContent = ".dse-inline-iframe{min-height:" + DEFAULTS.inlineMinHeight + "px}@media (max-width:767px){.dse-inline-iframe{min-height:640px}}";
       document.head.appendChild(style);
     }
     var lastUrl = location.href;
+    var currentIframe = null;
+
+    // The iframe reports its content height so we can size it to fit (short for
+    // the home screen, capped with internal scroll for long lists).
+    window.addEventListener("message", function (e) {
+      if (!currentIframe || e.source !== currentIframe.contentWindow) return;
+      if (e.data && e.data.type === "dse:height") {
+        var h = Math.max(200, Math.min(1400, parseInt(e.data.height, 10) || 0));
+        currentIframe.style.height = h + "px";
+        currentIframe.style.minHeight = "0px";
+      }
+    });
 
     function mount() {
       container.innerHTML = "";
       var iframe = document.createElement("iframe");
+      currentIframe = iframe;
       iframe.className = "dse-inline-iframe";
       iframe.setAttribute("allow", "geolocation");
       iframe.setAttribute("allowfullscreen", "");
       iframe.setAttribute("title", "School Rating Explorer");
       iframe.setAttribute("loading", "lazy");
-      var base = "display:block;width:100%;max-width:760px;margin:0 auto;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color-scheme:light;box-shadow:0 6px 24px rgba(0,0,0,.08)";
+      var base = "display:block;width:100%;max-width:1200px;margin:20px auto;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color-scheme:light;box-shadow:0 6px 24px rgba(0,0,0,.08)";
       iframe.style.cssText = config.inlineMinHeightExplicit ? base + ";min-height:" + config.inlineMinHeight + "px" : base;
       container.appendChild(iframe);
 

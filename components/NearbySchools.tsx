@@ -18,7 +18,7 @@ export function NearbySchools({
   twoCol?: boolean;
 }) {
   return (
-    <ul className={twoCol ? "grid grid-cols-1 gap-2.5 lg:grid-cols-2" : "space-y-2.5"}>
+    <ul className={twoCol ? "grid grid-cols-1 gap-2.5 sm:grid-cols-2" : "space-y-2.5"}>
       {schools.map((s, i) => {
         const isPrivate = s.level === "private";
         const hasScore = s.score != null;

@@ -32,12 +32,18 @@ interface Suggestion {
   zip: string;
 }
 
-// A representative slice of the 38 hyperlocal insights in the full Explorer.
+// The 38 hyperlocal insights in the full Neighborhood Explorer (labels shortened
+// from dreamneighborhood.com's data section).
 const INSIGHTS = [
-  "Schools", "Crime & safety", "Market trends", "Walkability", "Commute times",
-  "Flood risk", "Noise levels", "Demographics", "Parks & rec", "Dining",
-  "Air quality", "Internet speed", "Public transit", "Home values", "Property taxes",
-  "Shopping", "Healthcare", "Climate",
+  "Neighborhood Map", "Median Home Price", "Median Rent", "Price / Sq Ft",
+  "Housing Inventory", "Days on Market", "Home Price Trend", "Homeownership Rate",
+  "High-Density Housing %", "Mobile Homes %", "Household Income", "Per Capita Income",
+  "Employment Rate", "HS Graduation Rate", "College Degree %", "Neighborhood Population",
+  "City Population", "Median Age", "% Under 18", "Gender Mix", "% Born in USA",
+  "English Fluency", "Walk Score", "Bike Score", "Commute Calculator",
+  "Drive Commute Times", "Transit Commute Times", "Walk Commute Times",
+  "Bike Commute Times", "Schools", "Grocery Stores", "Restaurants", "Shopping Centers",
+  "Cafes", "Nightlife", "Gyms", "Parks", "Hospitals",
 ];
 
 function readParams(): EmbedParams {
@@ -102,6 +108,25 @@ export default function EmbedExplorer() {
   const isInline = params?.mode === "inline";
   const screen: "home" | "results" = data ? "results" : "home";
 
+  // Inline embeds report their content height so the SDK can size the iframe to
+  // fit (no fixed-height white space, never overly tall — long lists are capped
+  // with internal scroll). The popup panel is fixed, so it ignores this.
+  useEffect(() => {
+    if (!isInline) return;
+    const report = () => {
+      const h = Math.ceil(document.body.scrollHeight);
+      if (h > 0) window.parent?.postMessage?.({ type: "dse:height", height: h }, "*");
+    };
+    report();
+    const ro = new ResizeObserver(report);
+    ro.observe(document.body);
+    window.addEventListener("resize", report);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", report);
+    };
+  }, [isInline, screen, selected, loading, view, error]);
+
   const runLookup = useCallback(async (query: string, picked?: Suggestion) => {
     const q = query.trim();
     const hasCoords = picked && Number.isFinite(picked.lat) && Number.isFinite(picked.lon);
@@ -138,6 +163,13 @@ export default function EmbedExplorer() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // The embed fills its iframe; override the global `min-height:100vh` so inline
+  // auto-height can shrink to content.
+  useEffect(() => {
+    document.body.style.minHeight = "0px";
+    document.body.style.background = "#fff";
   }, []);
 
   useEffect(() => {
@@ -330,7 +362,7 @@ export default function EmbedExplorer() {
   );
 
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-white">
+    <main className={`flex flex-col bg-white ${isInline ? "" : "h-screen overflow-hidden"}`}>
       <style>{`
         @keyframes dse-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
         .dse-marquee { overflow: hidden; }
@@ -341,24 +373,27 @@ export default function EmbedExplorer() {
       {/* Inline embeds have no SDK chrome, so brand the iframe itself. */}
       {isInline && (
         <header
-          className="flex shrink-0 items-center gap-2.5 px-4 py-2.5 text-white sm:px-5"
+          className="flex shrink-0 items-center gap-2 px-4 py-1.5 text-white"
           style={{ background: accent }}
         >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/20">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20">
             {PIN_SVG}
           </span>
-          <div className="min-w-0">
-            <p className="text-sm font-bold leading-tight">Dream Neighborhood School Explorer</p>
-            <p className="hidden text-[11px] leading-tight text-white/85 sm:block">
-              Ratings, test scores &amp; safety for nearby schools
-            </p>
-          </div>
+          <p className="truncate text-[13px] font-bold leading-tight">
+            Dream Neighborhood School Explorer
+          </p>
         </header>
       )}
 
       {/* ---- HOME SCREEN (fits without scrolling on desktop) ---- */}
       {screen === "home" && (
-        <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col justify-start gap-3 overflow-y-auto px-4 py-3 md:justify-center md:overflow-hidden">
+        <div
+          className={`mx-auto flex w-full max-w-3xl flex-col gap-3 px-4 py-3 ${
+            isInline
+              ? ""
+              : "min-h-0 flex-1 justify-start overflow-y-auto md:justify-center md:overflow-hidden"
+          }`}
+        >
           {/* Hero */}
           <div className="flex items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-br from-brand-50 via-white to-lime-50 px-4 py-3 ring-1 ring-inset ring-brand-600/10 sm:px-5">
             <div className="min-w-0 flex-1">
@@ -471,7 +506,11 @@ export default function EmbedExplorer() {
 
       {/* ---- RESULTS SCREEN (fixed chrome, list scrolls within) ---- */}
       {screen === "results" && data && (
-        <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col px-3 pt-3 sm:px-4">
+        <div
+          className={`mx-auto flex w-full max-w-5xl flex-col px-3 pt-3 sm:px-4 ${
+            isInline ? "" : "min-h-0 flex-1"
+          }`}
+        >
           <div className="mb-3 flex shrink-0 items-center gap-2">
             <button
               type="button"
@@ -527,8 +566,13 @@ export default function EmbedExplorer() {
             )}
           </div>
 
-          {/* Scroll region: only the results/detail scroll, chrome stays put. */}
-          <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+          {/* Scroll region: only the results/detail scroll, chrome stays put.
+              Inline caps the height so the iframe never gets too tall. */}
+          <div
+            className={`overflow-y-auto pb-4 ${
+              isInline ? "max-h-[540px]" : "min-h-0 flex-1"
+            }`}
+          >
             {loading && (
               <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
                 Looking up schools…
@@ -560,7 +604,7 @@ export default function EmbedExplorer() {
                 view={view}
                 onViewChange={setView}
                 onOpenSchool={setSelected}
-                listColumns={isInline ? 1 : 2}
+                listColumns={2}
               />
             )}
           </div>
