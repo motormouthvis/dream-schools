@@ -36,8 +36,23 @@ optional and overrides the server-resolved per-host config.
 | `data-tooltip-message` | popup | supports a `{{address}}` token |
 | `data-require-address` | popup | hide the bubble when no address resolves |
 | `data-search-page-content` | both | opt-in to the heavier visible-text address scan |
-| `data-suppress-on-inline` | popup | hide the popup when an inline schools embed is also present |
-| `data-suppress-if-neighborhood-explorer` | popup | hide the popup when the (paid) Dream Neighborhood Explorer popup/embed is on the page |
+| `data-suppress-on-inline` | popup | (legacy) hide the popup when an inline schools embed is also present — now automatic |
+| `data-suppress-if-neighborhood-explorer` | popup | (legacy) hide the popup when the (paid) Dream Neighborhood Explorer is on the page — now automatic |
+
+### Automatic popup suppression
+
+The floating School popup **never appears** when either of these is detected on the
+page, regardless of config:
+
+- a **School Explorer embedded snippet** (an inline container such as
+  `#dream-schools-explorer`), or
+- the **paid Dream Neighborhood Explorer** — its floating popup or an embedded
+  snippet (detected via a `dreamneighborhood.com` script/iframe/link, a known
+  container selector, or a global such as `__DN_EXPLORER_API_BASE__`).
+
+Detection re-runs shortly after load to catch a partner widget whose script
+loads after ours. The `data-*` flags above remain for backward compatibility but
+are no longer required.
 | `data-min-height` | inline | iframe min-height in px |
 | `data-show-header` | inline | show the explorer header bar |
 | `data-address` | inline | explicit address; bypasses scraping |

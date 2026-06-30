@@ -460,19 +460,46 @@
     return !!document.querySelector(INLINE_SELECTORS.join(",") + ",.dse-inline-iframe");
   }
 
-  // Detect the (paid) Dream Neighborhood "Neighborhood Explorer" on the page, so
-  // the free School Explorer can step aside when it's configured to.
+  // Detect the (paid) Dream Neighborhood "Neighborhood Explorer" on the page —
+  // either its floating popup or an inline/embedded snippet — so the free School
+  // Explorer popup can step aside.
+  var DN_HOST_RE = /(^|\.)dreamneighborhood\.com$/i; // never matches dreamneighborhoodschools.com
   function neighborhoodExplorerPresent() {
     try {
-      if (window.__DN_EXPLORER_API_BASE__) return true;
-      if (document.querySelector('#dn-explorer,.dn-explorer,[data-dn-explorer],[data-dream-neighborhood-explorer]')) return true;
-      var s = document.querySelectorAll("script[src],iframe[src]");
-      for (var i = 0; i < s.length; i++) {
-        var src = s[i].getAttribute("src") || "";
-        if (/dreamneighborhood\.com\/explorer/i.test(src)) return true;
+      if (
+        window.__DN_EXPLORER_API_BASE__ ||
+        window.DreamNeighborhood ||
+        window.__DREAM_NEIGHBORHOOD__ ||
+        window.DreamNeighborhoodExplorer
+      ) {
+        return true;
+      }
+      if (
+        document.querySelector(
+          "#dn-explorer,.dn-explorer,[data-dn-explorer],[data-dream-neighborhood-explorer]," +
+            "#dream-neighborhood-explorer,.dream-neighborhood-explorer,[data-dream-neighborhood]"
+        )
+      ) {
+        return true;
+      }
+      // Any script/iframe/link served from dreamneighborhood.com means the paid
+      // popup or embedded explorer snippet is installed on this page.
+      var nodes = document.querySelectorAll("script[src],iframe[src],link[href]");
+      for (var i = 0; i < nodes.length; i++) {
+        var url = nodes[i].getAttribute("src") || nodes[i].getAttribute("href") || "";
+        if (!url) continue;
+        try {
+          if (DN_HOST_RE.test(new URL(url, location.href).hostname)) return true;
+        } catch (e) {}
       }
     } catch (e) {}
     return false;
+  }
+
+  // The School popup should never appear when the explorer is already on the page
+  // as an inline/embedded snippet, or when the paid Neighborhood Explorer is present.
+  function popupShouldStepAside() {
+    return inlinePresent() || neighborhoodExplorerPresent();
   }
 
   // -------------------------------------------------------------------------
@@ -573,16 +600,23 @@
       tooltip.classList.add("dse-tv");
     }
 
+    function hidePopup() {
+      root.style.display = "none";
+      tooltip.classList.remove("dse-tv");
+    }
+
     function refresh(initial) {
       coords = null; started = false; loaded = false;
       iframe.removeAttribute("src"); iframe.classList.add("dse-hidden"); loadingEl.classList.add("dse-hidden");
       coordsPromise = geocodePage(config).then(function (c) {
         coords = c;
-        if (config.suppressOnInline && inlinePresent()) { root.style.display = "none"; return; }
-        if (config.suppressIfNeighborhoodExplorer && neighborhoodExplorerPresent()) { root.style.display = "none"; return; }
-        if (config.requireAddress && !coords) { root.style.display = "none"; return; }
+        // Always step aside for an inline schools embed or the paid Neighborhood Explorer.
+        if (popupShouldStepAside()) { hidePopup(); return; }
+        if (config.requireAddress && !coords) { hidePopup(); return; }
         root.style.display = "";
         setTimeout(showTooltip, initial ? 800 : 0);
+        // Re-check once in case the other widget's script loads after ours.
+        setTimeout(function () { if (!isOpen && popupShouldStepAside()) hidePopup(); }, 1800);
       });
     }
 
