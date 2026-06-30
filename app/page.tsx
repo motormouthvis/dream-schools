@@ -221,9 +221,11 @@ export default function Home() {
               <span className="text-brand-700">{data.district.name} School District</span>
             </p>
             <p className="truncate text-xs text-slate-500">
-              {(data.district.allSchools ?? data.district.schoolCount)} schools in district ·{" "}
-              {(data.district.allStudents ?? data.district.studentCount).toLocaleString()} students
-              (public + private)
+              {data.nearbySchools.length} schools nearby ·{" "}
+              {data.nearbySchools
+                .reduce((sum, s) => sum + (s.enrollment || 0), 0)
+                .toLocaleString()}{" "}
+              students (public + private)
             </p>
           </div>
           <button
