@@ -180,21 +180,12 @@ function DetailBody({
   // the embed.
   // GreatSchools search soft-404s when a query ends in a state abbreviation, so we
   // query "{name} {zip}" (or "{name} {city}") — verified to resolve to the school.
-  // Niche has no public per-school URL or ID, so we build their documented slug
-  // ({name}-{city}-{state}); best-effort but school-specific when it resolves.
+  // Niche has no public per-school URL/ID; the server resolves a verified-or-
+  // best-effort specific link (or a fallback to Niche home) in `detail.niche`.
   const showLinks = !embed || showExternalLinks;
   const gsQuery = [detail.name, c.zip || c.city].filter(Boolean).join(" ");
   const greatSchoolsUrl = `https://www.greatschools.org/search/search.page?q=${encodeURIComponent(gsQuery)}`;
-  const nicheSlug =
-    c.city && c.state
-      ? `${detail.name} ${c.city} ${c.state}`
-          .toLowerCase()
-          .replace(/['.]/g, "")
-          .replace(/&/g, " and ")
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-+|-+$/g, "")
-      : "";
-  const nicheUrl = nicheSlug ? `https://www.niche.com/k12/${nicheSlug}/` : null;
+  const niche = detail.niche ?? null;
   return (
     <>
       {inline && (
@@ -529,14 +520,17 @@ function DetailBody({
                 GreatSchools
                 <span aria-hidden className="text-slate-400">↗</span>
               </a>
-              {nicheUrl && (
+              {niche && (
                 <a
-                  href={nicheUrl}
+                  href={niche.url}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
                 >
                   Niche
+                  {!niche.specific && (
+                    <span className="font-medium text-slate-400">(search)</span>
+                  )}
                   <span aria-hidden className="text-slate-400">↗</span>
                 </a>
               )}
