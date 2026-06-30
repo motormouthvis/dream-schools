@@ -190,6 +190,7 @@ function DetailBody({
       ? `${detail.name} ${c.city} ${c.state}`
           .toLowerCase()
           .replace(/['.]/g, "")
+          .replace(/&/g, " and ")
           .replace(/[^a-z0-9]+/g, "-")
           .replace(/^-+|-+$/g, "")
       : "";
