@@ -177,14 +177,23 @@ function DetailBody({
   ].filter(Boolean) as string[];
 
   // "More on this school" outbound links. Always on the main site; per-partner on
-  // the embed. GreatSchools gets a school-specific search (always resolves to the
-  // school); Niche gets the reliable ZIP-area list (no public per-school URL).
+  // the embed.
+  // GreatSchools search soft-404s when a query ends in a state abbreviation, so we
+  // query "{name} {zip}" (or "{name} {city}") — verified to resolve to the school.
+  // Niche has no public per-school URL or ID, so we build their documented slug
+  // ({name}-{city}-{state}); best-effort but school-specific when it resolves.
   const showLinks = !embed || showExternalLinks;
-  const gsQuery = [detail.name, c.city, c.state].filter(Boolean).join(", ");
+  const gsQuery = [detail.name, c.zip || c.city].filter(Boolean).join(" ");
   const greatSchoolsUrl = `https://www.greatschools.org/search/search.page?q=${encodeURIComponent(gsQuery)}`;
-  const nicheUrl = c.zip
-    ? `https://www.niche.com/k12/search/best-schools/z/${encodeURIComponent(c.zip)}/`
-    : null;
+  const nicheSlug =
+    c.city && c.state
+      ? `${detail.name} ${c.city} ${c.state}`
+          .toLowerCase()
+          .replace(/['.]/g, "")
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+      : "";
+  const nicheUrl = nicheSlug ? `https://www.niche.com/k12/${nicheSlug}/` : null;
   return (
     <>
       {inline && (
@@ -526,15 +535,13 @@ function DetailBody({
                   rel="noopener noreferrer nofollow"
                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
                 >
-                  Niche{" "}
-                  <span className="font-medium text-slate-400">(nearby)</span>
+                  Niche
                   <span aria-hidden className="text-slate-400">↗</span>
                 </a>
               )}
             </div>
             <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
-              Independent services — not affiliated with Dream Neighborhood. Niche opens its list for
-              this ZIP code.
+              Independent services — not affiliated with Dream Neighborhood.
             </p>
           </div>
         )}
