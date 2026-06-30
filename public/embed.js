@@ -70,6 +70,7 @@
     searchPageContent: false,
     suppressOnInline: false,
     suppressIfNeighborhoodExplorer: false,
+    showExternalLinks: false,
     inlineMinHeight: 540,
     inlineMinHeightExplicit: false,
     inlineShowHeader: false,
@@ -87,6 +88,7 @@
       requireAddress: typeof popup.requireAddress === "boolean" ? popup.requireAddress : DEFAULTS.requireAddress,
       suppressOnInline: typeof popup.suppressOnInline === "boolean" ? popup.suppressOnInline : DEFAULTS.suppressOnInline,
       suppressIfNeighborhoodExplorer: typeof popup.suppressIfNeighborhoodExplorer === "boolean" ? popup.suppressIfNeighborhoodExplorer : DEFAULTS.suppressIfNeighborhoodExplorer,
+      showExternalLinks: typeof remote.showExternalLinks === "boolean" ? remote.showExternalLinks : DEFAULTS.showExternalLinks,
       searchPageContent: typeof remote.searchPageContent === "boolean" ? remote.searchPageContent : DEFAULTS.searchPageContent,
       inlineMinHeight: typeof inline.minHeight === "number" ? Math.max(200, inline.minHeight | 0) : DEFAULTS.inlineMinHeight,
       inlineMinHeightExplicit: false,
@@ -110,6 +112,8 @@
     if (soi !== null) next.suppressOnInline = soi;
     var sne = boolAttr(el, "data-suppress-if-neighborhood-explorer");
     if (sne !== null) next.suppressIfNeighborhoodExplorer = sne;
+    var sxl = boolAttr(el, "data-show-external-links");
+    if (sxl !== null) next.showExternalLinks = sxl;
     var mh = intAttr(el, "data-min-height", 200);
     if (mh !== null) {
       next.inlineMinHeight = mh;
@@ -156,6 +160,7 @@
         searchPageContent: pres.searchPageContent,
         suppressOnInline: pres.suppressOnInline,
         suppressIfNeighborhoodExplorer: pres.suppressIfNeighborhoodExplorer,
+        showExternalLinks: pres.showExternalLinks,
         inlineMinHeight: pres.inlineMinHeight,
         inlineMinHeightExplicit: pres.inlineMinHeightExplicit,
         inlineShowHeader: pres.inlineShowHeader,
@@ -383,6 +388,7 @@
   function buildIframeUrl(config, coords, mode) {
     var url = config.apiBase + "/embed?mode=" + encodeURIComponent(mode) + "&accent=" + encodeURIComponent(config.accentColor);
     if (mode === "inline" && config.inlineShowHeader) url += "&header=1";
+    if (config.showExternalLinks) url += "&links=1";
     if (coords) {
       if (coords.address) url += "&address=" + encodeURIComponent(coords.address);
       if (coords.lat != null && coords.lon != null) url += "&lat=" + encodeURIComponent(coords.lat) + "&lng=" + encodeURIComponent(coords.lon);

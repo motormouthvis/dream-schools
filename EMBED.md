@@ -38,6 +38,7 @@ optional and overrides the server-resolved per-host config.
 | `data-search-page-content` | both | opt-in to the heavier visible-text address scan |
 | `data-suppress-on-inline` | popup | (legacy) hide the popup when an inline schools embed is also present — now automatic |
 | `data-suppress-if-neighborhood-explorer` | popup | (legacy) hide the popup when the (paid) Dream Neighborhood Explorer is on the page — now automatic |
+| `data-show-external-links` | both | show a "more on this school" row (Niche & GreatSchools) on the school detail. Off by default on the embed; always on for the main site |
 
 ### Automatic popup suppression
 

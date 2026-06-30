@@ -34,6 +34,8 @@ export interface EmbedPresentation {
   inlineMinHeight: number;
   /** Whether the inline embed shows the explorer header bar. */
   inlineShowHeader: boolean;
+  /** Show "more on this school" links to Niche & GreatSchools on the detail view. */
+  showExternalLinks: boolean;
 }
 
 export interface PartnerConfig extends EmbedPresentation {
@@ -58,6 +60,7 @@ export const DEFAULT_PRESENTATION: EmbedPresentation = {
   suppressIfNeighborhoodExplorer: false,
   inlineMinHeight: 750,
   inlineShowHeader: false,
+  showExternalLinks: false,
 };
 
 export function normalizePosition(value: unknown): "left" | "right" {
@@ -107,6 +110,7 @@ export function presentationPayload(p: EmbedPresentation) {
     tooltipMessage: p.tooltipMessage,
     requireAddress: p.requireAddress,
     suppressOnInline: p.suppressOnInline,
+    showExternalLinks: p.showExternalLinks,
     popup: {
       position: p.position,
       bottomOffset: p.bottomOffset,
@@ -148,6 +152,7 @@ async function ensureTable(): Promise<void> {
            suppress_if_neighborhood_explorer BOOLEAN NOT NULL DEFAULT FALSE,
            inline_min_height    INTEGER NOT NULL DEFAULT 750,
            inline_show_header   BOOLEAN NOT NULL DEFAULT FALSE,
+           show_external_links  BOOLEAN NOT NULL DEFAULT FALSE,
            enabled              BOOLEAN NOT NULL DEFAULT TRUE,
            created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
            updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -159,6 +164,12 @@ async function ensureTable(): Promise<void> {
         pool.query(
           `ALTER TABLE embed_partners
              ADD COLUMN IF NOT EXISTS suppress_if_neighborhood_explorer BOOLEAN NOT NULL DEFAULT FALSE`
+        )
+      )
+      .then(() =>
+        pool.query(
+          `ALTER TABLE embed_partners
+             ADD COLUMN IF NOT EXISTS show_external_links BOOLEAN NOT NULL DEFAULT FALSE`
         )
       )
       .then(() => undefined)
@@ -188,6 +199,7 @@ function rowToConfig(r: any): PartnerConfig {
     suppressIfNeighborhoodExplorer: Boolean(r.suppress_if_neighborhood_explorer),
     inlineMinHeight: Number(r.inline_min_height ?? DEFAULT_PRESENTATION.inlineMinHeight),
     inlineShowHeader: Boolean(r.inline_show_header),
+    showExternalLinks: Boolean(r.show_external_links),
   };
 }
 
@@ -288,6 +300,7 @@ export interface PartnerUpsert {
   suppressIfNeighborhoodExplorer?: boolean;
   inlineMinHeight?: number;
   inlineShowHeader?: boolean;
+  showExternalLinks?: boolean;
   enabled?: boolean;
 }
 
@@ -308,8 +321,9 @@ export async function upsertPartner(input: PartnerUpsert): Promise<PartnerConfig
         partner_id, widget_number, allowed_hosts, default_address, accent_color,
         position, bottom_offset, tooltip_message, require_address,
         search_page_content, suppress_on_inline, inline_min_height,
-        inline_show_header, enabled, suppress_if_neighborhood_explorer, updated_at
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, NOW())
+        inline_show_header, enabled, suppress_if_neighborhood_explorer,
+        show_external_links, updated_at
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16, NOW())
      ON CONFLICT (partner_id, widget_number) DO UPDATE SET
         allowed_hosts = EXCLUDED.allowed_hosts,
         default_address = EXCLUDED.default_address,
@@ -324,6 +338,7 @@ export async function upsertPartner(input: PartnerUpsert): Promise<PartnerConfig
         inline_show_header = EXCLUDED.inline_show_header,
         enabled = EXCLUDED.enabled,
         suppress_if_neighborhood_explorer = EXCLUDED.suppress_if_neighborhood_explorer,
+        show_external_links = EXCLUDED.show_external_links,
         updated_at = NOW()
      RETURNING *`,
     [
@@ -342,6 +357,7 @@ export async function upsertPartner(input: PartnerUpsert): Promise<PartnerConfig
       Boolean(input.inlineShowHeader),
       input.enabled == null ? true : Boolean(input.enabled),
       Boolean(input.suppressIfNeighborhoodExplorer),
+      Boolean(input.showExternalLinks),
     ]
   );
   return rowToConfig(rows[0]);

@@ -33,6 +33,7 @@ interface Partner {
   suppressIfNeighborhoodExplorer: boolean;
   inlineMinHeight: number;
   inlineShowHeader: boolean;
+  showExternalLinks: boolean;
   enabled: boolean;
 }
 
@@ -47,6 +48,7 @@ interface FormState {
   requireAddress: boolean;
   searchPageContent: boolean;
   suppressIfNeighborhoodExplorer: boolean;
+  showExternalLinks: boolean;
   enabled: boolean;
 }
 
@@ -61,6 +63,7 @@ const BLANK: FormState = {
   requireAddress: false,
   searchPageContent: false,
   suppressIfNeighborhoodExplorer: false,
+  showExternalLinks: false,
   enabled: true,
 };
 
@@ -92,6 +95,7 @@ function partnerToForm(p: Partner): FormState {
     requireAddress: p.requireAddress,
     searchPageContent: p.searchPageContent,
     suppressIfNeighborhoodExplorer: p.suppressIfNeighborhoodExplorer,
+    showExternalLinks: p.showExternalLinks,
     enabled: p.enabled,
   };
 }
@@ -172,6 +176,7 @@ export default function EmbedAdmin() {
           requireAddress: form.requireAddress,
           searchPageContent: form.searchPageContent,
           suppressIfNeighborhoodExplorer: form.suppressIfNeighborhoodExplorer,
+          showExternalLinks: form.showExternalLinks,
           enabled: form.enabled,
         }),
       });
@@ -536,6 +541,25 @@ export default function EmbedAdmin() {
                   Suppress this free School Explorer popup on pages that already
                   have the full Dream Neighborhood Explorer (popup or embed), so the
                   two don&apos;t stack.
+                </div>
+              </div>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 bg-white p-3 hover:bg-zinc-50">
+              <input
+                type="checkbox"
+                checked={form.showExternalLinks}
+                onChange={(e) =>
+                  setForm({ ...form, showExternalLinks: e.target.checked })
+                }
+                className="mt-0.5 h-4 w-4 cursor-pointer accent-emerald-600"
+              />
+              <div className="flex-1">
+                <div className="text-sm font-medium text-zinc-900">
+                  Show links to Niche &amp; GreatSchools on school detail
+                </div>
+                <div className="text-[11px] text-zinc-500">
+                  Adds a small &ldquo;More on this school&rdquo; row with outbound links
+                  for tuition and reviews. Off by default so visitors stay on your site.
                 </div>
               </div>
             </label>
