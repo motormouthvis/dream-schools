@@ -12,12 +12,18 @@ export function SchoolDetailModal({
   variant = "modal",
   embed = false,
   backLabel = "Back to schools",
+  showExternalLinks = false,
 }: {
   ncesId: string;
   onClose: () => void;
   fairHousing?: boolean;
   /** Label for the inline back affordance (e.g. "Back to list" / "Back to map"). */
   backLabel?: string;
+  /**
+   * Show "more on this school" links to Niche & GreatSchools. Always shown on the
+   * main site; on the embed it's off by default and enabled per-partner.
+   */
+  showExternalLinks?: boolean;
   /**
    * "modal" (default) renders the fixed overlay used on the main site.
    * "inline" renders the detail in normal flow (scrollable, with a back
@@ -82,6 +88,7 @@ export function SchoolDetailModal({
             inline
             embed={embed}
             backLabel={backLabel}
+            showExternalLinks={showExternalLinks}
           />
         )}
       </div>
@@ -109,7 +116,13 @@ export function SchoolDetailModal({
           </div>
         )}
         {detail && (
-          <DetailBody detail={detail} onClose={onClose} fairHousing={fairHousing} embed={embed} />
+          <DetailBody
+            detail={detail}
+            onClose={onClose}
+            fairHousing={fairHousing}
+            embed={embed}
+            showExternalLinks={showExternalLinks}
+          />
         )}
       </div>
     </div>
@@ -123,6 +136,7 @@ function DetailBody({
   inline = false,
   embed = false,
   backLabel = "Back to schools",
+  showExternalLinks = false,
 }: {
   detail: SchoolDetail;
   onClose: () => void;
@@ -130,6 +144,7 @@ function DetailBody({
   inline?: boolean;
   embed?: boolean;
   backLabel?: string;
+  showExternalLinks?: boolean;
 }) {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const a = detail.attributes;
@@ -160,6 +175,16 @@ function DetailBody({
     a.coed && a.coed !== "Coeducational" ? a.coed : null,
     a.titleI ? "Title I" : null,
   ].filter(Boolean) as string[];
+
+  // "More on this school" outbound links. Always on the main site; per-partner on
+  // the embed. GreatSchools gets a school-specific search (always resolves to the
+  // school); Niche gets the reliable ZIP-area list (no public per-school URL).
+  const showLinks = !embed || showExternalLinks;
+  const gsQuery = [detail.name, c.city, c.state].filter(Boolean).join(", ");
+  const greatSchoolsUrl = `https://www.greatschools.org/search/search.page?q=${encodeURIComponent(gsQuery)}`;
+  const nicheUrl = c.zip
+    ? `https://www.niche.com/k12/search/best-schools/z/${encodeURIComponent(c.zip)}/`
+    : null;
   return (
     <>
       {inline && (
@@ -472,6 +497,46 @@ function DetailBody({
               </div>
             </Section>
           )
+        )}
+
+        {/* More on this school — outbound links to independent sites */}
+        {showLinks && (
+          <div className="mt-4 rounded-xl bg-slate-50/70 p-3.5 sm:p-4">
+            <h3 className="mb-1.5 flex items-center gap-2 text-sm font-bold text-slate-900">
+              <span className="h-4 w-1.5 rounded-full bg-brand-500" />
+              More on this school
+            </h3>
+            <p className="text-[12px] leading-relaxed text-slate-500">
+              For tuition, parent reviews &amp; more detail, see these independent sites:
+            </p>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              <a
+                href={greatSchoolsUrl}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
+              >
+                GreatSchools
+                <span aria-hidden className="text-slate-400">↗</span>
+              </a>
+              {nicheUrl && (
+                <a
+                  href={nicheUrl}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
+                >
+                  Niche{" "}
+                  <span className="font-medium text-slate-400">(nearby)</span>
+                  <span aria-hidden className="text-slate-400">↗</span>
+                </a>
+              )}
+            </div>
+            <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
+              Independent services — not affiliated with Dream Neighborhood. Niche opens its list for
+              this ZIP code.
+            </p>
+          </div>
         )}
 
         {/* Contact (bottom — not decision-critical; collapsed) */}

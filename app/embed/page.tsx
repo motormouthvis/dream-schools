@@ -23,6 +23,7 @@ interface EmbedParams {
   accent: string;
   mode: "popup" | "inline";
   header: boolean;
+  links: boolean;
 }
 
 interface Suggestion {
@@ -59,6 +60,7 @@ function readParams(): EmbedParams {
     accent: p.get("accent") || "#1fa55f",
     mode: p.get("mode") === "inline" ? "inline" : "popup",
     header: p.get("header") === "1",
+    links: p.get("links") === "1",
   };
 }
 
@@ -595,6 +597,7 @@ export default function EmbedExplorer() {
                 fairHousing={false}
                 variant="inline"
                 embed
+                showExternalLinks={!!params?.links}
                 backLabel={view === "map" ? "Back to map" : "Back to list"}
                 onClose={() => setSelected(null)}
               />
