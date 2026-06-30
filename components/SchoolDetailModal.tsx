@@ -377,11 +377,24 @@ function DetailBody({
               color={tone(detail.chronicAbsentPct, 15, 35, false)}
             />
           )}
-          <Note>
-            &ldquo;Low-income&rdquo; means eligible for free or reduced-price lunch — a common
-            measure of economic need, not school quality. &ldquo;Chronically absent&rdquo; means
-            missing 10% or more of school days (lower is better).
-          </Note>
+          {/* Only explain the measures we actually show. */}
+          {(detail.students.lowIncomePct != null || detail.chronicAbsentPct != null) && (
+            <Note>
+              {detail.students.lowIncomePct != null && (
+                <>
+                  &ldquo;Low-income&rdquo; means eligible for free or reduced-price lunch — a common
+                  measure of economic need, not school quality.
+                </>
+              )}
+              {detail.students.lowIncomePct != null && detail.chronicAbsentPct != null && " "}
+              {detail.chronicAbsentPct != null && (
+                <>
+                  &ldquo;Chronically absent&rdquo; means missing 10% or more of school days (lower is
+                  better).
+                </>
+              )}
+            </Note>
+          )}
         </Section>
 
         {/* Teachers & staff */}
@@ -560,8 +573,10 @@ function ConfidenceLine({
   let text: string;
   let color: string;
   if (summaryRating == null) {
+    // For private schools the amber "limited data" callout below explains why,
+    // so keep this concise to avoid repeating the same message twice.
     text = isPrivate
-      ? "Not rated — public schools' test & graduation data isn't collected for private schools"
+      ? "Not rated"
       : "Not rated — no test or graduation data reported for this school";
     color = "#e11d48";
   } else if (haveN >= expected) {
