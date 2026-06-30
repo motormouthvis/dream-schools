@@ -35,6 +35,17 @@ export function addRecent(entry: RecentSearch): RecentSearch[] {
   return next;
 }
 
+export function removeRecent(label: string): RecentSearch[] {
+  if (typeof document === "undefined") return [];
+  const next = getRecent().filter(
+    (x) => x.label.toLowerCase().trim() !== label.toLowerCase().trim()
+  );
+  document.cookie = `${COOKIE}=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=${
+    60 * 60 * 24 * 180
+  }; samesite=lax`;
+  return next;
+}
+
 export function clearRecent(): void {
   if (typeof document === "undefined") return;
   document.cookie = `${COOKIE}=; path=/; max-age=0`;

@@ -6,7 +6,7 @@ import { Logo } from "@/components/Logo";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { DataSourcesModal } from "@/components/DataSourcesModal";
 import { ExplorerPromo } from "@/components/ExplorerPromo";
-import { getRecent, addRecent, type RecentSearch } from "@/lib/recent";
+import { getRecent, addRecent, removeRecent, type RecentSearch } from "@/lib/recent";
 import type { LookupResult } from "@/lib/types";
 
 interface Suggestion {
@@ -185,17 +185,18 @@ export default function Home() {
           <img
             src="/hero-banner.png"
             alt="A friendly neighborhood with a school and children walking"
-            className="h-[180px] w-full object-cover object-right sm:h-[260px]"
+            className="h-[230px] w-full object-cover object-right sm:h-[260px]"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/75 to-transparent" />
+          {/* Stronger scrim on mobile (text wraps to more lines) so the tagline stays readable. */}
+          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/30 sm:via-white/75 sm:to-transparent" />
           <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10">
             <h1 className="max-w-md text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">
               School Explorer
             </h1>
-            <p className="mt-1 max-w-md text-base font-bold leading-snug text-ink-800 sm:text-xl">
+            <p className="mt-1 max-w-[15rem] text-base font-bold leading-snug text-ink-800 sm:max-w-md sm:text-xl">
               Find the Best Schools in Your New Neighborhood
             </p>
-            <p className="mt-1.5 max-w-sm text-[11px] font-medium text-slate-600 sm:text-xs">
+            <p className="mt-2 max-w-[17rem] text-xs font-semibold leading-snug text-slate-700 sm:max-w-sm">
               Real ratings, test scores &amp; safety for any address —{" "}
               <span className="font-bold text-brand-700">free, forever.</span>
             </p>
@@ -306,17 +307,29 @@ export default function Home() {
                 Recent searches
               </li>
               {recents.map((r, i) => (
-                <li key={`${r.label}-${i}`}>
+                <li key={`${r.label}-${i}`} className="group flex items-center transition hover:bg-slate-50">
                   <button
                     type="button"
                     onMouseDown={(e) => {
                       e.preventDefault();
                       pickRecent(r);
                     }}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                    className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left text-sm text-slate-700"
                   >
                     <span className="text-slate-300">🕘</span>
                     <span className="truncate">{r.label}</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${r.label} from recent searches`}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setRecents(removeRecent(r.label));
+                    }}
+                    className="mr-1.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-200 hover:text-slate-700"
+                  >
+                    <span aria-hidden className="text-base leading-none">×</span>
                   </button>
                 </li>
               ))}
@@ -383,10 +396,33 @@ export default function Home() {
       {/* Footnote: coverage (moved off the top to declutter) */}
       <p className="mx-auto mt-10 max-w-2xl text-center text-[11px] leading-relaxed text-slate-400">
         {nationwide
-          ? "Coverage: ~119k U.S. public & private schools (NCES CCD, CRDC, EDFacts, PSS). "
+          ? "Coverage: ~119k U.S. public & private schools (NCES CCD, CRDC, EDFacts, PSS). Private-school data is limited. "
           : "Demo coverage: 10 zip codes around 34946 (Fort Pierce / St. Lucie County, FL). "}
         Data sources &amp; methodology in the menu under “Data sources.”
       </p>
+
+      {/* Footer — matches dreamneighborhood.com */}
+      <footer className="mx-auto mt-10 max-w-2xl border-t border-slate-200 pt-6 text-center text-xs text-slate-500">
+        <p>© 2026 Dream Neighborhood. All rights reserved.</p>
+        <div className="mt-2 flex items-center justify-center gap-5">
+          <a
+            href="https://docs.google.com/document/d/e/2PACX-1vSndxJR71x1k8uI1vmjOZGYvWfpxM-TJSFuMVXclgzx_h5P1Iey2BdKlY0DDiVPSGTJLn0NMLYKXTB5/pub"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-slate-600 transition hover:text-brand-700"
+          >
+            Terms of Service
+          </a>
+          <a
+            href="https://docs.google.com/document/d/e/2PACX-1vREF8QKsVkEpUyWff3FWUU8D4GoS2aRtz67qgCTmMb2uIQcXHjaqgBtJi6OBhUw-uZsqgM5itrsrxFR/pub"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-slate-600 transition hover:text-brand-700"
+          >
+            Privacy Policy
+          </a>
+        </div>
+      </footer>
 
       {showDataSources && <DataSourcesModal onClose={() => setShowDataSources(false)} />}
     </main>
