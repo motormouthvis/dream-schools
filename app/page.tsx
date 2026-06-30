@@ -190,9 +190,12 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-r from-white via-white/75 to-transparent" />
           <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10">
             <h1 className="max-w-md text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">
-              Find Your Dream School
+              School Explorer
             </h1>
-            <p className="mt-1.5 max-w-sm text-xs font-medium text-slate-600 sm:text-sm">
+            <p className="mt-1 max-w-md text-base font-bold leading-snug text-ink-800 sm:text-xl">
+              Find the Best Schools in Your New Neighborhood
+            </p>
+            <p className="mt-1.5 max-w-sm text-[11px] font-medium text-slate-600 sm:text-xs">
               Real ratings, test scores &amp; safety for any address —{" "}
               <span className="font-bold text-brand-700">free, forever.</span>
             </p>
