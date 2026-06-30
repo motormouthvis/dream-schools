@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSchoolDetail } from "@/lib/school";
+import { resolveNicheLink } from "@/lib/nicheSlugs";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,12 @@ export async function GET(request: Request) {
     if (fairHousing) {
       detail.demographics = null;
     }
+    // Resolve the Niche "more on this school" link (verified slug vs. home).
+    detail.niche = await resolveNicheLink(
+      detail.name,
+      detail.contact.city,
+      detail.contact.state
+    );
     return NextResponse.json(detail);
   } catch (err) {
     console.error(err);

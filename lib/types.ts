@@ -174,6 +174,12 @@ export interface SchoolDetail {
     stateAvg: MetricBenchmark | null;
     nationalAvg: MetricBenchmark | null;
   } | null;
+  /**
+   * Resolved Niche "more on this school" link. `specific` = the school's own
+   * Niche profile (slug verified against our imported sitemap set, or best-effort
+   * before any import); otherwise a fallback to Niche's K-12 home.
+   */
+  niche?: { url: string; specific: boolean } | null;
 }
 
 export interface MetricBenchmark {
