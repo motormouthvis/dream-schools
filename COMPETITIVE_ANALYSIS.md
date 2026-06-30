@@ -2,6 +2,33 @@
 
 _Last updated: this build._
 
+## Product strategy: free loss leader → paid upgrade
+
+The **Dream Neighborhood School Explorer is free forever** — free for any website,
+no ads, one line of code. It is a deliberate **loss leader**: it gives real-estate
+sites a better, cleaner schools experience than **GreatSchools.org** and **Niche
+(Niche Schools)** at no cost, and it puts the Dream Neighborhood brand on every
+listing page.
+
+Where we make money is the **full Dream Neighborhood _Neighborhood_ Explorer**
+(`dreamneighborhood.com`), the **paid** product that delivers **38 hyperlocal
+insights** per address — schools are just one of them. The School Explorer is the
+top of the funnel and the **upgrade path** to the paid Neighborhood Explorer.
+
+| | Dream Neighborhood **School** Explorer | Dream Neighborhood **Neighborhood** Explorer | GreatSchools.org | Niche Schools |
+|---|---|---|---|---|
+| Price | **Free forever** | **Paid** (our monetization) | Free + ads / B2B licensing | Free + ads |
+| Ads | **None** | None | Yes | Yes |
+| Scope | Schools only | **38 hyperlocal insights** (schools + crime, market, mobility, housing, demographics, environment, …) | Schools | Schools + some area data |
+| Install | **One line of code** | One line of code | n/a (destination site) | n/a (destination site) |
+| Brand placement | On the partner's listing pages | On the partner's listing pages | Off-site | Off-site |
+
+**Funnel:** partner embeds the free School Explorer → buyers get school insight in
+context → partner (and buyers) see the upgrade to the full Neighborhood Explorer
+with 38 insights → conversion to paid.
+
+---
+
 GreatSchools.org is the dominant US school-ratings site. Below is what they
 surface on a school profile, whether we now match it, and the data source.
 

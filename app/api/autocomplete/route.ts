@@ -143,6 +143,20 @@ function relevance(label: string, tokens: string[]): number {
   return tokens.reduce((n, t) => n + (l.includes(t) ? 1 : 0), 0);
 }
 
+// Title-case the typed street (preserving the house-number directional, e.g.
+// "N INDIAN RIVER DRIVE" / "n indian river drive" -> "N Indian River Drive").
+function titleStreet(s: string): string {
+  return s
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => {
+      if (/^\d/.test(w)) return w;
+      if (/^[nsew]{1,2}$/i.test(w)) return w.toUpperCase();
+      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
 // How well a (resolved) label matches the typed partial city, e.g. "fort" →
 // "Fort Pierce". A full-substring match scores highest; a word-prefix next.
 function cityScore(label: string, hint: string): number {
@@ -213,7 +227,7 @@ export async function GET(request: Request) {
       probes.push(`${houseNo} ${street0} ${c.zip}`);
       // When the user is typing a city, cast a wider net so the matching city is
       // among the resolved addresses; otherwise a few is enough.
-      if (probes.length >= (cityHint ? 14 : 6)) break;
+      if (probes.length >= (cityHint ? 16 : 10)) break;
     }
     const probeRes = await Promise.allSettled(probes.map((p) => fromCensus(p)));
     enriched = probeRes.flatMap((r) =>
@@ -223,9 +237,46 @@ export async function GET(request: Request) {
     if (cityHint) enriched.sort((a, b) => cityScore(b.label, cityHint) - cityScore(a.label, cityHint));
   }
 
-  // Order: exact Census match for the full query → resolved house addresses →
-  // street suggestions. When the user is typing a city, keep matching ones on top.
-  const ordered = [...census, ...enriched, ...photon];
+  // Synthesize house-numbered suggestions from the street candidates so the typed
+  // house number is ALWAYS reflected, even before a city/ZIP is typed (Census
+  // exact-match needs those). Picking one geocodes the street area — fine for
+  // "nearby schools". Ranked by typed-city match, then proximity to any bias
+  // (the area being explored), then street relevance.
+  let synthesized: Suggestion[] = [];
+  if (houseNo) {
+    const titledStreet = titleStreet(street);
+    const seenCS = new Set<string>();
+    for (const c of photon) {
+      if (relevance(c.label, streetTokens) < Math.min(2, streetTokens.length)) continue;
+      const rest = c.label
+        .split(",")
+        .slice(1)
+        .map((p) => p.trim())
+        .filter(Boolean)
+        .join(", ");
+      if (!rest) continue;
+      const csKey = rest.toLowerCase();
+      if (seenCS.has(csKey)) continue;
+      seenCS.add(csKey);
+      synthesized.push({ label: `${houseNo} ${titledStreet}, ${rest}`, lat: c.lat, lon: c.lon, zip: c.zip });
+    }
+    const score = (s: Suggestion) =>
+      (cityHint ? cityScore(s.label, cityHint) * 1000 : 0) -
+      (bias ? Math.hypot(s.lat - bias.lat, s.lon - bias.lon) : 0);
+    synthesized.sort((a, b) => score(b) - score(a));
+  }
+
+  // Order. With a house number: exact Census → Census-resolved houses →
+  // synthesized house-numbered streets (so the number is always honored); fall
+  // back to bare streets only if nothing house-numbered surfaced. Without a
+  // house number: exact Census → street suggestions.
+  let ordered: Suggestion[];
+  if (houseNo) {
+    ordered = [...census, ...enriched, ...synthesized];
+    if (ordered.length === 0) ordered = [...photon];
+  } else {
+    ordered = [...census, ...photon];
+  }
   const seen = new Set<string>();
   const suggestions: Suggestion[] = [];
   for (const s of ordered) {

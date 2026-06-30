@@ -69,7 +69,8 @@
     requireAddress: false,
     searchPageContent: false,
     suppressOnInline: false,
-    inlineMinHeight: 750,
+    suppressIfNeighborhoodExplorer: false,
+    inlineMinHeight: 540,
     inlineMinHeightExplicit: false,
     inlineShowHeader: false,
   };
@@ -85,6 +86,7 @@
       tooltipMessage: typeof popup.tooltipMessage === "string" ? popup.tooltipMessage : DEFAULTS.tooltipMessage,
       requireAddress: typeof popup.requireAddress === "boolean" ? popup.requireAddress : DEFAULTS.requireAddress,
       suppressOnInline: typeof popup.suppressOnInline === "boolean" ? popup.suppressOnInline : DEFAULTS.suppressOnInline,
+      suppressIfNeighborhoodExplorer: typeof popup.suppressIfNeighborhoodExplorer === "boolean" ? popup.suppressIfNeighborhoodExplorer : DEFAULTS.suppressIfNeighborhoodExplorer,
       searchPageContent: typeof remote.searchPageContent === "boolean" ? remote.searchPageContent : DEFAULTS.searchPageContent,
       inlineMinHeight: typeof inline.minHeight === "number" ? Math.max(200, inline.minHeight | 0) : DEFAULTS.inlineMinHeight,
       inlineMinHeightExplicit: false,
@@ -106,6 +108,8 @@
     if (sp !== null) next.searchPageContent = sp;
     var soi = boolAttr(el, "data-suppress-on-inline");
     if (soi !== null) next.suppressOnInline = soi;
+    var sne = boolAttr(el, "data-suppress-if-neighborhood-explorer");
+    if (sne !== null) next.suppressIfNeighborhoodExplorer = sne;
     var mh = intAttr(el, "data-min-height", 200);
     if (mh !== null) {
       next.inlineMinHeight = mh;
@@ -151,6 +155,7 @@
         requireAddress: pres.requireAddress,
         searchPageContent: pres.searchPageContent,
         suppressOnInline: pres.suppressOnInline,
+        suppressIfNeighborhoodExplorer: pres.suppressIfNeighborhoodExplorer,
         inlineMinHeight: pres.inlineMinHeight,
         inlineMinHeightExplicit: pres.inlineMinHeightExplicit,
         inlineShowHeader: pres.inlineShowHeader,
@@ -455,6 +460,21 @@
     return !!document.querySelector(INLINE_SELECTORS.join(",") + ",.dse-inline-iframe");
   }
 
+  // Detect the (paid) Dream Neighborhood "Neighborhood Explorer" on the page, so
+  // the free School Explorer can step aside when it's configured to.
+  function neighborhoodExplorerPresent() {
+    try {
+      if (window.__DN_EXPLORER_API_BASE__) return true;
+      if (document.querySelector('#dn-explorer,.dn-explorer,[data-dn-explorer],[data-dream-neighborhood-explorer]')) return true;
+      var s = document.querySelectorAll("script[src],iframe[src]");
+      for (var i = 0; i < s.length; i++) {
+        var src = s[i].getAttribute("src") || "";
+        if (/dreamneighborhood\.com\/explorer/i.test(src)) return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
   // -------------------------------------------------------------------------
   // Popup mode
   // -------------------------------------------------------------------------
@@ -484,7 +504,7 @@
     backdrop.className = "dse-backdrop";
     backdrop.style.display = "none";
     backdrop.innerHTML =
-      '<div class="dse-panel"><div class="dse-header"><div class="dse-hl"><div class="dse-hicon">' + ICON_PIN + '</div><span class="dse-title">School Rating Explorer</span></div>' +
+      '<div class="dse-panel"><div class="dse-header"><div class="dse-hl"><div class="dse-hicon">' + ICON_PIN + '</div><span class="dse-title">Dream Neighborhood School Explorer</span></div>' +
       '<button class="dse-close" aria-label="Close">' + ICON_CLOSE + '</button></div>' +
       '<div class="dse-loading dse-hidden"><div class="dse-spinner"></div></div>' +
       '<iframe class="dse-iframe" allow="geolocation" allowfullscreen></iframe>' +
@@ -559,6 +579,7 @@
       coordsPromise = geocodePage(config).then(function (c) {
         coords = c;
         if (config.suppressOnInline && inlinePresent()) { root.style.display = "none"; return; }
+        if (config.suppressIfNeighborhoodExplorer && neighborhoodExplorerPresent()) { root.style.display = "none"; return; }
         if (config.requireAddress && !coords) { root.style.display = "none"; return; }
         root.style.display = "";
         setTimeout(showTooltip, initial ? 800 : 0);
@@ -584,20 +605,34 @@
     if (!document.querySelector("style[data-dse-inline]")) {
       var style = document.createElement("style");
       style.setAttribute("data-dse-inline", "");
-      style.textContent = ".dse-inline-iframe{min-height:" + DEFAULTS.inlineMinHeight + "px}@media (max-width:767px){.dse-inline-iframe{min-height:720px}}";
+      style.textContent = ".dse-inline-iframe{min-height:" + DEFAULTS.inlineMinHeight + "px}@media (max-width:767px){.dse-inline-iframe{min-height:640px}}";
       document.head.appendChild(style);
     }
     var lastUrl = location.href;
+    var currentIframe = null;
+
+    // The iframe reports its content height so we can size it to fit (short for
+    // the home screen, capped with internal scroll for long lists).
+    window.addEventListener("message", function (e) {
+      if (!currentIframe || e.source !== currentIframe.contentWindow) return;
+      if (e.data && e.data.type === "dse:height") {
+        var h = Math.max(200, Math.min(1400, parseInt(e.data.height, 10) || 0));
+        currentIframe.style.height = h + "px";
+        currentIframe.style.minHeight = "0px";
+      }
+    });
 
     function mount() {
       container.innerHTML = "";
       var iframe = document.createElement("iframe");
+      currentIframe = iframe;
       iframe.className = "dse-inline-iframe";
       iframe.setAttribute("allow", "geolocation");
       iframe.setAttribute("allowfullscreen", "");
-      iframe.setAttribute("title", "School Rating Explorer");
+      iframe.setAttribute("scrolling", "no");
+      iframe.setAttribute("title", "Dream Neighborhood School Explorer");
       iframe.setAttribute("loading", "lazy");
-      var base = "width:100%;border:0;display:block;background:#fff;color-scheme:light";
+      var base = "display:block;width:100%;max-width:1200px;margin:20px auto;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color-scheme:light;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.08)";
       iframe.style.cssText = config.inlineMinHeightExplicit ? base + ";min-height:" + config.inlineMinHeight + "px" : base;
       container.appendChild(iframe);
 

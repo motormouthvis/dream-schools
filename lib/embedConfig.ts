@@ -27,6 +27,9 @@ export interface EmbedPresentation {
   searchPageContent: boolean;
   /** Hide the floating popup when an inline embed is already on the page. */
   suppressOnInline: boolean;
+  /** Hide the School Explorer when the (paid) Neighborhood Explorer popup/embed
+   *  is already present on the page, so the two don't stack. */
+  suppressIfNeighborhoodExplorer: boolean;
   /** Inline embed min-height (desktop) in px. */
   inlineMinHeight: number;
   /** Whether the inline embed shows the explorer header bar. */
@@ -52,6 +55,7 @@ export const DEFAULT_PRESENTATION: EmbedPresentation = {
   requireAddress: false,
   searchPageContent: false,
   suppressOnInline: false,
+  suppressIfNeighborhoodExplorer: false,
   inlineMinHeight: 750,
   inlineShowHeader: false,
 };
@@ -109,6 +113,7 @@ export function presentationPayload(p: EmbedPresentation) {
       tooltipMessage: p.tooltipMessage,
       requireAddress: p.requireAddress,
       suppressOnInline: p.suppressOnInline,
+      suppressIfNeighborhoodExplorer: p.suppressIfNeighborhoodExplorer,
     },
     inline: {
       minHeight: p.inlineMinHeight,
@@ -140,6 +145,7 @@ async function ensureTable(): Promise<void> {
            require_address      BOOLEAN NOT NULL DEFAULT FALSE,
            search_page_content  BOOLEAN NOT NULL DEFAULT FALSE,
            suppress_on_inline   BOOLEAN NOT NULL DEFAULT FALSE,
+           suppress_if_neighborhood_explorer BOOLEAN NOT NULL DEFAULT FALSE,
            inline_min_height    INTEGER NOT NULL DEFAULT 750,
            inline_show_header   BOOLEAN NOT NULL DEFAULT FALSE,
            enabled              BOOLEAN NOT NULL DEFAULT TRUE,
@@ -147,6 +153,13 @@ async function ensureTable(): Promise<void> {
            updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
            PRIMARY KEY (partner_id, widget_number)
          )`
+      )
+      // Idempotently add columns introduced after the table first shipped.
+      .then(() =>
+        pool.query(
+          `ALTER TABLE embed_partners
+             ADD COLUMN IF NOT EXISTS suppress_if_neighborhood_explorer BOOLEAN NOT NULL DEFAULT FALSE`
+        )
       )
       .then(() => undefined)
       .catch((err) => {
@@ -172,6 +185,7 @@ function rowToConfig(r: any): PartnerConfig {
     requireAddress: Boolean(r.require_address),
     searchPageContent: Boolean(r.search_page_content),
     suppressOnInline: Boolean(r.suppress_on_inline),
+    suppressIfNeighborhoodExplorer: Boolean(r.suppress_if_neighborhood_explorer),
     inlineMinHeight: Number(r.inline_min_height ?? DEFAULT_PRESENTATION.inlineMinHeight),
     inlineShowHeader: Boolean(r.inline_show_header),
   };
@@ -271,6 +285,7 @@ export interface PartnerUpsert {
   requireAddress?: boolean;
   searchPageContent?: boolean;
   suppressOnInline?: boolean;
+  suppressIfNeighborhoodExplorer?: boolean;
   inlineMinHeight?: number;
   inlineShowHeader?: boolean;
   enabled?: boolean;
@@ -293,8 +308,8 @@ export async function upsertPartner(input: PartnerUpsert): Promise<PartnerConfig
         partner_id, widget_number, allowed_hosts, default_address, accent_color,
         position, bottom_offset, tooltip_message, require_address,
         search_page_content, suppress_on_inline, inline_min_height,
-        inline_show_header, enabled, updated_at
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14, NOW())
+        inline_show_header, enabled, suppress_if_neighborhood_explorer, updated_at
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, NOW())
      ON CONFLICT (partner_id, widget_number) DO UPDATE SET
         allowed_hosts = EXCLUDED.allowed_hosts,
         default_address = EXCLUDED.default_address,
@@ -308,6 +323,7 @@ export async function upsertPartner(input: PartnerUpsert): Promise<PartnerConfig
         inline_min_height = EXCLUDED.inline_min_height,
         inline_show_header = EXCLUDED.inline_show_header,
         enabled = EXCLUDED.enabled,
+        suppress_if_neighborhood_explorer = EXCLUDED.suppress_if_neighborhood_explorer,
         updated_at = NOW()
      RETURNING *`,
     [
@@ -325,6 +341,7 @@ export async function upsertPartner(input: PartnerUpsert): Promise<PartnerConfig
       Math.max(200, Math.floor(Number(input.inlineMinHeight ?? DEFAULT_PRESENTATION.inlineMinHeight)) || DEFAULT_PRESENTATION.inlineMinHeight),
       Boolean(input.inlineShowHeader),
       input.enabled == null ? true : Boolean(input.enabled),
+      Boolean(input.suppressIfNeighborhoodExplorer),
     ]
   );
   return rowToConfig(rows[0]);

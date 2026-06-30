@@ -9,13 +9,32 @@ export function SchoolDetailModal({
   ncesId,
   onClose,
   fairHousing = false,
+  variant = "modal",
+  embed = false,
+  backLabel = "Back to schools",
 }: {
   ncesId: string;
   onClose: () => void;
   fairHousing?: boolean;
+  /** Label for the inline back affordance (e.g. "Back to list" / "Back to map"). */
+  backLabel?: string;
+  /**
+   * "modal" (default) renders the fixed overlay used on the main site.
+   * "inline" renders the detail in normal flow (scrollable, with a back
+   * affordance) — used by the embeddable explorer so the school detail shows
+   * inside the iframe instead of as a popup over the popup panel.
+   */
+  variant?: "modal" | "inline";
+  /**
+   * Embed (real-estate) mode: show a single 0–10 Diversity Index instead of any
+   * race/gender breakdown. Race data is only shown on the main (non-real-estate)
+   * website to avoid Fair Housing steering concerns on partner listing sites.
+   */
+  embed?: boolean;
 }) {
   const [detail, setDetail] = useState<SchoolDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const inline = variant === "inline";
 
   useEffect(() => {
     let cancelled = false;
@@ -40,6 +59,35 @@ export function SchoolDetailModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // Inline variant: render in normal flow so the iframe scrolls the whole page.
+  if (inline) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        {!detail && !error && (
+          <div className="p-10 text-center text-slate-400">Loading school details…</div>
+        )}
+        {error && (
+          <div className="p-6">
+            <div className="rounded-lg bg-rose-50 p-4 text-sm text-rose-700">{error}</div>
+            <button onClick={onClose} className="mt-4 text-sm font-semibold text-brand-600">
+              ← {backLabel}
+            </button>
+          </div>
+        )}
+        {detail && (
+          <DetailBody
+            detail={detail}
+            onClose={onClose}
+            fairHousing={fairHousing}
+            inline
+            embed={embed}
+            backLabel={backLabel}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div
       className="fixed inset-0 z-[1100] flex items-start justify-center overflow-y-auto bg-slate-900/50 p-2 backdrop-blur-sm sm:p-8"
@@ -60,7 +108,9 @@ export function SchoolDetailModal({
             </button>
           </div>
         )}
-        {detail && <DetailBody detail={detail} onClose={onClose} fairHousing={fairHousing} />}
+        {detail && (
+          <DetailBody detail={detail} onClose={onClose} fairHousing={fairHousing} embed={embed} />
+        )}
       </div>
     </div>
   );
@@ -70,10 +120,16 @@ function DetailBody({
   detail,
   onClose,
   fairHousing,
+  inline = false,
+  embed = false,
+  backLabel = "Back to schools",
 }: {
   detail: SchoolDetail;
   onClose: () => void;
   fairHousing: boolean;
+  inline?: boolean;
+  embed?: boolean;
+  backLabel?: string;
 }) {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const a = detail.attributes;
@@ -106,6 +162,15 @@ function DetailBody({
   ].filter(Boolean) as string[];
   return (
     <>
+      {inline && (
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex w-full items-center gap-1.5 border-b border-slate-100 bg-white px-5 py-2.5 text-left text-sm font-semibold text-brand-700 transition hover:bg-brand-50 sm:px-6"
+        >
+          <span aria-hidden className="text-base leading-none">←</span> {backLabel}
+        </button>
+      )}
       <header className="flex items-start justify-between gap-3 bg-gradient-to-r from-brand-700 to-brand-500 px-5 py-4 text-white sm:px-6">
         <div className="min-w-0">
           <h2 className="text-base font-semibold leading-tight sm:text-lg">{detail.name}</h2>
@@ -123,10 +188,10 @@ function DetailBody({
         </div>
         <button
           onClick={onClose}
-          aria-label="Close"
+          aria-label={inline ? backLabel : "Close"}
           className="shrink-0 rounded-full bg-white/15 px-2.5 py-1 text-sm font-bold hover:bg-white/25"
         >
-          ✕
+          {inline ? "←" : "✕"}
         </button>
       </header>
 
@@ -155,7 +220,13 @@ function DetailBody({
         </div>
       )}
 
-      <div className="max-h-[82vh] overflow-y-auto px-5 py-5 sm:max-h-[75vh] sm:px-6">
+      <div
+        className={
+          inline
+            ? "px-5 py-5 sm:px-6"
+            : "max-h-[82vh] overflow-y-auto px-5 py-5 sm:max-h-[75vh] sm:px-6"
+        }
+      >
         {/* Dream Rating — plain-language header + interpretive 1-10 scores */}
         <div className="rounded-xl bg-brand-50 p-3.5 ring-1 ring-inset ring-brand-600/15">
           <div className="mb-2.5 flex items-start justify-between gap-2">
@@ -363,8 +434,11 @@ function DetailBody({
 
         <Reviews ncesId={detail.ncesId} />
 
-        {/* Race & gender — kept near the bottom, just above Contact */}
-        {fairHousing ? (
+        {/* Diversity (embed/real-estate) — a single 0–10 index, no race data.
+            Race/gender breakdowns are shown only on the main website. */}
+        {embed ? (
+          <DiversitySection byRace={detail.demographics?.byRace ?? []} />
+        ) : fairHousing ? (
           <Section title="Race & gender">
             <p className="col-span-full text-xs text-slate-500">
               Hidden in <strong>Fair Housing Compliant</strong> mode so it can&apos;t be used to
@@ -612,6 +686,61 @@ function DemoBars({ title, data }: { title: string; data: { label: string; count
         ))}
       </div>
     </div>
+  );
+}
+
+// Diversity Index: the probability that two randomly chosen students come from
+// different racial/ethnic backgrounds (Simpson's index), scaled to 0–10. Shown
+// in the embed instead of any race breakdown.
+function diversityIndex10(byRace: { pct: number }[]): number | null {
+  const slices = (byRace || []).filter((s) => s && s.pct > 0);
+  if (slices.length === 0) return null;
+  const total = slices.reduce((a, s) => a + s.pct, 0) || 100;
+  const simpson = 1 - slices.reduce((a, s) => {
+    const p = s.pct / total;
+    return a + p * p;
+  }, 0);
+  return Math.max(0, Math.min(10, Math.round(simpson * 10)));
+}
+
+function diversityWord(v: number): string {
+  if (v >= 7) return "High diversity";
+  if (v >= 4) return "Moderate diversity";
+  return "Lower diversity";
+}
+
+function DiversitySection({ byRace }: { byRace: { pct: number }[] }) {
+  const idx = diversityIndex10(byRace);
+  return (
+    <Section title="Diversity Index">
+      {idx == null ? (
+        <p className="col-span-full text-sm text-slate-400">
+          Not enough data to compute a diversity index for this school.
+        </p>
+      ) : (
+        <div className="col-span-full">
+          <div className="flex items-center gap-3">
+            <div
+              className="flex shrink-0 items-baseline justify-center rounded-xl font-extrabold text-white"
+              style={{ backgroundColor: rating10Color(idx), width: 52, height: 52 }}
+            >
+              <span style={{ fontSize: 22 }}>{idx}</span>
+              <span className="text-[10px] font-semibold opacity-80">/10</span>
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-bold leading-tight text-slate-900">{diversityWord(idx)}</div>
+              <div className="text-[11px] leading-tight text-slate-500">
+                Higher = a more even mix of student backgrounds.
+              </div>
+            </div>
+          </div>
+          <Note>
+            The Diversity Index is the chance that two randomly chosen students come from different
+            racial/ethnic backgrounds, scaled 0–10. Source: NCES CCD enrollment.
+          </Note>
+        </div>
+      )}
+    </Section>
   );
 }
 
