@@ -12,21 +12,40 @@ The backend then links a school's **specific** Niche profile when its slug is in
 the imported set, and otherwise falls back to **Niche's K-12 home**. Before any
 import, it uses a best-effort specific slug (so nothing regresses).
 
-### Run it (from your own machine, on a home/residential connection)
+### Run it (from your own machine)
 
-```bash
-pip install requests
-export NICHE_IMPORT_PASSWORD='<the EMBED_ADMIN_PASSWORD value>'
+Niche's bot protection (PerimeterX) blocks both datacenter IPs **and** plain
+HTTP clients — a bare `requests`/`curl` gets a 403 even from home, because it
+can't solve Niche's JavaScript challenge. So use a **real browser** via
+Playwright (recommended), or download the sitemaps yourself and parse them.
 
-# Fetch Niche's sitemap and upload the slug set:
-python3 tools/niche_sitemap_import.py
+```powershell
+# Windows PowerShell
+python -m pip install requests playwright
+python -m playwright install chromium
+$env:NICHE_IMPORT_PASSWORD = "<the EMBED_ADMIN_PASSWORD value>"
 
-# Or just inspect what it finds, without uploading:
-python3 tools/niche_sitemap_import.py --dry-run --out niche-slugs.txt
+# Recommended — drives a real Chromium. A window opens; if a "press & hold"
+# check appears, complete it once and the script continues automatically.
+python tools/niche_sitemap_import.py --browser
+
+# Inspect first without uploading:
+python tools/niche_sitemap_import.py --browser --dry-run --out niche-slugs.txt
 ```
 
-Re-run it periodically (e.g. monthly) to pick up new/renamed schools; each full
-run replaces the server's set.
+**Manual fallback (100% reliable).** If the browser mode can't clear the check,
+open these in Chrome yourself (your real browser passes PerimeterX), save the
+XML/.gz files into a folder, then parse them locally:
+
+```powershell
+# 1) Open https://www.niche.com/sitemap/index.xml in Chrome, note the child
+#    sitemap URLs, open/save the K-12 ones into .\sitemaps\
+# 2) Parse the downloaded files and upload:
+python tools/niche_sitemap_import.py --from-files .\sitemaps\
+```
+
+Re-run periodically (e.g. monthly) to pick up new/renamed schools; each full run
+replaces the server's set.
 
 ### How the server uses it
 
