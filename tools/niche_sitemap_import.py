@@ -33,8 +33,8 @@ USAGE:
     # Just collect (no upload), save the slug list:
     python tools/niche_sitemap_import.py --browser --dry-run --out niche-slugs.txt
 
-    # Manual fallback: download sitemap files in Chrome, then:
-    python tools/niche_sitemap_import.py --from-files .\sitemaps\
+    # Manual fallback: download sitemap files in Chrome into a folder, then:
+    python tools/niche_sitemap_import.py --from-files sitemaps
 """
 
 import argparse
