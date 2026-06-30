@@ -15,33 +15,63 @@ import, it uses a best-effort specific slug (so nothing regresses).
 ### Run it (from your own machine)
 
 Niche's bot protection (PerimeterX) blocks both datacenter IPs **and** plain
-HTTP clients — a bare `requests`/`curl` gets a 403 even from home, because it
-can't solve Niche's JavaScript challenge. So use a **real browser** via
-Playwright (recommended), or download the sitemaps yourself and parse them.
+HTTP clients — a bare `requests`/`curl` gets a 403 even from home. The
+`--browser` (Playwright) mode also tends to get **silently fingerprinted and
+blocked**: the automated Chromium hangs on "waiting for verification" even
+though your *real* Chrome loads the same sitemap instantly. So the reliable,
+proven path is the **manual `--from-files` download** below.
+
+Setup (once):
 
 ```powershell
-# Windows PowerShell
-python -m pip install requests playwright
-python -m playwright install chromium
-$env:NICHE_IMPORT_PASSWORD = "<the EMBED_ADMIN_PASSWORD value>"
-
-# Recommended — drives a real Chromium. A window opens; if a "press & hold"
-# check appears, complete it once and the script continues automatically.
-python tools/niche_sitemap_import.py --browser
-
-# Inspect first without uploading:
-python tools/niche_sitemap_import.py --browser --dry-run --out niche-slugs.txt
+# Windows PowerShell. Use `python` or `py`, whichever resolves.
+python -m pip install requests playwright   # playwright only needed for --browser
 ```
 
-**Manual fallback (100% reliable).** If the browser mode can't clear the check,
-open these in Chrome yourself (your real browser passes PerimeterX), save the
-XML/.gz files into a folder, then parse them locally:
+#### Recommended: manual download + `--from-files` (this is what works)
+
+Your real browser passes PerimeterX, so download the sitemaps by hand. Only the
+three **K-12 school profile** sitemaps contain individual `/k12/<slug>/` school
+URLs — the others (`_reviews`, `_rankings`, `_academics`, `_students`,
+`school-districts`, `school-networks`, `search_*`, colleges, places) are
+sub-pages/non-schools and are ignored by the importer, so you don't need them.
 
 ```powershell
-# 1) Open https://www.niche.com/sitemap/index.xml in Chrome, note the child
-#    sitemap URLs, open/save the K-12 ones into .\sitemaps\
-# 2) Parse the downloaded files and upload:
+# 1) Make a folder for the downloads (inside the repo is fine; it's untracked).
+mkdir sitemaps
+
+# 2) In your NORMAL Chrome, open each of these and save with Ctrl+S into
+#    .\sitemaps\ (keep the .xml name; the styled "no style information" view
+#    still saves raw XML correctly):
+#      https://www.niche.com/sitemap/k12_schools_profiles_home_1.xml
+#      https://www.niche.com/sitemap/k12_schools_profiles_home_2.xml
+#      https://www.niche.com/sitemap/k12_schools_profiles_home_3.xml
+#    (Confirm the full current list at https://www.niche.com/sitemap/index.xml —
+#    the count of k12_schools_profiles_home_N files can grow over time.)
+
+# 3) Dry run to sanity-check the count (expect ~120k+ slugs):
+python tools/niche_sitemap_import.py --from-files .\sitemaps\ --dry-run --out niche-slugs.txt
+
+# 4) Real upload to production:
+$env:NICHE_IMPORT_PASSWORD = "<the EMBED_ADMIN_PASSWORD value>"
 python tools/niche_sitemap_import.py --from-files .\sitemaps\
+
+# 5) Verify, then clean up local artifacts (do NOT commit them):
+Invoke-RestMethod "https://www.dreamneighborhoodschools.com/api/niche-slugs"
+Remove-Item Env:\NICHE_IMPORT_PASSWORD; Remove-Item niche-slugs.txt; Remove-Item -Recurse sitemaps
+```
+
+`--from-files` parses **every** `.xml`/`.gz` file in the folder, so it's safe to
+drop in extra sitemaps — only `/k12/<slug>/` URLs are kept.
+
+#### Optional: `--browser` (often blocked, try only if you want)
+
+```powershell
+python -m playwright install chromium
+# Opens a real Chromium window and waits up to 3 min for the bot check to clear.
+# In practice PerimeterX fingerprints the automated browser and it times out;
+# fall back to the manual --from-files steps above when that happens.
+python tools/niche_sitemap_import.py --browser --dry-run --out niche-slugs.txt
 ```
 
 Re-run periodically (e.g. monthly) to pick up new/renamed schools; each full run
