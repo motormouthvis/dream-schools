@@ -29,11 +29,11 @@ export function NearbySchools({
         return (
           <li
             key={s.ncesId}
-            className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition ${
+            className={`flex overflow-hidden rounded-2xl border bg-white shadow-sm transition ${
               selected ? "border-brand-400 ring-2 ring-brand-200" : "border-slate-200"
             }`}
           >
-            <div className="flex items-stretch gap-3">
+            <div className="flex flex-1 items-stretch gap-3">
               {/* colored score chip with the list number */}
               <button
                 type="button"
