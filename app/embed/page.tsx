@@ -47,6 +47,9 @@ const INSIGHTS = [
   "Cafes", "Nightlife", "Gyms", "Parks", "Hospitals",
 ];
 
+// The 38 insights split across three rows for the scrolling marquee.
+const INSIGHT_ROWS = [0, 1, 2].map((ri) => INSIGHTS.filter((_, i) => i % 3 === ri));
+
 function readParams(): EmbedParams {
   const p = new URLSearchParams(window.location.search);
   const num = (v: string | null) => {
@@ -374,6 +377,9 @@ export default function EmbedExplorer() {
         .dse-marquee { overflow: hidden; }
         .dse-marquee-track { display: inline-flex; white-space: nowrap; animation: dse-marquee 75s linear infinite; }
         .dse-marquee:hover .dse-marquee-track { animation-play-state: paused; }
+        .dse-row { overflow: hidden; }
+        .dse-row-track { display: inline-flex; white-space: nowrap; animation-name: dse-marquee; animation-timing-function: linear; animation-iteration-count: infinite; }
+        .dse-row:hover .dse-row-track { animation-play-state: paused; }
       `}</style>
 
       {/* Inline embeds have no SDK chrome, so brand the iframe itself. */}
@@ -394,10 +400,8 @@ export default function EmbedExplorer() {
       {/* ---- HOME SCREEN (fits without scrolling on desktop) ---- */}
       {screen === "home" && (
         <div
-          className={`mx-auto flex w-full max-w-3xl flex-col gap-3 px-4 py-3 ${
-            isInline
-              ? ""
-              : "min-h-0 flex-1 justify-start overflow-y-auto md:justify-center md:overflow-hidden"
+            className={`mx-auto flex w-full max-w-3xl flex-col gap-3 px-4 py-3 ${
+            isInline ? "" : "min-h-0 flex-1 justify-start overflow-y-auto"
           }`}
         >
           {/* Hero — one image with the heading overlaid (identical to the marketing site) */}
@@ -428,7 +432,7 @@ export default function EmbedExplorer() {
               e.preventDefault();
               runLookup(address);
             }}
-            className="relative z-10 -mt-7 flex flex-col gap-2 rounded-2xl bg-white/95 p-2 shadow-lg ring-1 ring-black/5 backdrop-blur sm:-mt-8 sm:flex-row"
+            className="relative z-10 mx-auto -mt-7 flex w-full max-w-xl flex-col gap-2 rounded-2xl bg-white/95 p-2 shadow-lg ring-1 ring-black/5 backdrop-blur sm:-mt-8 sm:flex-row"
           >
             {SearchField}
             <button
@@ -447,49 +451,52 @@ export default function EmbedExplorer() {
             </div>
           )}
 
-          {/* Upgrade CTA — toned down, pitches the PAID full Explorer */}
-          <div className="overflow-hidden rounded-2xl border border-brand-200 bg-brand-50/70 p-3.5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="min-w-0">
-                <h2 className="text-sm font-extrabold leading-tight text-brand-900">
-                  Get the Full Neighborhood Explorer Here
-                </h2>
-                <p className="text-[11px] leading-snug text-slate-600">
-                  Schools are free forever. Unlock <strong>38 hyperlocal insights</strong> per listing.
-                </p>
-              </div>
-              <div className="flex shrink-0 gap-2">
-                <a
-                  href="https://www.dreamneighborhood.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-lg border border-brand-600 px-3 py-1.5 text-xs font-bold text-brand-700 transition hover:bg-brand-100"
-                >
-                  See benefits
-                </a>
-                <a
-                  href="https://app.dreamneighborhood.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-brand-700"
-                >
-                  Sign up
-                </a>
-              </div>
+          {/* Neighborhood Explorer — the full paid upsell (mirrors the website) */}
+          <div className="overflow-hidden rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-lime-50 p-3.5">
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-600/15">
+              ✨ Upgrade · the full picture
+            </span>
+            <h2 className="mt-1.5 text-base font-extrabold leading-tight tracking-tight text-ink-900">
+              Neighborhood Explorer
+            </h2>
+            <p className="mt-0.5 text-[11px] leading-snug text-slate-600">
+              Schools are just the start. Give buyers <strong>38 hyperlocal insights</strong> on every
+              listing — and turn your site into the most informative in your market.
+            </p>
+            {/* 38 insights — three rows, scrolling right-to-left */}
+            <div className="mt-2.5 space-y-1.5">
+              {INSIGHT_ROWS.map((row, ri) => (
+                <div key={ri} className="dse-row">
+                  <div className="dse-row-track" style={{ animationDuration: `${48 + ri * 6}s` }}>
+                    {[...row, ...row].map((label, i) => (
+                      <span
+                        key={`${label}-${i}`}
+                        className="mr-1.5 shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-brand-700 ring-1 ring-inset ring-brand-600/15"
+                      >
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
-            {/* Scrolling list of the 38 insights */}
-            <div className="dse-marquee mt-2.5 border-t border-brand-200/70 pt-2">
-              <div className="dse-marquee-track">
-                {[...INSIGHTS, ...INSIGHTS].map((label, i) => (
-                  <span
-                    key={`${label}-${i}`}
-                    className="mr-2 inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-[11px] font-semibold text-brand-700 ring-1 ring-inset ring-brand-600/15"
-                  >
-                    <span aria-hidden className="text-brand-500">●</span>
-                    {label}
-                  </span>
-                ))}
-              </div>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              <a
+                href="https://www.dreamneighborhood.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-brand-600 px-3 py-1.5 text-xs font-bold text-brand-700 transition hover:bg-brand-50"
+              >
+                Learn more
+              </a>
+              <a
+                href="https://app.dreamneighborhood.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-brand-700"
+              >
+                Sign up here
+              </a>
             </div>
           </div>
         </div>
@@ -603,20 +610,41 @@ export default function EmbedExplorer() {
         </div>
       )}
 
-      {/* Inline embeds: brand footer (popup mode gets this from the SDK panel). */}
-      {isInline && (
-        <footer className="shrink-0 border-t border-slate-100 px-4 py-1.5 text-center text-[11px] text-slate-400">
-          Powered by{" "}
-          <a
-            href="https://www.dreamneighborhoodschools.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-slate-500 hover:underline"
-          >
-            Dream Neighborhood Schools
-          </a>
-        </footer>
-      )}
+      {/* Footer — copyright + legal (inline also credits "Powered by"). */}
+      <footer className="shrink-0 border-t border-slate-100 px-4 py-1.5 text-center text-[10px] leading-relaxed text-slate-500">
+        {isInline && (
+          <>
+            Powered by{" "}
+            <a
+              href="https://www.dreamneighborhoodschools.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-slate-600 hover:underline"
+            >
+              Dream Neighborhood Schools
+            </a>
+            {" · "}
+          </>
+        )}
+        © 2026 Dream Neighborhood ·{" "}
+        <a
+          href="https://docs.google.com/document/d/e/2PACX-1vSndxJR71x1k8uI1vmjOZGYvWfpxM-TJSFuMVXclgzx_h5P1Iey2BdKlY0DDiVPSGTJLn0NMLYKXTB5/pub"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-slate-600 hover:underline"
+        >
+          Terms
+        </a>{" "}
+        ·{" "}
+        <a
+          href="https://docs.google.com/document/d/e/2PACX-1vREF8QKsVkEpUyWff3FWUU8D4GoS2aRtz67qgCTmMb2uIQcXHjaqgBtJi6OBhUw-uZsqgM5itrsrxFR/pub"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-slate-600 hover:underline"
+        >
+          Privacy
+        </a>
+      </footer>
     </main>
   );
 }

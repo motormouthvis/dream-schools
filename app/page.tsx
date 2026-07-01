@@ -213,8 +213,28 @@ export default function Home() {
 
       {/* Line 3 — search box (no address yet / changing) OR address bar */}
       {!showSearch && data && (
-        <div className="mx-auto mt-4 flex max-w-2xl items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
-          <div className="min-w-0">
+        <div className="mx-auto mt-4 flex max-w-2xl items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+          <button
+            type="button"
+            aria-label="Home"
+            title="Home"
+            onClick={() => {
+              setData(null);
+              setAddress("");
+              setChanging(false);
+              setSuggestions([]);
+              setShowSuggest(false);
+              setFocused(false);
+              setError(null);
+            }}
+            className="flex shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-brand-700"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+              <path d="M3 11.5 12 4l9 7.5" />
+              <path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9" />
+            </svg>
+          </button>
+          <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-slate-900">
               <span className="mr-1">📍</span>
               {cityState(data.geocode.matchedAddress, data.district.state)} ·{" "}
