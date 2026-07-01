@@ -26,7 +26,10 @@ interface Suggestion {
 //   MAPBOX_TOKEN       (Mapbox — 100k free req/mo, best US coverage)
 //   GEOAPIFY_API_KEY   (Geoapify — 3k free req/day, no credit card)
 function stripCountry(label: string): string {
-  return label.replace(/,?\s*(United States|USA)\s*$/i, "").trim();
+  return label
+    .replace(/,?\s*(United States of America|United States|USA)\s*$/i, "")
+    .replace(/,\s*$/, "")
+    .trim();
 }
 
 async function fetchJson(url: string, ms: number): Promise<any | null> {
