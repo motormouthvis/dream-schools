@@ -194,7 +194,7 @@ export default function Home() {
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0"
-            style={{ background: "radial-gradient(240px 190px at top left, rgba(96,140,190,0.20), rgba(96,140,190,0) 72%)" }}
+            style={{ background: "radial-gradient(240px 190px at top left, rgba(180,220,100,0.24), rgba(180,220,100,0) 72%)" }}
           />
           <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10">
             <h1 className="max-w-md text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">

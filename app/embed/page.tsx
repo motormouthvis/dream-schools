@@ -33,23 +33,6 @@ interface Suggestion {
   zip: string;
 }
 
-// The 38 hyperlocal insights in the full Neighborhood Explorer (labels shortened
-// from dreamneighborhood.com's data section).
-const INSIGHTS = [
-  "Neighborhood Map", "Median Home Price", "Median Rent", "Price / Sq Ft",
-  "Housing Inventory", "Days on Market", "Home Price Trend", "Homeownership Rate",
-  "High-Density Housing %", "Mobile Homes %", "Household Income", "Per Capita Income",
-  "Employment Rate", "HS Graduation Rate", "College Degree %", "Neighborhood Population",
-  "City Population", "Median Age", "% Under 18", "Gender Mix", "% Born in USA",
-  "English Fluency", "Walk Score", "Bike Score", "Commute Calculator",
-  "Drive Commute Times", "Transit Commute Times", "Walk Commute Times",
-  "Bike Commute Times", "Schools", "Grocery Stores", "Restaurants", "Shopping Centers",
-  "Cafes", "Nightlife", "Gyms", "Parks", "Hospitals",
-];
-
-// The 38 insights split across three rows for the scrolling marquee.
-const INSIGHT_ROWS = [0, 1, 2].map((ri) => INSIGHTS.filter((_, i) => i % 3 === ri));
-
 function readParams(): EmbedParams {
   const p = new URLSearchParams(window.location.search);
   const num = (v: string | null) => {
@@ -372,16 +355,6 @@ export default function EmbedExplorer() {
 
   return (
     <main className={`flex flex-col bg-white ${isInline ? "" : "h-screen overflow-hidden"}`}>
-      <style>{`
-        @keyframes dse-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        .dse-marquee { overflow: hidden; }
-        .dse-marquee-track { display: inline-flex; white-space: nowrap; animation: dse-marquee 75s linear infinite; }
-        .dse-marquee:hover .dse-marquee-track { animation-play-state: paused; }
-        .dse-row { overflow: hidden; }
-        .dse-row-track { display: inline-flex; white-space: nowrap; animation-name: dse-marquee; animation-timing-function: linear; animation-iteration-count: infinite; }
-        .dse-row:hover .dse-row-track { animation-play-state: paused; }
-      `}</style>
-
       {/* Inline embeds have no SDK chrome, so brand the iframe itself. */}
       {isInline && (
         <header
@@ -418,7 +391,7 @@ export default function EmbedExplorer() {
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0"
-              style={{ background: "radial-gradient(240px 190px at top left, rgba(96,140,190,0.20), rgba(96,140,190,0) 72%)" }}
+              style={{ background: "radial-gradient(240px 190px at top left, rgba(180,220,100,0.24), rgba(180,220,100,0) 72%)" }}
             />
             <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10">
               <h1 className="max-w-md text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">
@@ -457,56 +430,6 @@ export default function EmbedExplorer() {
               {error}
             </div>
           )}
-
-          {/* Neighborhood Explorer — the full paid upsell (mirrors the website),
-              matched to the search-bar width. */}
-          <div className="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-lime-50 p-3.5">
-            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-600/15">
-              ✨ Upgrade · the full picture
-            </span>
-            <h2 className="mt-1.5 text-base font-extrabold leading-tight tracking-tight text-ink-900">
-              Neighborhood Explorer
-            </h2>
-            <p className="mt-0.5 text-[11px] leading-snug text-slate-600">
-              Schools are just the start. Give buyers <strong>38 hyperlocal insights</strong> on every
-              listing — and turn your site into the most informative in your market.
-            </p>
-            {/* 38 insights — three rows, scrolling right-to-left */}
-            <div className="mt-2.5 space-y-1.5">
-              {INSIGHT_ROWS.map((row, ri) => (
-                <div key={ri} className="dse-row">
-                  <div className="dse-row-track" style={{ animationDuration: `${48 + ri * 6}s` }}>
-                    {[...row, ...row].map((label, i) => (
-                      <span
-                        key={`${label}-${i}`}
-                        className="mr-1.5 shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-brand-700 ring-1 ring-inset ring-brand-600/15"
-                      >
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-2.5 flex flex-wrap gap-2">
-              <a
-                href="https://www.dreamneighborhood.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-lg border border-brand-600 px-3 py-1.5 text-xs font-bold text-brand-700 transition hover:bg-brand-50"
-              >
-                Learn more
-              </a>
-              <a
-                href="https://app.dreamneighborhood.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-brand-700"
-              >
-                Sign up here
-              </a>
-            </div>
-          </div>
         </div>
       )}
 
