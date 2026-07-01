@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SchoolsTab } from "@/components/SchoolsTab";
 import { SchoolDetailModal } from "@/components/SchoolDetailModal";
+import { SchoolhouseMark } from "@/components/Logo";
 import { getRecent, addRecent, removeRecent, type RecentSearch } from "@/lib/recent";
 import type { LookupResult } from "@/lib/types";
 
@@ -485,10 +486,7 @@ export default function EmbedExplorer() {
               aria-label="Home"
               className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-                <path d="M3 11.5 12 4l9 7.5" />
-                <path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9" />
-              </svg>
+              <SchoolhouseMark className="h-4 w-4 rounded-[3px]" />
               <span className="hidden sm:inline">Home</span>
             </button>
 

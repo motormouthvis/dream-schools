@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { SchoolsTab } from "@/components/SchoolsTab";
-import { Logo } from "@/components/Logo";
+import { Logo, SchoolhouseMark } from "@/components/Logo";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { DataSourcesModal } from "@/components/DataSourcesModal";
 import { ExplorerPromo } from "@/components/ExplorerPromo";
@@ -231,9 +231,10 @@ export default function Home() {
         </div>
       )}
 
-      {/* Line 3 — search box (no address yet / changing) OR address bar */}
+      {/* Line 3 — search box (no address yet / changing) OR address bar.
+          Home is a SEPARATE button to the left (matches the popup/embed). */}
       {!showSearch && data && (
-        <div className="mx-auto mt-4 flex max-w-2xl items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+        <div className="mx-auto mt-4 flex max-w-2xl items-center gap-2.5">
           <button
             type="button"
             aria-label="Home"
@@ -249,45 +250,44 @@ export default function Home() {
             }}
             className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-              <path d="M3 11.5 12 4l9 7.5" />
-              <path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9" />
-            </svg>
+            <SchoolhouseMark className="h-4 w-4 rounded-[3px]" />
             <span className="hidden sm:inline">Home</span>
           </button>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold text-slate-900">
-              <span className="mr-1">📍</span>
-              {cityState(data.geocode.matchedAddress, data.district.state)} ·{" "}
-              <span className="text-brand-700">{data.district.name} School District</span>
-            </p>
-            <p className="truncate text-xs text-slate-500">
-              {data.nearbySchools.length} schools nearby ·{" "}
-              {data.nearbySchools
-                .reduce((sum, s) => sum + (s.enrollment || 0), 0)
-                .toLocaleString()}{" "}
-              students (public + private)
-            </p>
+          <div className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-slate-900">
+                <span className="mr-1">📍</span>
+                {cityState(data.geocode.matchedAddress, data.district.state)} ·{" "}
+                <span className="text-brand-700">{data.district.name} School District</span>
+              </p>
+              <p className="truncate text-xs text-slate-500">
+                {data.nearbySchools.length} schools nearby ·{" "}
+                {data.nearbySchools
+                  .reduce((sum, s) => sum + (s.enrollment || 0), 0)
+                  .toLocaleString()}{" "}
+                students (public + private)
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                // Reveal the form and focus the input SYNCHRONOUSLY within this tap
+                // so mobile browsers open the keyboard (they block focus() in async
+                // callbacks). React state catches up right after.
+                formRef.current?.classList.remove("hidden");
+                formRef.current?.classList.add("flex");
+                inputRef.current?.focus();
+                setChanging(true);
+                setAddress("");
+                setSuggestions([]);
+                setShowSuggest(false);
+                setFocused(true);
+              }}
+              className="shrink-0 rounded-lg border border-brand-600 px-3 py-2 text-xs font-bold text-brand-700 transition hover:bg-brand-50"
+            >
+              Change address
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              // Reveal the form and focus the input SYNCHRONOUSLY within this tap
-              // so mobile browsers open the keyboard (they block focus() in async
-              // callbacks). React state catches up right after.
-              formRef.current?.classList.remove("hidden");
-              formRef.current?.classList.add("flex");
-              inputRef.current?.focus();
-              setChanging(true);
-              setAddress("");
-              setSuggestions([]);
-              setShowSuggest(false);
-              setFocused(true);
-            }}
-            className="shrink-0 rounded-lg border border-brand-600 px-3 py-2 text-xs font-bold text-brand-700 transition hover:bg-brand-50"
-          >
-            Change address
-          </button>
         </div>
       )}
 
