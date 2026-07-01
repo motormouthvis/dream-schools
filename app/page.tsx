@@ -16,22 +16,34 @@ interface Suggestion {
   zip: string;
 }
 
+const US_STATE_NAMES = new Set([
+  "alabama","alaska","arizona","arkansas","california","colorado","connecticut","delaware",
+  "florida","georgia","hawaii","idaho","illinois","indiana","iowa","kansas","kentucky",
+  "louisiana","maine","maryland","massachusetts","michigan","minnesota","mississippi","missouri",
+  "montana","nebraska","nevada","new hampshire","new jersey","new mexico","new york",
+  "north carolina","north dakota","ohio","oklahoma","oregon","pennsylvania","rhode island",
+  "south carolina","south dakota","tennessee","texas","utah","vermont","virginia","washington",
+  "west virginia","wisconsin","wyoming","district of columbia",
+]);
+
 // "910 FAIRWAY DR NE, WARREN, OH, 44483" -> "Warren, OH"
+// "White City, Port Saint Lucie, Florida" -> "White City, FL"
 function cityState(matched: string, fallbackState: string): string {
-  const parts = (matched || "").split(",").map((s) => s.trim()).filter(Boolean);
-  // Drop a trailing zip if present.
-  if (parts.length && /^\d{5}(-\d{4})?$/.test(parts[parts.length - 1])) parts.pop();
-  const rawState = parts.length >= 2 ? parts[parts.length - 1] : "";
-  const rawCity = parts.length >= 2 ? parts[parts.length - 2] : parts[0] || "";
+  const state = (fallbackState || "").toUpperCase();
   const title = (s: string) =>
-    s
-      .toLowerCase()
-      .replace(/\b\w/g, (c) => c.toUpperCase())
-      .trim();
-  const state =
-    /^[A-Za-z]{2}$/.test(rawState) ? rawState.toUpperCase() : (fallbackState || "").toUpperCase();
-  const city = title(rawCity);
-  return [city, state].filter(Boolean).join(", ");
+    s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()).trim();
+  const parts = (matched || "").split(",").map((s) => s.trim()).filter(Boolean);
+  // Strip trailing zip / country / state (2-letter or full name) tokens.
+  const isTail = (s: string) =>
+    /^\d{5}(-\d{4})?$/.test(s) ||
+    /^(usa|u\.?s\.?a?\.?|united states(?: of america)?)$/i.test(s) ||
+    /^[A-Za-z]{2}$/.test(s) ||
+    US_STATE_NAMES.has(s.toLowerCase());
+  while (parts.length > 1 && isTail(parts[parts.length - 1])) parts.pop();
+  // Street addresses lead with a house number → the city is the LAST locality part
+  // (before the state); place/city searches → the first (most specific) part.
+  const city = parts.length && /^\d/.test(parts[0]) ? parts[parts.length - 1] : parts[0] || "";
+  return [title(city), state].filter(Boolean).join(", ");
 }
 
 export default function Home() {
@@ -234,12 +246,13 @@ export default function Home() {
               setFocused(false);
               setError(null);
             }}
-            className="flex shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-brand-700"
+            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
               <path d="M3 11.5 12 4l9 7.5" />
               <path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9" />
             </svg>
+            <span className="hidden sm:inline">Home</span>
           </button>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-slate-900">

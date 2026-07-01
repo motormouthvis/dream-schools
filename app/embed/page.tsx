@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SchoolsTab } from "@/components/SchoolsTab";
 import { SchoolDetailModal } from "@/components/SchoolDetailModal";
-import { getRecent, addRecent, type RecentSearch } from "@/lib/recent";
+import { getRecent, addRecent, removeRecent, type RecentSearch } from "@/lib/recent";
 import type { LookupResult } from "@/lib/types";
 
 // Chrome-less "Dream Neighborhood School Explorer" served for the embeddable
@@ -50,18 +50,31 @@ function readParams(): EmbedParams {
   };
 }
 
+const US_STATE_NAMES = new Set([
+  "alabama","alaska","arizona","arkansas","california","colorado","connecticut","delaware",
+  "florida","georgia","hawaii","idaho","illinois","indiana","iowa","kansas","kentucky",
+  "louisiana","maine","maryland","massachusetts","michigan","minnesota","mississippi","missouri",
+  "montana","nebraska","nevada","new hampshire","new jersey","new mexico","new york",
+  "north carolina","north dakota","ohio","oklahoma","oregon","pennsylvania","rhode island",
+  "south carolina","south dakota","tennessee","texas","utah","vermont","virginia","washington",
+  "west virginia","wisconsin","wyoming","district of columbia",
+]);
+
 // "910 FAIRWAY DR NE, WARREN, OH, 44483" -> "Warren, OH"
+// "White City, Port Saint Lucie, Florida" -> "White City, FL"
 function cityState(matched: string, fallbackState: string): string {
-  const parts = (matched || "").split(",").map((s) => s.trim()).filter(Boolean);
-  if (parts.length && /^\d{5}(-\d{4})?$/.test(parts[parts.length - 1])) parts.pop();
-  const rawState = parts.length >= 2 ? parts[parts.length - 1] : "";
-  const rawCity = parts.length >= 2 ? parts[parts.length - 2] : parts[0] || "";
+  const state = (fallbackState || "").toUpperCase();
   const title = (s: string) =>
     s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()).trim();
-  const state = /^[A-Za-z]{2}$/.test(rawState)
-    ? rawState.toUpperCase()
-    : (fallbackState || "").toUpperCase();
-  return [title(rawCity), state].filter(Boolean).join(", ");
+  const parts = (matched || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const isTail = (s: string) =>
+    /^\d{5}(-\d{4})?$/.test(s) ||
+    /^(usa|u\.?s\.?a?\.?|united states(?: of america)?)$/i.test(s) ||
+    /^[A-Za-z]{2}$/.test(s) ||
+    US_STATE_NAMES.has(s.toLowerCase());
+  while (parts.length > 1 && isTail(parts[parts.length - 1])) parts.pop();
+  const city = parts.length && /^\d/.test(parts[0]) ? parts[parts.length - 1] : parts[0] || "";
+  return [title(city), state].filter(Boolean).join(", ");
 }
 
 const PIN_SVG = (
@@ -325,17 +338,29 @@ export default function EmbedExplorer() {
             Recent searches
           </li>
           {recents.map((r, i) => (
-            <li key={`${r.label}-${i}`}>
+            <li key={`${r.label}-${i}`} className="group flex items-center transition hover:bg-slate-50">
               <button
                 type="button"
                 onMouseDown={(e) => {
                   e.preventDefault();
                   pickRecent(r);
                 }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left text-sm text-slate-700"
               >
                 <span className="text-slate-300">🕘</span>
                 <span className="truncate">{r.label}</span>
+              </button>
+              <button
+                type="button"
+                aria-label={`Remove ${r.label} from recent searches`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setRecents(removeRecent(r.label));
+                }}
+                className="mr-1.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-200 hover:text-slate-700"
+              >
+                <span aria-hidden className="text-base leading-none">×</span>
               </button>
             </li>
           ))}
