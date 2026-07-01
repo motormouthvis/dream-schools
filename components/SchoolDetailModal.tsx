@@ -338,8 +338,9 @@ function DetailBody({
           </div>
         )}
 
-        {/* For private schools, lead with the details (it's the substantive info). */}
-        {isPrivate && detailsSection}
+        {/* Lead with the school details for BOTH public and private, so the
+            profile has a consistent flow (rating → details → the rest). */}
+        {detailsSection}
 
         {/* Test scores */}
         {detail.testScores && (detail.testScores.read != null || detail.testScores.math != null) && (
@@ -594,38 +595,32 @@ function DetailBody({
           </div>
         )}
 
-        {/* Bottom sections. Private: what's not collected (ask the school) → contact
-            → footnote the "Not Rated ⓘ" marker points to. Public: details → contact. */}
-        {isPrivate ? (
-          <>
-            {!detail.safety && (
-              <Section title="Test scores, graduation & safety">
-                <p className="col-span-full text-sm text-slate-500">
-                  Not collected by the federal government for most private schools. Use the
-                  contact details below to ask the school directly for academic results and
-                  safety information.
-                </p>
-              </Section>
-            )}
-            {contactSection}
-            <p
-              ref={pkRef}
-              className="mt-4 border-t border-slate-100 pt-3 text-[11px] leading-relaxed text-slate-400"
-            >
-              <span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-400 align-text-top text-[10px] font-bold text-white">
-                i
-              </span>
-              The federal government doesn&apos;t collect test scores, graduation, or safety
-              records for most private schools, so this profile shows only what schools
-              self-report (enrollment, grades, student-teacher ratio). Contact the school
-              directly for academic results.
+        {/* School Details now leads the profile (above), so the bottom is just:
+            private → "not collected" note + contact + the footnote the "Not Rated ⓘ"
+            marker points to; public → contact. */}
+        {isPrivate && !detail.safety && (
+          <Section title="Test scores, graduation & safety">
+            <p className="col-span-full text-sm text-slate-500">
+              Not collected by the federal government for most private schools. Use the
+              contact details below to ask the school directly for academic results and
+              safety information.
             </p>
-          </>
-        ) : (
-          <>
-            {detailsSection}
-            {contactSection}
-          </>
+          </Section>
+        )}
+        {contactSection}
+        {isPrivate && (
+          <p
+            ref={pkRef}
+            className="mt-4 border-t border-slate-100 pt-3 text-[11px] leading-relaxed text-slate-400"
+          >
+            <span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-400 align-text-top text-[10px] font-bold text-white">
+              i
+            </span>
+            The federal government doesn&apos;t collect test scores, graduation, or safety
+            records for most private schools, so this profile shows only what schools
+            self-report (enrollment, grades, student-teacher ratio). Contact the school
+            directly for academic results.
+          </p>
         )}
       </div>
     </>
