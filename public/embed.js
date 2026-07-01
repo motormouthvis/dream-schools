@@ -445,8 +445,8 @@
     "#dse-root .dse-hicon svg{width:18px;height:18px}#dse-root .dse-title{font-size:15px;font-weight:600}" +
     "#dse-root .dse-close{background:none;border:none;color:#fff;cursor:pointer;padding:6px;border-radius:8px;display:flex}" +
     "#dse-root .dse-close:hover{background:rgba(255,255,255,.15)}#dse-root .dse-close svg{width:18px;height:18px}" +
-    "#dse-root .dse-iframe{width:100%;border:none;background:#fff;height:460px;transition:height .3s cubic-bezier(.22,1,.36,1)}" +
-    "#dse-root .dse-loading{height:460px;display:flex;align-items:center;justify-content:center;background:#f8fafc}" +
+    "#dse-root .dse-iframe{width:100%;border:none;background:#fff;height:520px;transition:height .3s cubic-bezier(.22,1,.36,1)}" +
+    "#dse-root .dse-loading{height:520px;display:flex;align-items:center;justify-content:center;background:#f8fafc}" +
     "#dse-root .dse-spinner{width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:var(--dse-accent,#1fa55f);border-radius:50%;animation:dse-spin .7s linear infinite}" +
     "@keyframes dse-spin{to{transform:rotate(360deg)}}" +
     "#dse-root .dse-footer{padding:6px 14px 8px;text-align:center;font-size:11px;color:#94a3b8;background:#fff;border-top:1px solid #f1f5f9}" +
@@ -548,19 +548,27 @@
     iframe = backdrop.querySelector(".dse-iframe");
     loadingEl = backdrop.querySelector(".dse-loading");
 
-    // Size the panel to the iframe's reported content height — compact on the
-    // home screen, taller for results/detail — capped to the viewport. On mobile
-    // the panel is full-screen (CSS), so we leave the height alone there.
+    // Two fixed panel sizes (avoids the content-height feedback loop and the
+    // "jumping"): a "home" size tall enough to show the recent-searches dropdown,
+    // and a viewport-sized "expanded" size for results/detail. On mobile the panel
+    // is full-screen via CSS, so we leave the height to the stylesheet there.
+    var popupScreen = "home";
+    function applyPopupHeight() {
+      if (window.matchMedia("(max-width:767px)").matches) { iframe.style.height = ""; return; }
+      var header = backdrop.querySelector(".dse-header");
+      var headH = (header && header.offsetHeight) || 52;
+      var expanded = Math.min(680, Math.round(window.innerHeight * 0.95)) - headH;
+      var home = Math.min(520, expanded); // enough for the recents dropdown
+      iframe.style.height = (popupScreen === "expanded" ? expanded : home) + "px";
+    }
     window.addEventListener("message", function (e) {
       if (!iframe || e.source !== iframe.contentWindow) return;
-      if (!e.data || e.data.type !== "dse:height") return;
-      if (window.matchMedia("(max-width:767px)").matches) return;
-      var header = backdrop.querySelector(".dse-header");
-      var headH = header ? header.offsetHeight : 52;
-      var maxH = Math.min(680, window.innerHeight * 0.95) - headH;
-      var h = Math.max(220, Math.min(parseInt(e.data.height, 10) || 0, maxH));
-      iframe.style.height = h + "px";
+      if (!e.data || e.data.type !== "dse:screen") return;
+      popupScreen = e.data.screen === "expanded" ? "expanded" : "home";
+      applyPopupHeight();
     });
+    window.addEventListener("resize", applyPopupHeight);
+    applyPopupHeight();
 
     tooltip = document.createElement("div");
     tooltip.className = "dse-tooltip " + (config.position === "left" ? "dse-tooltip--left" : "dse-tooltip--right");
@@ -688,7 +696,7 @@
       // Width: default caps at 1200px full-width; a partner can set
       // data-max-width="720" (px) on the container to make it narrower.
       var maxW = intAttr(container, "data-max-width", 280);
-      var maxWidthCss = maxW != null ? maxW + "px" : "1200px";
+      var maxWidthCss = maxW != null ? maxW + "px" : "760px";
       var base = "display:block;width:100%;max-width:" + maxWidthCss + ";margin:20px auto;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color-scheme:light;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.08)";
       iframe.style.cssText = config.inlineMinHeightExplicit ? base + ";min-height:" + config.inlineMinHeight + "px" : base;
       container.appendChild(iframe);

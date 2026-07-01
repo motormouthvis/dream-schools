@@ -96,27 +96,34 @@ export default function EmbedExplorer() {
   const isInline = params?.mode === "inline";
   const screen: "home" | "results" = data ? "results" : "home";
 
-  // Inline embeds report their content height so the SDK can size the iframe to
-  // fit (no fixed-height white space, never overly tall — long lists are capped
-  // with internal scroll). Both the inline embed and the popup panel size to
-  // this, so the popup is compact on the home screen and grows for results.
+  // Height coordination with the SDK:
+  //  • Inline: report the exact content height so the iframe grows to fit
+  //    (no white space, long lists cap with internal scroll).
+  //  • Popup: DON'T report a content height (that fed back into the SDK-set
+  //    iframe height and collapsed it). Instead announce which screen we're on;
+  //    the SDK uses two fixed sizes — a "home" size tall enough to show the
+  //    recent-searches dropdown, and a viewport-sized "expanded" size for results.
   useEffect(() => {
-    // The SDK sizes the iframe to this height, so the iframe itself never needs a
-    // scrollbar — internal regions (the results list) scroll on their own.
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    const report = () => {
-      const h = Math.ceil(document.body.scrollHeight) + 2;
-      if (h > 0) window.parent?.postMessage?.({ type: "dse:height", height: h }, "*");
-    };
-    report();
-    const ro = new ResizeObserver(report);
-    ro.observe(document.body);
-    window.addEventListener("resize", report);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", report);
-    };
+    if (isInline) {
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+      const report = () => {
+        const h = Math.ceil(document.body.scrollHeight) + 2;
+        if (h > 0) window.parent?.postMessage?.({ type: "dse:height", height: h }, "*");
+      };
+      report();
+      const ro = new ResizeObserver(report);
+      ro.observe(document.body);
+      window.addEventListener("resize", report);
+      return () => {
+        ro.disconnect();
+        window.removeEventListener("resize", report);
+      };
+    }
+    window.parent?.postMessage?.(
+      { type: "dse:screen", screen: screen === "home" ? "home" : "expanded" },
+      "*"
+    );
   }, [isInline, screen, selected, loading, view, error]);
 
   const runLookup = useCallback(async (query: string, picked?: Suggestion) => {
@@ -354,7 +361,7 @@ export default function EmbedExplorer() {
   );
 
   return (
-    <main className="flex flex-col bg-white">
+    <main className={`flex flex-col bg-white ${isInline ? "" : "h-screen overflow-hidden"}`}>
       {/* Inline embeds have no SDK chrome, so brand the iframe itself. */}
       {isInline && (
         <header
@@ -372,7 +379,11 @@ export default function EmbedExplorer() {
 
       {/* ---- HOME SCREEN (fits without scrolling on desktop) ---- */}
       {screen === "home" && (
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 px-4 py-3">
+        <div
+          className={`mx-auto flex w-full max-w-3xl flex-col gap-3 px-4 py-3 ${
+            isInline ? "" : "min-h-0 flex-1 justify-start"
+          }`}
+        >
           {/* Hero — one image with the heading overlaid (identical to the marketing site) */}
           <div className="relative overflow-hidden rounded-3xl ring-1 ring-inset ring-brand-600/10">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -431,7 +442,11 @@ export default function EmbedExplorer() {
 
       {/* ---- RESULTS SCREEN (fixed chrome, list scrolls within) ---- */}
       {screen === "results" && data && (
-        <div className="mx-auto flex w-full max-w-5xl flex-col px-3 pt-3 sm:px-4">
+        <div
+          className={`mx-auto flex w-full max-w-5xl flex-col px-3 pt-3 sm:px-4 ${
+            isInline ? "" : "min-h-0 flex-1"
+          }`}
+        >
           <div className="mb-3 flex shrink-0 items-center gap-2">
             <button
               type="button"
@@ -488,9 +503,10 @@ export default function EmbedExplorer() {
           </div>
 
           {/* Scroll region: only the results/detail scroll, chrome stays put.
-              Fixed px cap (NOT vh — vh inside the iframe feeds back into the
-              SDK-set iframe height and collapses it). */}
-          <div className="max-h-[440px] overflow-y-auto pb-4">
+              Popup fills the SDK-set panel (flex-1); inline caps the list. */}
+          <div
+            className={`overflow-y-auto pb-4 ${isInline ? "max-h-[440px]" : "min-h-0 flex-1"}`}
+          >
             {loading && (
               <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
                 Looking up schools…
