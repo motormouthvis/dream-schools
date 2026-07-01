@@ -540,8 +540,7 @@
       '<div class="dse-panel"><div class="dse-header"><div class="dse-hl"><div class="dse-hicon">' + ICON_PIN + '</div><span class="dse-title">Dream Neighborhood School Explorer</span></div>' +
       '<button class="dse-close" aria-label="Close">' + ICON_CLOSE + '</button></div>' +
       '<div class="dse-loading dse-hidden"><div class="dse-spinner"></div></div>' +
-      '<iframe class="dse-iframe" allow="geolocation" allowfullscreen></iframe>' +
-      '<div class="dse-footer">Powered by <a href="https://www.dreamneighborhoodschools.com" target="_blank" rel="noopener">Dream Neighborhood Schools</a></div></div>';
+      '<iframe class="dse-iframe" allow="geolocation" allowfullscreen></iframe></div>';
 
     root.appendChild(bubble);
     root.appendChild(backdrop);

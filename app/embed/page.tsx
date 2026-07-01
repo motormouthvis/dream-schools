@@ -413,6 +413,13 @@ export default function EmbedExplorer() {
               className="h-[230px] w-full object-cover object-right sm:h-[260px]"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/30 sm:via-white/75 sm:to-transparent" />
+            {/* Gentle sky/cloud wash in the top-left corner so the image box stays
+                visible on light partner sites. */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{ background: "radial-gradient(240px 190px at top left, rgba(96,140,190,0.20), rgba(96,140,190,0) 72%)" }}
+            />
             <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10">
               <h1 className="max-w-md text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">
                 School Explorer
@@ -451,8 +458,9 @@ export default function EmbedExplorer() {
             </div>
           )}
 
-          {/* Neighborhood Explorer — the full paid upsell (mirrors the website) */}
-          <div className="overflow-hidden rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-lime-50 p-3.5">
+          {/* Neighborhood Explorer — the full paid upsell (mirrors the website),
+              matched to the search-bar width. */}
+          <div className="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-lime-50 p-3.5">
             <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-600/15">
               ✨ Upgrade · the full picture
             </span>
@@ -610,22 +618,8 @@ export default function EmbedExplorer() {
         </div>
       )}
 
-      {/* Footer — copyright + legal (inline also credits "Powered by"). */}
-      <footer className="shrink-0 border-t border-slate-100 px-4 py-1.5 text-center text-[10px] leading-relaxed text-slate-500">
-        {isInline && (
-          <>
-            Powered by{" "}
-            <a
-              href="https://www.dreamneighborhoodschools.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-slate-600 hover:underline"
-            >
-              Dream Neighborhood Schools
-            </a>
-            {" · "}
-          </>
-        )}
+      {/* Footer — single line: copyright + legal. */}
+      <footer className="shrink-0 border-t border-slate-100 px-4 py-1.5 text-center text-[10px] text-slate-500">
         © 2026 Dream Neighborhood ·{" "}
         <a
           href="https://docs.google.com/document/d/e/2PACX-1vSndxJR71x1k8uI1vmjOZGYvWfpxM-TJSFuMVXclgzx_h5P1Iey2BdKlY0DDiVPSGTJLn0NMLYKXTB5/pub"
