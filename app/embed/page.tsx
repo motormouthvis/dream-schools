@@ -400,35 +400,35 @@ export default function EmbedExplorer() {
               : "min-h-0 flex-1 justify-start overflow-y-auto md:justify-center md:overflow-hidden"
           }`}
         >
-          {/* Hero — one image with the heading overlaid (matches the marketing site) */}
-          <div className="relative overflow-hidden rounded-2xl ring-1 ring-inset ring-brand-600/10">
+          {/* Hero — one image with the heading overlaid (identical to the marketing site) */}
+          <div className="relative overflow-hidden rounded-3xl ring-1 ring-inset ring-brand-600/10">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/hero-banner.png"
               alt="Children walking to a neighborhood schoolhouse"
-              className="h-[150px] w-full object-cover object-right sm:h-[170px]"
+              className="h-[230px] w-full object-cover object-right sm:h-[260px]"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/30 sm:via-white/70 sm:to-transparent" />
-            <div className="absolute inset-0 flex flex-col justify-center px-4 sm:px-6">
-              <h1 className="text-xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-2xl">
+            <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/30 sm:via-white/75 sm:to-transparent" />
+            <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10">
+              <h1 className="max-w-md text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">
                 School Explorer
               </h1>
-              <p className="mt-0.5 max-w-[14rem] text-sm font-bold leading-snug text-ink-800 sm:max-w-xs">
+              <p className="mt-1 max-w-[15rem] text-base font-bold leading-snug text-ink-800 sm:max-w-md sm:text-xl">
                 Find the Best Schools in Your New Neighborhood
               </p>
-              <p className="mt-1 max-w-[16rem] text-[11px] font-semibold leading-snug text-slate-700">
+              <p className="mt-2 max-w-[17rem] text-xs font-semibold leading-snug text-slate-700 sm:max-w-sm">
                 Real ratings, test scores &amp; safety for any address.
               </p>
             </div>
           </div>
 
-          {/* Search — floats over the hero for the integrated look */}
+          {/* Search — floats over the hero for the integrated look (matches the site) */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
               runLookup(address);
             }}
-            className="relative z-10 -mt-6 flex flex-col gap-2 rounded-2xl bg-white/95 p-2 shadow-lg ring-1 ring-black/5 backdrop-blur sm:flex-row"
+            className="relative z-10 -mt-7 flex flex-col gap-2 rounded-2xl bg-white/95 p-2 shadow-lg ring-1 ring-black/5 backdrop-blur sm:-mt-8 sm:flex-row"
           >
             {SearchField}
             <button
