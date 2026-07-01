@@ -5,6 +5,7 @@ import {
   getUserByEmail,
   createUser,
   createVerificationToken,
+  publicOrigin,
 } from "@/lib/auth";
 import { sendVerificationEmail } from "@/lib/email";
 
@@ -39,8 +40,7 @@ export async function POST(request: Request) {
     // New user, or an unverified one re-signing up → (re)send the verification link.
     const user = existing ?? (await createUser(email, password));
     const token = await createVerificationToken(user.id);
-    const origin = new URL(request.url).origin;
-    await sendVerificationEmail(email, `${origin}/api/auth/verify?token=${token}`);
+    await sendVerificationEmail(email, `${publicOrigin(request)}/api/auth/verify?token=${token}`);
     return NextResponse.json({ ok: true, message: "Check your email to verify your account." });
   } catch (err) {
     console.error("signup failed:", err);

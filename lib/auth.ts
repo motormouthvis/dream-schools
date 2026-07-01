@@ -210,6 +210,18 @@ export async function currentUser(request: Request): Promise<AppUser | null> {
   return getUserBySession(sessionTokenFromRequest(request));
 }
 
+// The public origin for building email links / redirects. Behind Heroku's router
+// request.url is the internal dyno address, so prefer APP_URL or the forwarded host.
+export function publicOrigin(request: Request): string {
+  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "");
+  const host =
+    request.headers.get("x-forwarded-host") ||
+    request.headers.get("host") ||
+    "app.dreamneighborhoodschools.com";
+  const proto = request.headers.get("x-forwarded-proto") || "https";
+  return `${proto}://${host}`;
+}
+
 export function sessionCookie(value: string, maxAgeSeconds = SESSION_TTL_DAYS * 24 * 3600) {
   return {
     name: SESSION_COOKIE,
