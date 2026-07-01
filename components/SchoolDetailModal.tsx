@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SchoolDetail } from "@/lib/types";
 import { tone } from "./score";
 import { Reviews } from "./Reviews";
@@ -147,6 +147,9 @@ function DetailBody({
   showExternalLinks?: boolean;
 }) {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const pkRef = useRef<HTMLParagraphElement>(null);
+  const scrollToPk = () =>
+    pkRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   const a = detail.attributes;
   const c = detail.contact;
   const b = detail.benchmarks;
@@ -187,6 +190,25 @@ function DetailBody({
   const greatSchoolsUrl = `https://www.greatschools.org/search/search.page?q=${encodeURIComponent(gsQuery)}`;
   const niche = detail.niche ?? null;
   const nicheSpecific = Boolean(niche?.specific);
+
+  // Split out of the old "Contact & details" dropdown. School details are useful
+  // (especially for private schools, where we have little else), so they get a
+  // prominent, always-open section; contact info sits at the very end.
+  const detailsSection = (
+    <Section title="School Details">
+      <Fact label="Type" value={detail.type} />
+      <Fact label="Grades" value={detail.grades} />
+      {a.coed && <Fact label="Coed status" value={a.coed} />}
+      {a.urbanicity && <Fact label="Setting" value={a.urbanicity} />}
+    </Section>
+  );
+  const contactSection = (
+    <Section title="Contact">
+      {addressLine && <Fact label="Address" value={addressLine} />}
+      {c.phone && <Fact label="Phone" value={c.phone} />}
+      <div className="col-span-full pt-1 text-[10px] text-slate-300">NCES ID {detail.ncesId}</div>
+    </Section>
+  );
   return (
     <>
       {inline && (
@@ -254,40 +276,52 @@ function DetailBody({
             : "max-h-[82vh] overflow-y-auto px-5 py-5 sm:max-h-[75vh] sm:px-6"
         }
       >
-        {/* Dream Rating — plain-language header + interpretive 1-10 scores */}
-        <div className="rounded-xl bg-brand-50 p-3.5 ring-1 ring-inset ring-brand-600/15">
-          <div className="mb-2.5 flex items-start justify-between gap-2">
-            <div>
-              <p className="text-sm font-bold leading-tight text-brand-900">Dream Rating</p>
-              <p className="text-[11px] leading-relaxed text-brand-900/70">
-                Our 1–10 score (10 = best). 1–3 below average · 4–7 average · 8–10 above average.
-              </p>
+        {isPrivate ? (
+          /* Private schools have no federal rating data. Keep it low-key (grey,
+             not red) so it doesn't draw attention; the "i" jumps to the footnote. */
+          <div className="rounded-xl bg-slate-100 p-3.5 ring-1 ring-inset ring-slate-200">
+            <p className="text-sm font-bold leading-tight text-slate-500">
+              Not Rated
+              <button
+                type="button"
+                onClick={scrollToPk}
+                aria-label="Why isn't this school rated?"
+                className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-400 align-text-top text-[10px] font-bold text-white transition hover:bg-slate-500"
+              >
+                i
+              </button>
+            </p>
+            <p className="mt-0.5 text-[12px] leading-relaxed text-slate-500">
+              Due to private schools&apos; limited data.
+            </p>
+          </div>
+        ) : (
+          /* Dream Rating — plain-language header + interpretive 1-10 scores */
+          <div className="rounded-xl bg-brand-50 p-3.5 ring-1 ring-inset ring-brand-600/15">
+            <div className="mb-2.5 flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-bold leading-tight text-brand-900">Dream Rating</p>
+                <p className="text-[11px] leading-relaxed text-brand-900/70">
+                  Our 1–10 score (10 = best). 1–3 below average · 4–7 average · 8–10 above average.
+                </p>
+              </div>
+              <RatingInfo coverage={detail.coverage} isPrivate={isPrivate} />
             </div>
-            <RatingInfo coverage={detail.coverage} isPrivate={isPrivate} />
-          </div>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-            <Rating10 label="Overall" value={detail.summaryRating} big />
-            {detail.testScores?.rating != null && (
-              <Rating10 label="Test scores" value={detail.testScores.rating} />
-            )}
-            {servesHigh && detail.collegeReadiness?.rating != null && (
-              <Rating10 label="College readiness" value={detail.collegeReadiness.rating} />
-            )}
-          </div>
-          {/* Plain-language confidence + what the rating is based on */}
-          <ConfidenceLine
-            summaryRating={detail.summaryRating}
-            coverage={detail.coverage}
-            isPrivate={isPrivate}
-          />
-        </div>
-
-        {isPrivate && (
-          <div className="mt-3 rounded-xl bg-amber-50 p-3 text-[12px] leading-relaxed text-amber-900 ring-1 ring-inset ring-amber-500/25">
-            <strong>Private school — limited data.</strong> The federal government doesn&apos;t
-            collect test scores, graduation, or safety records for most private schools, so this
-            profile shows only what schools self-report (enrollment, grades, student-teacher ratio).
-            Contact the school directly for academic results.
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+              <Rating10 label="Overall" value={detail.summaryRating} big />
+              {detail.testScores?.rating != null && (
+                <Rating10 label="Test scores" value={detail.testScores.rating} />
+              )}
+              {servesHigh && detail.collegeReadiness?.rating != null && (
+                <Rating10 label="College readiness" value={detail.collegeReadiness.rating} />
+              )}
+            </div>
+            {/* Plain-language confidence + what the rating is based on */}
+            <ConfidenceLine
+              summaryRating={detail.summaryRating}
+              coverage={detail.coverage}
+              isPrivate={isPrivate}
+            />
           </div>
         )}
 
@@ -303,6 +337,9 @@ function DetailBody({
             ))}
           </div>
         )}
+
+        {/* For private schools, lead with the details (it's the substantive info). */}
+        {isPrivate && detailsSection}
 
         {/* Test scores */}
         {detail.testScores && (detail.testScores.read != null || detail.testScores.math != null) && (
@@ -376,17 +413,20 @@ function DetailBody({
           </Section>
         )}
 
-        {/* Safety — at-a-glance summary, key comparisons, details on demand */}
-        <Section title={`Safety & discipline${detail.safety ? ` · ${detail.safety.schoolYear}` : ""}`}>
-          {detail.safety ? (
-            <SafetyBlock detail={detail} b={b} />
-          ) : (
-            <p className="col-span-full text-sm text-slate-400">
-              No federal safety data for this school
-              {isPrivate ? " (not collected for private schools)" : ""}.
-            </p>
-          )}
-        </Section>
+        {/* Safety — at-a-glance summary, key comparisons, details on demand.
+            For private schools with no safety data, this is moved to the bottom
+            (as a "not collected — ask the school" note) rather than shown here. */}
+        {(!isPrivate || detail.safety) && (
+          <Section title={`Safety & discipline${detail.safety ? ` · ${detail.safety.schoolYear}` : ""}`}>
+            {detail.safety ? (
+              <SafetyBlock detail={detail} b={b} />
+            ) : (
+              <p className="col-span-full text-sm text-slate-400">
+                No federal safety data for this school.
+              </p>
+            )}
+          </Section>
+        )}
 
         {/* Students */}
         <Section title="Students">
@@ -554,16 +594,39 @@ function DetailBody({
           </div>
         )}
 
-        {/* Contact (bottom — not decision-critical; collapsed) */}
-        <CollapsibleSection title="Contact & details">
-          {addressLine && <Fact label="Address" value={addressLine} />}
-          {c.phone && <Fact label="Phone" value={c.phone} />}
-          <Fact label="Type" value={detail.type} />
-          <Fact label="Grades" value={detail.grades} />
-          {a.coed && <Fact label="Coed status" value={a.coed} />}
-          {a.urbanicity && <Fact label="Setting" value={a.urbanicity} />}
-          <div className="col-span-full pt-1 text-[10px] text-slate-300">NCES ID {detail.ncesId}</div>
-        </CollapsibleSection>
+        {/* Bottom sections. Private: what's not collected (ask the school) → contact
+            → footnote the "Not Rated ⓘ" marker points to. Public: details → contact. */}
+        {isPrivate ? (
+          <>
+            {!detail.safety && (
+              <Section title="Test scores, graduation & safety">
+                <p className="col-span-full text-sm text-slate-500">
+                  Not collected by the federal government for most private schools. Use the
+                  contact details below to ask the school directly for academic results and
+                  safety information.
+                </p>
+              </Section>
+            )}
+            {contactSection}
+            <p
+              ref={pkRef}
+              className="mt-4 border-t border-slate-100 pt-3 text-[11px] leading-relaxed text-slate-400"
+            >
+              <span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-400 align-text-top text-[10px] font-bold text-white">
+                i
+              </span>
+              The federal government doesn&apos;t collect test scores, graduation, or safety
+              records for most private schools, so this profile shows only what schools
+              self-report (enrollment, grades, student-teacher ratio). Contact the school
+              directly for academic results.
+            </p>
+          </>
+        ) : (
+          <>
+            {detailsSection}
+            {contactSection}
+          </>
+        )}
       </div>
     </>
   );
@@ -1066,29 +1129,3 @@ function SafetyBlock({
   );
 }
 
-function CollapsibleSection({
-  title,
-  defaultOpen = false,
-  children,
-}: {
-  title: string;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="mt-4 rounded-xl bg-slate-50/70 p-3.5 sm:p-4">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 text-left text-sm font-bold text-slate-900"
-        aria-expanded={open}
-      >
-        <span className="h-4 w-1.5 rounded-full bg-brand-500" />
-        {title}
-        <span className={`ml-auto text-brand-500 transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
-      </button>
-      {open && <dl className="mt-2.5 grid grid-cols-1 gap-y-1.5">{children}</dl>}
-    </div>
-  );
-}
