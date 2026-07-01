@@ -437,7 +437,7 @@
     "#dse-root .dse-bubble svg{width:28px;height:28px}" +
     "#dse-root .dse-backdrop{position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}" +
     "#dse-root .dse-backdrop.dse-open{opacity:1;pointer-events:auto}" +
-    "#dse-root .dse-panel{width:1100px;max-width:calc(100vw - 32px);height:95vh;max-height:680px;border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 12px 56px rgba(0,0,0,.22);display:flex;flex-direction:column;transform:scale(.97);transition:transform .28s cubic-bezier(.22,1,.36,1)}" +
+    "#dse-root .dse-panel{width:1100px;max-width:calc(100vw - 32px);max-height:min(680px,95vh);border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 12px 56px rgba(0,0,0,.22);display:flex;flex-direction:column;transform:scale(.97);transition:transform .28s cubic-bezier(.22,1,.36,1)}" +
     "#dse-root .dse-open .dse-panel{transform:scale(1)}" +
     "#dse-root .dse-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--dse-accent,#1fa55f);color:#fff;flex-shrink:0}" +
     "#dse-root .dse-hl{display:flex;align-items:center;gap:10px}" +
@@ -445,8 +445,8 @@
     "#dse-root .dse-hicon svg{width:18px;height:18px}#dse-root .dse-title{font-size:15px;font-weight:600}" +
     "#dse-root .dse-close{background:none;border:none;color:#fff;cursor:pointer;padding:6px;border-radius:8px;display:flex}" +
     "#dse-root .dse-close:hover{background:rgba(255,255,255,.15)}#dse-root .dse-close svg{width:18px;height:18px}" +
-    "#dse-root .dse-iframe{flex:1;width:100%;border:none;background:#fff}" +
-    "#dse-root .dse-loading{flex:1;display:flex;align-items:center;justify-content:center;background:#f8fafc}" +
+    "#dse-root .dse-iframe{width:100%;border:none;background:#fff;height:460px;transition:height .3s cubic-bezier(.22,1,.36,1)}" +
+    "#dse-root .dse-loading{height:460px;display:flex;align-items:center;justify-content:center;background:#f8fafc}" +
     "#dse-root .dse-spinner{width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:var(--dse-accent,#1fa55f);border-radius:50%;animation:dse-spin .7s linear infinite}" +
     "@keyframes dse-spin{to{transform:rotate(360deg)}}" +
     "#dse-root .dse-footer{padding:6px 14px 8px;text-align:center;font-size:11px;color:#94a3b8;background:#fff;border-top:1px solid #f1f5f9}" +
@@ -457,7 +457,7 @@
     "#dse-root .dse-tooltip-text{cursor:pointer}" +
     "#dse-root .dse-tooltip-x{background:none;border:none;color:#94a3b8;cursor:pointer;padding:0;margin-left:4px;display:flex}" +
     "#dse-root .dse-hidden{display:none!important}" +
-    "@media (max-width:767px){#dse-root .dse-panel{width:100%;height:100vh;max-width:100%;max-height:100vh;border-radius:0}#dse-root .dse-bubble{bottom:calc(16px + var(--dse-bo,0px));width:54px;height:54px}#dse-root .dse-bubble--right{right:16px}#dse-root .dse-bubble--left{left:16px}#dse-root .dse-tooltip{bottom:calc(80px + var(--dse-bo,0px))}#dse-root .dse-tooltip--right{right:16px}#dse-root .dse-tooltip--left{left:16px}}";
+    "@media (max-width:767px){#dse-root .dse-panel{width:100%;height:100vh;max-width:100%;max-height:100vh;border-radius:0}#dse-root .dse-iframe{flex:1;height:auto}#dse-root .dse-loading{flex:1;height:auto}#dse-root .dse-bubble{bottom:calc(16px + var(--dse-bo,0px));width:54px;height:54px}#dse-root .dse-bubble--right{right:16px}#dse-root .dse-bubble--left{left:16px}#dse-root .dse-tooltip{bottom:calc(80px + var(--dse-bo,0px))}#dse-root .dse-tooltip--right{right:16px}#dse-root .dse-tooltip--left{left:16px}}";
 
   var ICON_PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
   var ICON_CLOSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
@@ -547,6 +547,20 @@
     document.body.appendChild(root);
     iframe = backdrop.querySelector(".dse-iframe");
     loadingEl = backdrop.querySelector(".dse-loading");
+
+    // Size the panel to the iframe's reported content height — compact on the
+    // home screen, taller for results/detail — capped to the viewport. On mobile
+    // the panel is full-screen (CSS), so we leave the height alone there.
+    window.addEventListener("message", function (e) {
+      if (!iframe || e.source !== iframe.contentWindow) return;
+      if (!e.data || e.data.type !== "dse:height") return;
+      if (window.matchMedia("(max-width:767px)").matches) return;
+      var header = backdrop.querySelector(".dse-header");
+      var headH = header ? header.offsetHeight : 52;
+      var maxH = Math.min(680, window.innerHeight * 0.95) - headH;
+      var h = Math.max(220, Math.min(parseInt(e.data.height, 10) || 0, maxH));
+      iframe.style.height = h + "px";
+    });
 
     tooltip = document.createElement("div");
     tooltip.className = "dse-tooltip " + (config.position === "left" ? "dse-tooltip--left" : "dse-tooltip--right");

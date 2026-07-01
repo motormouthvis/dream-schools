@@ -98,9 +98,9 @@ export default function EmbedExplorer() {
 
   // Inline embeds report their content height so the SDK can size the iframe to
   // fit (no fixed-height white space, never overly tall — long lists are capped
-  // with internal scroll). The popup panel is fixed, so it ignores this.
+  // with internal scroll). Both the inline embed and the popup panel size to
+  // this, so the popup is compact on the home screen and grows for results.
   useEffect(() => {
-    if (!isInline) return;
     // The SDK sizes the iframe to this height, so the iframe itself never needs a
     // scrollbar — internal regions (the results list) scroll on their own.
     document.documentElement.style.overflow = "hidden";
@@ -354,7 +354,7 @@ export default function EmbedExplorer() {
   );
 
   return (
-    <main className={`flex flex-col bg-white ${isInline ? "" : "h-screen overflow-hidden"}`}>
+    <main className="flex flex-col bg-white">
       {/* Inline embeds have no SDK chrome, so brand the iframe itself. */}
       {isInline && (
         <header
@@ -372,11 +372,7 @@ export default function EmbedExplorer() {
 
       {/* ---- HOME SCREEN (fits without scrolling on desktop) ---- */}
       {screen === "home" && (
-        <div
-            className={`mx-auto flex w-full max-w-3xl flex-col gap-3 px-4 py-3 ${
-            isInline ? "" : "min-h-0 flex-1 justify-start overflow-y-auto"
-          }`}
-        >
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 px-4 py-3">
           {/* Hero — one image with the heading overlaid (identical to the marketing site) */}
           <div className="relative overflow-hidden rounded-3xl ring-1 ring-inset ring-brand-600/10">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -435,11 +431,7 @@ export default function EmbedExplorer() {
 
       {/* ---- RESULTS SCREEN (fixed chrome, list scrolls within) ---- */}
       {screen === "results" && data && (
-        <div
-          className={`mx-auto flex w-full max-w-5xl flex-col px-3 pt-3 sm:px-4 ${
-            isInline ? "" : "min-h-0 flex-1"
-          }`}
-        >
+        <div className="mx-auto flex w-full max-w-5xl flex-col px-3 pt-3 sm:px-4">
           <div className="mb-3 flex shrink-0 items-center gap-2">
             <button
               type="button"
@@ -496,12 +488,8 @@ export default function EmbedExplorer() {
           </div>
 
           {/* Scroll region: only the results/detail scroll, chrome stays put.
-              Inline caps the height so the iframe never gets too tall. */}
-          <div
-            className={`overflow-y-auto pb-4 ${
-              isInline ? "max-h-[540px]" : "min-h-0 flex-1"
-            }`}
-          >
+              Capped (viewport-aware) so the popup panel never exceeds the screen. */}
+          <div className="max-h-[min(480px,55vh)] overflow-y-auto pb-4">
             {loading && (
               <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
                 Looking up schools…
