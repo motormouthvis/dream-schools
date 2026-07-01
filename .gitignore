@@ -32,3 +32,6 @@ pipeline/.venv/
 pipeline/__pycache__/
 pipeline/raw/
 *.pyc
+
+# Private reference clone of the paid Dream Neighborhood product (never commit)
+.dn-reference/

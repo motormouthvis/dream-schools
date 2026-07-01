@@ -1,17 +1,49 @@
 // Provider-agnostic transactional email. Configure whichever provider you
 // already pay for via env vars — no code change needed:
 //
-//   • RESEND_API_KEY               → Resend (HTTP API, no SMTP setup)
+//   • MAILGUN_API_KEY + MAILGUN_SENDER_DOMAIN → Mailgun (matches the paid
+//        Dream Neighborhood product's django-anymail setup; reuses your verified
+//        sending domain). Optional MAILGUN_API_BASE for the EU region:
+//        https://api.eu.mailgun.net
+//   • RESEND_API_KEY               → Resend (HTTP API)
 //   • SMTP_HOST / SMTP_PORT /
-//     SMTP_USER / SMTP_PASS        → any SMTP provider (SendGrid, SES, Postmark,
-//                                    Mailgun, …) via their SMTP credentials
-//   • (none configured)            → the link is logged to the server console so
-//                                    the flow still works in dev.
+//     SMTP_USER / SMTP_PASS        → any SMTP provider
+//   • (none configured)            → the link is logged to the server console.
 //
-// From address: EMAIL_FROM (default noreply@dreamneighborhoodschools.com).
+// From address: EMAIL_FROM. It MUST be on your verified sending domain — for
+// Mailgun set it to an address on MAILGUN_SENDER_DOMAIN.
 
 const FROM =
   process.env.EMAIL_FROM || "Dream Neighborhood Schools <noreply@dreamneighborhoodschools.com>";
+
+async function sendViaMailgun(mail: Mail): Promise<boolean> {
+  const key = process.env.MAILGUN_API_KEY;
+  const domain = process.env.MAILGUN_SENDER_DOMAIN;
+  if (!key || !domain) return false;
+  const base = (process.env.MAILGUN_API_BASE || "https://api.mailgun.net").replace(/\/$/, "");
+  try {
+    const form = new URLSearchParams({
+      from: FROM,
+      to: mail.to,
+      subject: mail.subject,
+      text: mail.text,
+      html: mail.html,
+    });
+    const res = await fetch(`${base}/v3/${domain}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: "Basic " + Buffer.from(`api:${key}`).toString("base64"),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: form.toString(),
+    });
+    if (!res.ok) console.error("Mailgun send failed:", res.status, await res.text());
+    return res.ok;
+  } catch (err) {
+    console.error("Mailgun error:", err);
+    return false;
+  }
+}
 
 interface Mail {
   to: string;
@@ -57,6 +89,7 @@ async function sendViaSmtp(mail: Mail): Promise<boolean> {
 }
 
 async function send(mail: Mail): Promise<void> {
+  if (await sendViaMailgun(mail)) return;
   if (await sendViaResend(mail)) return;
   if (await sendViaSmtp(mail)) return;
   // Dev fallback — surface the content (incl. any link) in logs.
