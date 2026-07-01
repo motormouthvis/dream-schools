@@ -1,5 +1,6 @@
 import { preflight, withCors } from "@/lib/embedCors";
 import { presentationPayload, resolveByHost } from "@/lib/embedConfig";
+import { recordUsageAsync } from "@/lib/embedUsage";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,10 @@ export async function GET(request: Request) {
     res.headers.set("Cache-Control", "no-store");
     return res;
   }
+
+  // Count this resolution as one view / "code detected" signal for the customer.
+  // Fire-and-forget so the widget response stays fast.
+  recordUsageAsync(config.partnerId, config.widgetNumber);
 
   const payload = {
     enabled: true,

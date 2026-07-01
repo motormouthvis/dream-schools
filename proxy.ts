@@ -32,6 +32,7 @@ function isAllowedOnAppHost(pathname: string): boolean {
   if (
     pathname.startsWith("/api/auth/") ||
     pathname.startsWith("/api/app/") ||
+    pathname.startsWith("/api/owner/") ||
     pathname.startsWith("/api/embed/")
   ) {
     return true;
