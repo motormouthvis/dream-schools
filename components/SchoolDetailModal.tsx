@@ -186,6 +186,7 @@ function DetailBody({
   const gsQuery = [detail.name, c.zip || c.city].filter(Boolean).join(" ");
   const greatSchoolsUrl = `https://www.greatschools.org/search/search.page?q=${encodeURIComponent(gsQuery)}`;
   const niche = detail.niche ?? null;
+  const nicheSpecific = Boolean(niche?.specific);
   return (
     <>
       {inline && (
@@ -508,9 +509,24 @@ function DetailBody({
               More on this school
             </h3>
             <p className="text-[12px] leading-relaxed text-slate-500">
-              For tuition, parent reviews &amp; more detail, see these independent sites:
+              {isPrivate
+                ? "Private schools report limited federal data. For tuition, admissions, parent reviews & more, see these independent sites:"
+                : "For tuition, parent reviews & more detail, see these independent sites:"}
             </p>
             <div className="mt-2.5 flex flex-wrap gap-2">
+              {/* Niche first for private schools — that's where its depth (tuition,
+                  reviews, admissions) actually helps. Only shown when verified. */}
+              {isPrivate && nicheSpecific && (
+                <a
+                  href={niche!.url}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700 shadow-sm transition hover:bg-brand-100"
+                >
+                  View on Niche
+                  <span aria-hidden>↗</span>
+                </a>
+              )}
               <a
                 href={greatSchoolsUrl}
                 target="_blank"
@@ -520,17 +536,14 @@ function DetailBody({
                 GreatSchools
                 <span aria-hidden className="text-slate-400">↗</span>
               </a>
-              {niche && (
+              {!isPrivate && nicheSpecific && (
                 <a
-                  href={niche.url}
+                  href={niche!.url}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
                 >
-                  Niche
-                  {!niche.specific && (
-                    <span className="font-medium text-slate-400">(search)</span>
-                  )}
+                  View on Niche
                   <span aria-hidden className="text-slate-400">↗</span>
                 </a>
               )}
