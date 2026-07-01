@@ -203,7 +203,11 @@ function rowToConfig(r: any): PartnerConfig {
   };
 }
 
-/** A default, enabled config so an un-registered host still renders. */
+/**
+ * Default config for an UN-registered host. Disabled by default: the popup/embed
+ * only turns on once a customer has authorized their domain in the admin. (Each
+ * customer's own domain resolves to their enabled config via resolveByHost.)
+ */
 export function defaultConfigForHost(host: string, widgetNumber: number): PartnerConfig {
   return {
     ...DEFAULT_PRESENTATION,
@@ -211,7 +215,7 @@ export function defaultConfigForHost(host: string, widgetNumber: number): Partne
     widgetNumber,
     allowedHosts: [normalizeHost(host)].filter(Boolean),
     defaultAddress: "",
-    enabled: true,
+    enabled: false,
   };
 }
 

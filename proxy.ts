@@ -19,19 +19,25 @@ import { NextResponse, type NextRequest } from "next/server";
 const ADMIN_PATH = "/embed-admin";
 const APP_ORIGIN = "https://app.dreamneighborhoodschools.com";
 
+// Account-app routes served on the app subdomain.
+const APP_PAGES = ["/login", "/onboarding", "/dashboard", "/edit", "/owner"];
+
 function isAppHost(host: string): boolean {
   return host.split(":")[0].toLowerCase().startsWith("app.");
 }
 
-function isAdminAllowedOnAppHost(pathname: string): boolean {
-  return (
-    pathname === ADMIN_PATH ||
-    pathname.startsWith(`${ADMIN_PATH}/`) ||
-    pathname.startsWith("/api/embed/") ||
-    pathname === "/embed" ||
-    pathname.startsWith("/embed/") ||
-    pathname === "/embed.js"
-  );
+function isAllowedOnAppHost(pathname: string): boolean {
+  if (APP_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return true;
+  if (pathname === ADMIN_PATH || pathname.startsWith(`${ADMIN_PATH}/`)) return true; // legacy admin
+  if (
+    pathname.startsWith("/api/auth/") ||
+    pathname.startsWith("/api/app/") ||
+    pathname.startsWith("/api/embed/")
+  ) {
+    return true;
+  }
+  if (pathname === "/embed" || pathname.startsWith("/embed/") || pathname === "/embed.js") return true;
+  return false;
 }
 
 export function proxy(req: NextRequest) {
@@ -40,24 +46,29 @@ export function proxy(req: NextRequest) {
   const enforce = process.env.ADMIN_ENFORCE_HOST === "1";
 
   if (isAppHost(host)) {
-    // Admin-only subdomain.
+    // The customer account app lives on this subdomain.
     if (pathname === "/") {
       const url = req.nextUrl.clone();
-      url.pathname = ADMIN_PATH;
+      url.pathname = "/dashboard"; // dashboard redirects to /login if not signed in
       return NextResponse.rewrite(url);
     }
-    if (!isAdminAllowedOnAppHost(pathname)) {
+    if (!isAllowedOnAppHost(pathname)) {
       const url = req.nextUrl.clone();
-      url.pathname = ADMIN_PATH;
+      url.pathname = "/dashboard";
       url.search = "";
       return NextResponse.redirect(url);
     }
     return NextResponse.next();
   }
 
-  // Public host: optionally hide the admin behind the app subdomain.
-  if (enforce && (pathname === ADMIN_PATH || pathname.startsWith(`${ADMIN_PATH}/`))) {
-    return NextResponse.redirect(`${APP_ORIGIN}/`);
+  // Public host: optionally hide the account app behind the app subdomain.
+  if (
+    enforce &&
+    (pathname === ADMIN_PATH ||
+      pathname.startsWith(`${ADMIN_PATH}/`) ||
+      APP_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`)))
+  ) {
+    return NextResponse.redirect(`${APP_ORIGIN}${pathname}`);
   }
 
   return NextResponse.next();
