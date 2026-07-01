@@ -19,6 +19,88 @@ interface Suggestion {
   zip: string;
 }
 
+// Optional premium autocomplete. Free OSM/Photon can't reliably find a US street
+// from a partial line without a city (e.g. "172 Due West St" → nothing), which is
+// exactly where users get stuck. If a provider key is configured, we use it as
+// the PRIMARY source and keep Census + Photon as automatic fallback. Set either:
+//   MAPBOX_TOKEN       (Mapbox — 100k free req/mo, best US coverage)
+//   GEOAPIFY_API_KEY   (Geoapify — 3k free req/day, no credit card)
+function stripCountry(label: string): string {
+  return label.replace(/,?\s*(United States|USA)\s*$/i, "").trim();
+}
+
+async function fetchJson(url: string, ms: number): Promise<any | null> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    const res = await fetch(url, { signal: controller.signal, headers: { Accept: "application/json" } });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+async function fromMapbox(q: string, bias?: { lat: number; lon: number }): Promise<Suggestion[] | null> {
+  const token = process.env.MAPBOX_TOKEN;
+  if (!token) return null;
+  const params = new URLSearchParams({
+    country: "us",
+    types: "address",
+    autocomplete: "true",
+    limit: "8",
+    language: "en",
+    access_token: token,
+  });
+  if (bias) params.set("proximity", `${bias.lon},${bias.lat}`);
+  const json = await fetchJson(
+    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?${params.toString()}`,
+    2500
+  );
+  if (!json) return [];
+  const out: Suggestion[] = [];
+  for (const f of json.features ?? []) {
+    const [lon, lat] = f.center ?? [];
+    if (typeof lat !== "number" || typeof lon !== "number") continue;
+    const zip =
+      (f.context ?? []).find((c: any) => String(c.id || "").startsWith("postcode"))?.text ?? "";
+    const label = stripCountry(f.place_name ?? "");
+    if (label) out.push({ label, lat, lon, zip });
+  }
+  return out;
+}
+
+async function fromGeoapify(q: string, bias?: { lat: number; lon: number }): Promise<Suggestion[] | null> {
+  const key = process.env.GEOAPIFY_API_KEY;
+  if (!key) return null;
+  const params = new URLSearchParams({
+    text: q,
+    filter: "countrycode:us",
+    format: "json",
+    limit: "8",
+    lang: "en",
+    apiKey: key,
+  });
+  if (bias) params.set("bias", `proximity:${bias.lon},${bias.lat}`);
+  const json = await fetchJson(`https://api.geoapify.com/v1/geocode/autocomplete?${params.toString()}`, 2500);
+  if (!json) return [];
+  const out: Suggestion[] = [];
+  for (const r of json.results ?? []) {
+    if (typeof r.lat !== "number" || typeof r.lon !== "number") continue;
+    const label = stripCountry(r.formatted ?? "");
+    if (label) out.push({ label, lat: r.lat, lon: r.lon, zip: r.postcode ?? "" });
+  }
+  return out;
+}
+
+// Returns premium suggestions, or null when no provider key is configured.
+async function fromPremium(q: string, bias?: { lat: number; lon: number }): Promise<Suggestion[] | null> {
+  if (process.env.MAPBOX_TOKEN) return fromMapbox(q, bias);
+  if (process.env.GEOAPIFY_API_KEY) return fromGeoapify(q, bias);
+  return null;
+}
+
 // Title-case a label that arrived in ALL CAPS (the Census geocoder returns
 // e.g. "3309 N INDIAN RIVER DR, FORT PIERCE, FL, 34946"). Mixed-case labels
 // (Photon) are left untouched so we don't mangle names like "McAllen".
@@ -178,6 +260,10 @@ export async function GET(request: Request) {
   const bias =
     Number.isFinite(latN) && Number.isFinite(lonN) && latN !== 0 ? { lat: latN, lon: lonN } : undefined;
 
+  // Premium provider (if a key is set) runs in parallel and is preferred; the
+  // free Census + Photon pipeline below still runs as fallback/coverage.
+  const premiumPromise = fromPremium(q, bias);
+
   const { houseNo, street, cityHint } = parseAddress(q);
 
   // Query Photon on the clean street (no house number, no partial-city tail) so
@@ -270,12 +356,14 @@ export async function GET(request: Request) {
   // synthesized house-numbered streets (so the number is always honored); fall
   // back to bare streets only if nothing house-numbered surfaced. Without a
   // house number: exact Census → street suggestions.
+  const premium = (await premiumPromise) ?? [];
+
   let ordered: Suggestion[];
   if (houseNo) {
-    ordered = [...census, ...enriched, ...synthesized];
+    ordered = [...premium, ...census, ...enriched, ...synthesized];
     if (ordered.length === 0) ordered = [...photon];
   } else {
-    ordered = [...census, ...photon];
+    ordered = [...premium, ...census, ...photon];
   }
   const seen = new Set<string>();
   const suggestions: Suggestion[] = [];
