@@ -71,6 +71,7 @@ function cityState(matched: string, fallbackState: string): string {
     /^\d{5}(-\d{4})?$/.test(s) ||
     /^(usa|u\.?s\.?a?\.?|united states(?: of america)?)$/i.test(s) ||
     /^[A-Za-z]{2}$/.test(s) ||
+    /^[A-Za-z]{2}\s+\d{5}(-\d{4})?$/.test(s) ||
     US_STATE_NAMES.has(s.toLowerCase());
   while (parts.length > 1 && isTail(parts[parts.length - 1])) parts.pop();
   const city = parts.length && /^\d/.test(parts[0]) ? parts[parts.length - 1] : parts[0] || "";
