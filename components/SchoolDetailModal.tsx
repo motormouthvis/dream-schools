@@ -70,7 +70,7 @@ export function SchoolDetailModal({
     return (
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {!detail && !error && (
-          <div className="p-10 text-center text-slate-400">Loading school details…</div>
+          <div className="p-10 text-center text-slate-500">Loading school details…</div>
         )}
         {error && (
           <div className="p-6">
@@ -105,7 +105,7 @@ export function SchoolDetailModal({
         onClick={(e) => e.stopPropagation()}
       >
         {!detail && !error && (
-          <div className="p-10 text-center text-slate-400">Loading school details…</div>
+          <div className="p-10 text-center text-slate-500">Loading school details…</div>
         )}
         {error && (
           <div className="p-6">
@@ -206,7 +206,7 @@ function DetailBody({
     <Section title="Contact">
       {addressLine && <Fact label="Address" value={addressLine} />}
       {c.phone && <Fact label="Phone" value={c.phone} />}
-      <div className="col-span-full pt-1 text-[10px] text-slate-300">NCES ID {detail.ncesId}</div>
+      <div className="col-span-full pt-1 text-[10px] text-slate-400">NCES ID {detail.ncesId}</div>
     </Section>
   );
   return (
@@ -422,7 +422,7 @@ function DetailBody({
             {detail.safety ? (
               <SafetyBlock detail={detail} b={b} />
             ) : (
-              <p className="col-span-full text-sm text-slate-400">
+              <p className="col-span-full text-sm text-slate-500">
                 No federal safety data for this school.
               </p>
             )}
@@ -589,7 +589,7 @@ function DetailBody({
                 </a>
               )}
             </div>
-            <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
+            <p className="mt-2 text-[10px] leading-relaxed text-slate-500">
               Independent services — not affiliated with Dream Neighborhood.
             </p>
           </div>
@@ -611,7 +611,7 @@ function DetailBody({
         {isPrivate && (
           <p
             ref={pkRef}
-            className="mt-4 border-t border-slate-100 pt-3 text-[11px] leading-relaxed text-slate-400"
+            className="mt-4 border-t border-slate-100 pt-3 text-[11px] leading-relaxed text-slate-500"
           >
             <span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-400 align-text-top text-[10px] font-bold text-white">
               i
@@ -799,7 +799,7 @@ function RatingInfo({ coverage, isPrivate }: { coverage: SchoolDetail["coverage"
                 Safety &amp; discipline (CRDC)
               </li>
             </ul>
-            <p className="mt-2 text-slate-400">
+            <p className="mt-2 text-slate-500">
               {isPrivate
                 ? "Private schools have little outcome data collected federally, so most show “Limited data.”"
                 : `More measures available = higher confidence in the rating.`}
@@ -812,7 +812,7 @@ function RatingInfo({ coverage, isPrivate }: { coverage: SchoolDetail["coverage"
 }
 
 function Note({ children }: { children: React.ReactNode }) {
-  return <p className="col-span-full mt-1 text-[11px] leading-relaxed text-slate-400">{children}</p>;
+  return <p className="col-span-full mt-1 text-[11px] leading-relaxed text-slate-500">{children}</p>;
 }
 
 function per100(count: number, enrollment: number): string {
@@ -867,7 +867,7 @@ function DiversitySection({ byRace }: { byRace: { pct: number }[] }) {
   return (
     <Section title="Diversity Index">
       {idx == null ? (
-        <p className="col-span-full text-sm text-slate-400">
+        <p className="col-span-full text-sm text-slate-500">
           Not enough data to compute a diversity index for this school.
         </p>
       ) : (
@@ -932,7 +932,7 @@ function Fact({
           {value}
         </dd>
       </div>
-      {sub && <div className="mt-0.5 text-right text-[10px] text-slate-400">{sub}</div>}
+      {sub && <div className="mt-0.5 text-right text-[10px] text-slate-500">{sub}</div>}
     </div>
   );
 }
@@ -982,7 +982,7 @@ function MetricBar({
         {nat != null && <Tick pos={clamp(nat)} shade="#94a3b8" />}
       </div>
       {(state != null || nat != null) && (
-        <div className="mt-1 text-[10px] text-slate-400">
+        <div className="mt-1 text-[10px] text-slate-500">
           {state != null && (
             <>
               <span className="inline-block h-2 w-0.5 translate-y-[1px] bg-[#475569]" /> State avg{" "}
@@ -1048,9 +1048,33 @@ function SafetyBlock({
     ["Bullying / harassment allegations", sf.harassmentBullyingAllegations],
   ];
   const per100 = (v: number) => (v / enr) * 100;
-  // Green / Yellow / Red by rate per 100 students (lower is better).
+  // Green / Yellow / Red by rate per 100 students (lower is better). Muted grey
+  // (readable, not faint) for zero counts.
+  const ZERO = "#64748b";
   const rateColor = (r: number) => (r <= 0.3 ? "#059669" : r < 2 ? "#d97706" : "#e11d48");
   const nonZero = items.filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+
+  // The Detailed tab shows EVERY data item: each incident category plus the two
+  // headline aggregates (violent total, suspensions), each with its own coloring.
+  const detailRows: { label: string; total: number; color: string; agg?: boolean }[] = [
+    ...items.map(([label, v]) => ({
+      label,
+      total: v,
+      color: v > 0 ? rateColor(per100(v)) : ZERO,
+    })),
+    {
+      label: "Violent incidents (total)",
+      total: sf.violentIncidentsTotal,
+      color: sf.violentIncidentsTotal > 0 ? tone(per100(sf.violentIncidentsTotal), 1, 5, false) : ZERO,
+      agg: true,
+    },
+    {
+      label: "Out-of-school suspensions",
+      total: sf.outOfSchoolSuspensions,
+      color: sf.outOfSchoolSuspensions > 0 ? tone(per100(sf.outOfSchoolSuspensions), 5, 20, false) : ZERO,
+      agg: true,
+    },
+  ];
 
   const tabBtn = (id: "summary" | "detailed", label: string) => (
     <button
@@ -1123,37 +1147,49 @@ function SafetyBlock({
         <>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-[11px] uppercase tracking-wide text-slate-400">
+              <tr className="border-b border-slate-200 text-[11px] uppercase tracking-wide text-slate-500">
                 <th className="py-1.5 text-left font-semibold">Category</th>
                 <th className="py-1.5 text-right font-semibold">Total</th>
                 <th className="py-1.5 text-right font-semibold">Per 100</th>
               </tr>
             </thead>
             <tbody>
-              {items.map(([label, v]) => {
-                const r = per100(v);
-                const color = v > 0 ? rateColor(r) : "#cbd5e1";
+              {detailRows.map((row) => {
+                const r = per100(row.total);
                 return (
-                  <tr key={label} className="border-b border-slate-100 last:border-0">
-                    <td className={`py-1.5 pr-2 ${v > 0 ? "text-slate-700" : "text-slate-400"}`}>
-                      {label}
+                  <tr
+                    key={row.label}
+                    className={`border-b border-slate-100 last:border-0 ${
+                      row.agg ? "border-t-2 border-t-slate-200" : ""
+                    }`}
+                  >
+                    <td className={`py-1.5 pr-2 ${row.total > 0 ? "text-slate-700" : "text-slate-500"}`}>
+                      {row.label}
                     </td>
-                    <td className="py-1.5 text-right font-bold tabular-nums" style={{ color }}>
-                      {v}
+                    <td className="py-1.5 text-right font-bold tabular-nums" style={{ color: row.color }}>
+                      {row.total}
                     </td>
-                    <td className="py-1.5 text-right font-bold tabular-nums" style={{ color }}>
-                      {v > 0 ? r.toFixed(1) : "0"}
+                    <td className="py-1.5 text-right font-bold tabular-nums" style={{ color: row.color }}>
+                      {row.total > 0 ? r.toFixed(1) : "0"}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-          <div className="mt-2 flex items-baseline justify-between border-t border-slate-100 pt-2 text-sm">
-            <span className="text-slate-500">Firearm incident on record</span>
-            <span className="font-bold" style={{ color: sf.firearmIncident ? "#e11d48" : "#059669" }}>
-              {sf.firearmIncident ? "Yes" : "No"}
-            </span>
+          <div className="mt-2 space-y-1.5 border-t border-slate-100 pt-2 text-sm">
+            <div className="flex items-baseline justify-between">
+              <span className="text-slate-600">Security staff on site</span>
+              <span className="font-bold" style={{ color: securityStatus(detail).color }}>
+                {securityStatus(detail).value}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-slate-600">Firearm incident on record</span>
+              <span className="font-bold" style={{ color: sf.firearmIncident ? "#e11d48" : "#059669" }}>
+                {sf.firearmIncident ? "Yes" : "No"}
+              </span>
+            </div>
           </div>
         </>
       )}
