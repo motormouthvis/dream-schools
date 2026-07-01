@@ -105,17 +105,22 @@ export default function EmbedExplorer() {
   //    recent-searches dropdown, and a viewport-sized "expanded" size for results.
   useEffect(() => {
     if (isInline) {
-      document.documentElement.style.overflow = "hidden";
-      document.body.style.overflow = "hidden";
+      // Measure the FULL page including the recents/autocomplete dropdowns, which
+      // are absolutely positioned below the search box. We must NOT clip overflow
+      // (that would drop the dropdown from scrollHeight); scrolling=no on the
+      // iframe keeps it scrollbar-free while the SDK grows it to fit.
       const report = () => {
         const h = Math.ceil(document.body.scrollHeight) + 2;
         if (h > 0) window.parent?.postMessage?.({ type: "dse:height", height: h }, "*");
       };
       report();
+      requestAnimationFrame(report);
+      const t = setTimeout(report, 60);
       const ro = new ResizeObserver(report);
       ro.observe(document.body);
       window.addEventListener("resize", report);
       return () => {
+        clearTimeout(t);
         ro.disconnect();
         window.removeEventListener("resize", report);
       };
@@ -124,7 +129,7 @@ export default function EmbedExplorer() {
       { type: "dse:screen", screen: screen === "home" ? "home" : "expanded" },
       "*"
     );
-  }, [isInline, screen, selected, loading, view, error]);
+  }, [isInline, screen, selected, loading, view, error, focused, showSuggest, address, recents.length]);
 
   const runLookup = useCallback(async (query: string, picked?: Suggestion) => {
     const q = query.trim();

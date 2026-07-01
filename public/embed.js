@@ -696,7 +696,7 @@
       // Width: default caps at 1200px full-width; a partner can set
       // data-max-width="720" (px) on the container to make it narrower.
       var maxW = intAttr(container, "data-max-width", 280);
-      var maxWidthCss = maxW != null ? maxW + "px" : "760px";
+      var maxWidthCss = maxW != null ? maxW + "px" : "840px";
       var base = "display:block;width:100%;max-width:" + maxWidthCss + ";margin:20px auto;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color-scheme:light;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.08)";
       iframe.style.cssText = config.inlineMinHeightExplicit ? base + ";min-height:" + config.inlineMinHeight + "px" : base;
       container.appendChild(iframe);
