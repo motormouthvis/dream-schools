@@ -55,6 +55,7 @@ Detection re-runs shortly after load to catch a partner widget whose script
 loads after ours. The `data-*` flags above remain for backward compatibility but
 are no longer required.
 | `data-min-height` | inline | iframe min-height in px |
+| `data-max-width` | inline | max width in px (default 1200; e.g. `720` for a narrower embed) |
 | `data-show-header` | inline | show the explorer header bar |
 | `data-address` | inline | explicit address; bypasses scraping |
 | `data-lat` / `data-lng` | inline | explicit coordinates; bypasses geocoding |

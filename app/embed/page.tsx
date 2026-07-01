@@ -488,8 +488,9 @@ export default function EmbedExplorer() {
           </div>
 
           {/* Scroll region: only the results/detail scroll, chrome stays put.
-              Capped (viewport-aware) so the popup panel never exceeds the screen. */}
-          <div className="max-h-[min(480px,55vh)] overflow-y-auto pb-4">
+              Fixed px cap (NOT vh — vh inside the iframe feeds back into the
+              SDK-set iframe height and collapses it). */}
+          <div className="max-h-[440px] overflow-y-auto pb-4">
             {loading && (
               <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
                 Looking up schools…
