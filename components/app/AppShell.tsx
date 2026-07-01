@@ -13,7 +13,7 @@ export function AppShell({
   active,
   children,
 }: {
-  active: "home" | "edit" | "owner";
+  active: "home" | "edit" | "owner" | "account";
   children: (me: Me) => React.ReactNode;
 }) {
   const [me, setMe] = useState<Me | null>(null);
@@ -65,6 +65,7 @@ export function AppShell({
         </div>
         {link("home", "🏠  Home", "/dashboard")}
         {link("edit", "Edit School Explorer", "/edit")}
+        {link("account", "Account", "/account")}
         {me.isOwner && link("owner", "Owner Admin", "/owner")}
         <div className="mt-auto space-y-2 pt-4 text-[12px] text-white/50">
           <div className="truncate">{me.email}</div>

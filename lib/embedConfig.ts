@@ -239,20 +239,32 @@ export async function resolveByHost(
              WHERE widget_number = $1
                AND enabled = TRUE
                AND allowed_hosts && $2::text[]
+             ORDER BY updated_at DESC
              LIMIT 50`,
           [widgetNumber, candidates]
         );
-        // Prefer the most specific match (longest allowed host that the page
-        // host ends with), so blog.example.com beats example.com.
+        // Choose the best match. Priority (highest first):
+        //   1. longest allowed host that the page host ends with (most specific)
+        //   2. a real customer account over a legacy auto `host:` partner
+        //   3. most recently updated (query is already ordered newest-first)
+        // This makes a customer's own config win when a domain is also claimed
+        // by a stale `host:` partner from the legacy admin.
         let best: PartnerConfig | null = null;
         let bestLen = -1;
+        let bestIsAccount = false;
         for (const row of rows) {
           const cfg = rowToConfig(row);
+          const isAccount = !cfg.partnerId.startsWith("host:");
           for (const allowed of cfg.allowedHosts) {
             const a = normalizeHost(allowed);
-            if (candidates.includes(a) && a.length > bestLen) {
+            if (!candidates.includes(a)) continue;
+            const better =
+              a.length > bestLen ||
+              (a.length === bestLen && isAccount && !bestIsAccount);
+            if (better) {
               best = cfg;
               bestLen = a.length;
+              bestIsAccount = isAccount;
             }
           }
         }
@@ -365,6 +377,38 @@ export async function upsertPartner(input: PartnerUpsert): Promise<PartnerConfig
     ]
   );
   return rowToConfig(rows[0]);
+}
+
+/**
+ * When a customer authorizes a domain, retire any stale legacy `host:<domain>`
+ * partner that claims the exact same host (created by the old shared-password
+ * admin) and fold its usage into the customer's widget, so their view count and
+ * "code first detected" reflect real traffic. Only auto `host:` partners are
+ * touched — never another real account.
+ */
+export async function claimHostForPartner(
+  partnerId: string,
+  hosts: string[]
+): Promise<void> {
+  if (!hasDatabase() || !partnerId) return;
+  await ensureTable();
+  const pool = getPool();
+  const { mergeUsage } = await import("@/lib/embedUsage");
+  for (const raw of hosts) {
+    const h = normalizeHost(raw);
+    if (!h) continue;
+    const legacyId = `host:${h}`;
+    if (legacyId === partnerId) continue;
+    const { rowCount } = await pool.query(
+      `DELETE FROM embed_partners WHERE partner_id = $1`,
+      [legacyId]
+    );
+    if ((rowCount ?? 0) > 0) {
+      await mergeUsage(legacyId, partnerId).catch((err) =>
+        console.error("mergeUsage failed:", err)
+      );
+    }
+  }
 }
 
 export async function deletePartner(

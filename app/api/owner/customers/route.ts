@@ -9,6 +9,7 @@ import {
 import {
   getByPartner,
   upsertPartner,
+  claimHostForPartner,
   normalizeHost,
   DEFAULT_PRESENTATION,
 } from "@/lib/embedConfig";
@@ -112,6 +113,11 @@ export async function PATCH(request: Request) {
               : base.enabled
             : false,
       });
+      if (allowedHosts.length) {
+        await claimHostForPartner(id, allowedHosts).catch((err) =>
+          console.error("claimHostForPartner failed:", err)
+        );
+      }
     }
 
     return NextResponse.json({ ok: true });

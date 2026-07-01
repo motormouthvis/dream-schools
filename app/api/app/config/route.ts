@@ -4,6 +4,7 @@ import { currentUser } from "@/lib/auth";
 import {
   getByPartner,
   upsertPartner,
+  claimHostForPartner,
   normalizeHost,
   DEFAULT_PRESENTATION,
 } from "@/lib/embedConfig";
@@ -68,5 +69,11 @@ export async function POST(request: Request) {
     // The popup only turns on once a domain is authorized.
     enabled: allowedHosts.length > 0 ? bool(body.enabled, true) : false,
   });
+  // Take over any stale legacy `host:` registration for these domains.
+  if (allowedHosts.length) {
+    await claimHostForPartner(user.id, allowedHosts).catch((err) =>
+      console.error("claimHostForPartner failed:", err)
+    );
+  }
   return NextResponse.json({ ok: true, config: saved });
 }

@@ -104,6 +104,21 @@ function shell(bodyHtml: string): string {
   </div>`;
 }
 
+export async function sendResetEmail(to: string, resetUrl: string): Promise<void> {
+  await send({
+    to,
+    subject: "Reset your password — Dream Neighborhood Schools",
+    text: `We received a request to reset your password. Click below to set a new one:\n\n${resetUrl}\n\nThis link expires in 48 hours. If you didn't request this, you can ignore this email.`,
+    html: shell(
+      `<h1 style="font-size:20px;margin:0 0 8px">Reset your password</h1>
+       <p style="color:#475569;font-size:14px;margin:0 0 20px">Click the button below to choose a new password for your account.</p>
+       <a href="${resetUrl}" style="display:inline-block;background:#12854c;color:#fff;font-weight:700;text-decoration:none;padding:12px 20px;border-radius:10px;font-size:14px">Set a new password →</a>
+       <p style="color:#94a3b8;font-size:12px;margin-top:16px">Or paste this link: <br>${resetUrl}</p>
+       <p style="color:#94a3b8;font-size:12px">This link expires in 48 hours.</p>`
+    ),
+  });
+}
+
 export async function sendVerificationEmail(to: string, verifyUrl: string): Promise<void> {
   await send({
     to,

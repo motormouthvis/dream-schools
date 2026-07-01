@@ -95,3 +95,31 @@ export async function deleteUsage(partnerId: string): Promise<void> {
   await ensureTable();
   await getPool().query(`DELETE FROM embed_usage WHERE partner_id = $1`, [partnerId]);
 }
+
+/**
+ * Fold one partner's usage into another (summing views, keeping the earliest
+ * first_seen / latest last_seen), then delete the source row. Used when a
+ * customer claims a domain previously tracked under a legacy `host:` partner so
+ * their view count reflects real traffic.
+ */
+export async function mergeUsage(fromPartnerId: string, toPartnerId: string): Promise<void> {
+  if (!hasDatabase() || !fromPartnerId || !toPartnerId || fromPartnerId === toPartnerId) return;
+  await ensureTable();
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT views, first_seen, last_seen FROM embed_usage WHERE partner_id = $1 AND widget_number = 1`,
+    [fromPartnerId]
+  );
+  const src = rows[0];
+  if (!src) return;
+  await pool.query(
+    `INSERT INTO embed_usage (partner_id, widget_number, views, first_seen, last_seen)
+       VALUES ($1, 1, $2, $3, $4)
+     ON CONFLICT (partner_id, widget_number) DO UPDATE SET
+       views = embed_usage.views + EXCLUDED.views,
+       first_seen = LEAST(COALESCE(embed_usage.first_seen, EXCLUDED.first_seen), EXCLUDED.first_seen),
+       last_seen = GREATEST(COALESCE(embed_usage.last_seen, EXCLUDED.last_seen), EXCLUDED.last_seen)`,
+    [toPartnerId, Number(src.views) || 0, src.first_seen, src.last_seen]
+  );
+  await pool.query(`DELETE FROM embed_usage WHERE partner_id = $1`, [fromPartnerId]);
+}

@@ -59,6 +59,13 @@ async function ensureTables(): Promise<void> {
            )`
         )
       )
+      // One token table serves both email verification and password resets.
+      .then(() =>
+        pool.query(
+          `ALTER TABLE app_verify_tokens
+             ADD COLUMN IF NOT EXISTS purpose TEXT NOT NULL DEFAULT 'verify'`
+        )
+      )
       .then(() => undefined)
       .catch((err) => {
         tableReady = null;
@@ -123,6 +130,23 @@ export async function getUserByEmail(email: string): Promise<(AppUser & { passwo
   return { ...rowToUser(rows[0]), passwordHash: rows[0].password_hash };
 }
 
+export async function getUserById(id: string): Promise<(AppUser & { passwordHash: string }) | null> {
+  if (!hasDatabase() || !id) return null;
+  await ensureTables();
+  const pool = getPool();
+  const { rows } = await pool.query(`SELECT * FROM app_users WHERE id = $1`, [id]);
+  if (!rows[0]) return null;
+  return { ...rowToUser(rows[0]), passwordHash: rows[0].password_hash };
+}
+
+export async function updatePassword(userId: string, newPassword: string): Promise<void> {
+  await ensureTables();
+  await getPool().query(`UPDATE app_users SET password_hash = $1 WHERE id = $2`, [
+    hashPassword(newPassword),
+    userId,
+  ]);
+}
+
 export async function createUser(email: string, password: string): Promise<AppUser> {
   await ensureTables();
   const pool = getPool();
@@ -136,32 +160,61 @@ export async function createUser(email: string, password: string): Promise<AppUs
   return rowToUser(rows[0]);
 }
 
+export type TokenPurpose = "verify" | "reset";
+
 // A one-time magic-link token; returns the RAW token to embed in the email URL.
-export async function createVerificationToken(userId: string): Promise<string> {
+export async function createToken(userId: string, purpose: TokenPurpose = "verify"): Promise<string> {
   await ensureTables();
   const pool = getPool();
   const raw = randomBytes(32).toString("hex");
   const expires = new Date(Date.now() + VERIFY_TTL_HOURS * 3600 * 1000);
   await pool.query(
-    `INSERT INTO app_verify_tokens (token_hash, user_id, expires_at) VALUES ($1,$2,$3)`,
-    [sha256(raw), userId, expires]
+    `INSERT INTO app_verify_tokens (token_hash, user_id, expires_at, purpose) VALUES ($1,$2,$3,$4)`,
+    [sha256(raw), userId, expires, purpose]
   );
   return raw;
+}
+
+export function createVerificationToken(userId: string): Promise<string> {
+  return createToken(userId, "verify");
+}
+
+export function createResetToken(userId: string): Promise<string> {
+  return createToken(userId, "reset");
+}
+
+// Consume a one-time token of the given purpose; returns its user id (or null).
+async function consumeToken(raw: string, purpose: TokenPurpose): Promise<string | null> {
+  if (!hasDatabase() || !raw) return null;
+  await ensureTables();
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `DELETE FROM app_verify_tokens
+       WHERE token_hash = $1 AND purpose = $2 AND expires_at > NOW()
+       RETURNING user_id`,
+    [sha256(raw), purpose]
+  );
+  return rows[0]?.user_id ?? null;
 }
 
 // Consume a verification token: mark the user verified, delete the token, and
 // return the user (or null if invalid/expired).
 export async function consumeVerificationToken(raw: string): Promise<AppUser | null> {
-  if (!hasDatabase() || !raw) return null;
-  await ensureTables();
-  const pool = getPool();
-  const { rows } = await pool.query(
-    `DELETE FROM app_verify_tokens WHERE token_hash = $1 AND expires_at > NOW() RETURNING user_id`,
-    [sha256(raw)]
-  );
-  const userId = rows[0]?.user_id;
+  const userId = await consumeToken(raw, "verify");
   if (!userId) return null;
-  const upd = await pool.query(
+  const upd = await getPool().query(
+    `UPDATE app_users SET email_verified = TRUE WHERE id = $1 RETURNING *`,
+    [userId]
+  );
+  return upd.rows[0] ? rowToUser(upd.rows[0]) : null;
+}
+
+// Consume a reset token and return the user. Receiving the reset email proves
+// ownership, so we also mark the address verified.
+export async function consumeResetToken(raw: string): Promise<AppUser | null> {
+  const userId = await consumeToken(raw, "reset");
+  if (!userId) return null;
+  const upd = await getPool().query(
     `UPDATE app_users SET email_verified = TRUE WHERE id = $1 RETURNING *`,
     [userId]
   );
