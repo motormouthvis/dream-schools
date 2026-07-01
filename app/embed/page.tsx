@@ -400,35 +400,35 @@ export default function EmbedExplorer() {
               : "min-h-0 flex-1 justify-start overflow-y-auto md:justify-center md:overflow-hidden"
           }`}
         >
-          {/* Hero */}
-          <div className="flex items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-br from-brand-50 via-white to-lime-50 px-4 py-3 ring-1 ring-inset ring-brand-600/10 sm:px-5">
-            <div className="min-w-0 flex-1">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-600/15">
-                ★ Free forever · no ads
-              </span>
-              <h1 className="mt-1.5 text-xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-2xl">
-                Find Your Dream School
-              </h1>
-              <p className="mt-1 text-xs leading-snug text-slate-600">
-                A 1–10 rating, test scores, college readiness &amp; safety for every school near any
-                address — nationwide.
-              </p>
-            </div>
+          {/* Hero — one image with the heading overlaid (matches the marketing site) */}
+          <div className="relative overflow-hidden rounded-2xl ring-1 ring-inset ring-brand-600/10">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/hero-schools.png"
-              alt="Children walking to school"
-              className="hidden h-20 w-auto shrink-0 sm:block"
+              src="/hero-banner.png"
+              alt="Children walking to a neighborhood schoolhouse"
+              className="h-[150px] w-full object-cover object-right sm:h-[170px]"
             />
+            <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/30 sm:via-white/70 sm:to-transparent" />
+            <div className="absolute inset-0 flex flex-col justify-center px-4 sm:px-6">
+              <h1 className="text-xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-2xl">
+                School Explorer
+              </h1>
+              <p className="mt-0.5 max-w-[14rem] text-sm font-bold leading-snug text-ink-800 sm:max-w-xs">
+                Find the Best Schools in Your New Neighborhood
+              </p>
+              <p className="mt-1 max-w-[16rem] text-[11px] font-semibold leading-snug text-slate-700">
+                Real ratings, test scores &amp; safety for any address.
+              </p>
+            </div>
           </div>
 
-          {/* Search */}
+          {/* Search — floats over the hero for the integrated look */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
               runLookup(address);
             }}
-            className="flex flex-col gap-2 sm:flex-row"
+            className="relative z-10 -mt-6 flex flex-col gap-2 rounded-2xl bg-white/95 p-2 shadow-lg ring-1 ring-black/5 backdrop-blur sm:flex-row"
           >
             {SearchField}
             <button
@@ -446,21 +446,6 @@ export default function EmbedExplorer() {
               {error}
             </div>
           )}
-
-          {/* Buyer benefits */}
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              ["★", "Dream Rating"],
-              ["✎", "Test scores"],
-              ["🎓", "College ready"],
-              ["🛡", "Safety"],
-            ].map(([icon, t]) => (
-              <div key={t} className="rounded-xl border border-slate-100 bg-slate-50/70 p-2 text-center">
-                <div className="text-base leading-none" aria-hidden>{icon}</div>
-                <p className="mt-1 text-[11px] font-bold leading-tight text-slate-700">{t}</p>
-              </div>
-            ))}
-          </div>
 
           {/* Upgrade CTA — toned down, pitches the PAID full Explorer */}
           <div className="overflow-hidden rounded-2xl border border-brand-200 bg-brand-50/70 p-3.5">
