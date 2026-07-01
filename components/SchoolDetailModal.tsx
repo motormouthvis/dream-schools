@@ -1023,7 +1023,7 @@ function SafetyBlock({
   detail: SchoolDetail;
   b: SchoolDetail["benchmarks"];
 }) {
-  const [showAll, setShowAll] = useState(false);
+  const [tab, setTab] = useState<"summary" | "detailed">("summary");
   const sf = detail.safety!;
   const enr = Math.max(detail.enrollment, 1);
   const violPer100 = (sf.violentIncidentsTotal / enr) * 100;
@@ -1047,7 +1047,22 @@ function SafetyBlock({
     ["Firearm or explosive possession", sf.firearmExplosivePossession],
     ["Bullying / harassment allegations", sf.harassmentBullyingAllegations],
   ];
-  const concerning = items.filter(([, v]) => v > 0);
+  const per100 = (v: number) => (v / enr) * 100;
+  // Green / Yellow / Red by rate per 100 students (lower is better).
+  const rateColor = (r: number) => (r <= 0.3 ? "#059669" : r < 2 ? "#d97706" : "#e11d48");
+  const nonZero = items.filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+
+  const tabBtn = (id: "summary" | "detailed", label: string) => (
+    <button
+      type="button"
+      onClick={() => setTab(id)}
+      className={`rounded-full px-3 py-1 transition ${
+        tab === id ? "bg-white text-brand-700 shadow-sm" : "text-slate-500"
+      }`}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div className="col-span-full">
@@ -1058,62 +1073,90 @@ function SafetyBlock({
         {head.text}
       </div>
 
-      <MetricBar
-        label="Violent incidents per 100 students"
-        value={Number(violPer100.toFixed(1))}
-        color={tone(violPer100, 1, 5, false)}
-        state={b?.stateAvg?.violentPer100}
-        nat={b?.nationalAvg?.violentPer100}
-      />
-      <MetricBar
-        label="Suspensions per 100 students"
-        value={Number(suspPer100.toFixed(1))}
-        color={tone(suspPer100, 5, 20, false)}
-        state={b?.stateAvg?.suspensionsPer100}
-        nat={b?.nationalAvg?.suspensionsPer100}
-      />
-      <Fact
-        label="Security staff on site"
-        value={securityStatus(detail).value}
-        color={securityStatus(detail).color}
-      />
-
-      <div className="mt-3">
-        {concerning.length === 0 ? (
-          <p className="text-sm font-semibold text-emerald-700">
-            ✓ No incidents reported in any category for {sf.schoolYear}.
-          </p>
-        ) : (
-          <>
-            <p className="mb-1.5 text-xs font-semibold text-slate-600">Incidents reported:</p>
-            <dl className="grid grid-cols-1 gap-y-1.5">
-              {concerning.map(([label, v]) => (
-                <Fact key={label} label={label} value={v} color="#be123c" />
-              ))}
-            </dl>
-          </>
-        )}
-
-        <button
-          type="button"
-          onClick={() => setShowAll((s) => !s)}
-          className="mt-2.5 text-xs font-semibold text-brand-600 hover:text-brand-700"
-        >
-          {showAll ? "Hide full breakdown" : "Show all categories (including 0s)"}
-        </button>
-        {showAll && (
-          <dl className="mt-2 grid grid-cols-1 gap-y-1.5">
-            {items.map(([label, v]) => (
-              <Fact key={label} label={label} value={v} color={v > 0 ? "#be123c" : undefined} />
-            ))}
-            <Fact
-              label="Any firearm incident on record"
-              value={sf.firearmIncident ? "Yes" : "No"}
-              color={sf.firearmIncident ? "#be123c" : undefined}
-            />
-          </dl>
-        )}
+      <div className="mb-3 inline-flex rounded-full bg-slate-100 p-0.5 text-xs font-semibold">
+        {tabBtn("summary", "Summary")}
+        {tabBtn("detailed", "Detailed")}
       </div>
+
+      {tab === "summary" ? (
+        <>
+          <MetricBar
+            label="Violent incidents per 100 students"
+            value={Number(violPer100.toFixed(1))}
+            color={tone(violPer100, 1, 5, false)}
+            state={b?.stateAvg?.violentPer100}
+            nat={b?.nationalAvg?.violentPer100}
+          />
+          <MetricBar
+            label="Suspensions per 100 students"
+            value={Number(suspPer100.toFixed(1))}
+            color={tone(suspPer100, 5, 20, false)}
+            state={b?.stateAvg?.suspensionsPer100}
+            nat={b?.nationalAvg?.suspensionsPer100}
+          />
+          <Fact
+            label="Security staff on site"
+            value={securityStatus(detail).value}
+            color={securityStatus(detail).color}
+          />
+          <div className="mt-3">
+            {nonZero.length === 0 ? (
+              <p className="text-sm font-semibold text-emerald-700">
+                ✓ No incidents reported in any category for {sf.schoolYear}.
+              </p>
+            ) : (
+              <>
+                <p className="mb-1.5 text-xs font-semibold text-slate-600">
+                  Reported incidents (per 100 students)
+                </p>
+                <dl className="grid grid-cols-1 gap-y-1.5">
+                  {nonZero.map(([label, v]) => {
+                    const r = per100(v);
+                    return <Fact key={label} label={label} value={r.toFixed(1)} color={rateColor(r)} />;
+                  })}
+                </dl>
+              </>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-[11px] uppercase tracking-wide text-slate-400">
+                <th className="py-1.5 text-left font-semibold">Category</th>
+                <th className="py-1.5 text-right font-semibold">Total</th>
+                <th className="py-1.5 text-right font-semibold">Per 100</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(([label, v]) => {
+                const r = per100(v);
+                const color = v > 0 ? rateColor(r) : "#cbd5e1";
+                return (
+                  <tr key={label} className="border-b border-slate-100 last:border-0">
+                    <td className={`py-1.5 pr-2 ${v > 0 ? "text-slate-700" : "text-slate-400"}`}>
+                      {label}
+                    </td>
+                    <td className="py-1.5 text-right font-bold tabular-nums" style={{ color }}>
+                      {v}
+                    </td>
+                    <td className="py-1.5 text-right font-bold tabular-nums" style={{ color }}>
+                      {v > 0 ? r.toFixed(1) : "0"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div className="mt-2 flex items-baseline justify-between border-t border-slate-100 pt-2 text-sm">
+            <span className="text-slate-500">Firearm incident on record</span>
+            <span className="font-bold" style={{ color: sf.firearmIncident ? "#e11d48" : "#059669" }}>
+              {sf.firearmIncident ? "Yes" : "No"}
+            </span>
+          </div>
+        </>
+      )}
 
       <Note>
         Counts cover the full {sf.schoolYear} school year. &ldquo;Per 100 students&rdquo; lets you
