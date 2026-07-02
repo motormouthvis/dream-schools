@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/owner";
 import {
-  listUpgradeRequests,
-  sendUpgradeDigestNow,
-  getUpgradeDigestSchedule,
+  listUpgradeEmailTemplates,
+  saveUpgradeEmailTemplate,
   type UpgradeDigestVariant,
 } from "@/lib/upgradePrompt";
 
@@ -18,25 +17,30 @@ async function guard(request: Request) {
 export async function GET(request: Request) {
   const blocked = await guard(request);
   if (blocked) return blocked;
-  const includeSent = new URL(request.url).searchParams.get("include_sent") === "1";
-  const requests = await listUpgradeRequests({ includeSent });
-  const schedule = await getUpgradeDigestSchedule();
-  return NextResponse.json({ requests, schedule });
+  return NextResponse.json({ templates: await listUpgradeEmailTemplates() });
 }
 
 export async function POST(request: Request) {
   const blocked = await guard(request);
   if (blocked) return blocked;
-  let body: { variant?: UpgradeDigestVariant };
+  let body: any;
   try {
     body = await request.json();
   } catch {
-    body = {};
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
-  const variant = body.variant || "soft_nudge";
+  const variant = String(body.variant || "") as UpgradeDigestVariant;
   if (!["soft_nudge", "strong_sales", "partner_summary", "admin_summary"].includes(variant)) {
     return NextResponse.json({ error: "Invalid template variant." }, { status: 400 });
   }
-  const result = await sendUpgradeDigestNow(variant);
-  return NextResponse.json({ ok: true, ...result });
+  const template = await saveUpgradeEmailTemplate({
+    variant,
+    label: String(body.label || ""),
+    subject: String(body.subject || ""),
+    intro: String(body.intro || ""),
+    ctaText: String(body.ctaText || ""),
+    ctaUrl: String(body.ctaUrl || ""),
+    updatedAt: null,
+  });
+  return NextResponse.json({ ok: true, template });
 }
