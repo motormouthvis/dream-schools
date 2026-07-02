@@ -9,6 +9,7 @@ export async function GET(request: Request) {
     if (!user) return NextResponse.json({ user: null }, { status: 200 });
     return NextResponse.json({
       user: {
+        id: user.id,
         email: user.email,
         isOwner: user.isOwner,
         isPartner: user.isPartner,

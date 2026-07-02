@@ -80,7 +80,10 @@ export async function POST(request: Request) {
     tooltipMessage: str(body.tooltipMessage, p.tooltipMessage),
     requireAddress: bool(body.requireAddress, p.requireAddress),
     searchPageContent: bool(body.searchPageContent, p.searchPageContent),
-    suppressIfNeighborhoodExplorer: bool(body.suppressIfNeighborhoodExplorer, p.suppressIfNeighborhoodExplorer),
+    suppressIfNeighborhoodExplorer:
+      user.isOwner || user.isPartner
+        ? bool(body.suppressIfNeighborhoodExplorer, p.suppressIfNeighborhoodExplorer ?? true)
+        : true,
     inlineMinHeight: num(body.inlineMinHeight, p.inlineMinHeight),
     inlineShowHeader: bool(body.inlineShowHeader, p.inlineShowHeader),
     showExternalLinks: bool(body.showExternalLinks, p.showExternalLinks),

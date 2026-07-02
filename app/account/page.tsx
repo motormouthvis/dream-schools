@@ -33,7 +33,7 @@ export default function AccountPage() {
             </button>
           </div>
 
-          <div className="mt-4 max-w-md space-y-3">
+          <div className="mt-4 grid max-w-5xl grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="rounded-xl border border-slate-200 bg-white p-4">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email</div>
               <div className="mt-1 break-all text-sm text-ink-900">{me.email}</div>
@@ -42,17 +42,17 @@ export default function AccountPage() {
               <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Date created</div>
               <div className="mt-1 text-sm text-ink-900">{fmtDate(me.createdAt)}</div>
             </div>
+            {me.isPartner && <PartnerSignupLink partnerId={me.id} />}
+            {me.isPartner && (
+              <PartnerDesignation initialCompanyName={me.companyName || ""} isPartner={me.isPartner} />
+            )}
+            <BusinessProfile initialBusinessName={me.businessName || ""} />
+            {(me.isOwner || me.isPartner) && (
+              <UpgradePromptSettings isOwner={me.isOwner} isPartner={me.isPartner} />
+            )}
+            <ChangeEmail currentEmail={me.email} />
+            <ChangePassword email={me.email} />
           </div>
-
-          {me.isPartner && (
-            <PartnerDesignation initialCompanyName={me.companyName || ""} isPartner={me.isPartner} />
-          )}
-          <BusinessProfile initialBusinessName={me.businessName || ""} />
-          {(me.isOwner || me.isPartner) && (
-            <UpgradePromptSettings isOwner={me.isOwner} isPartner={me.isPartner} />
-          )}
-          <ChangeEmail currentEmail={me.email} />
-          <ChangePassword email={me.email} />
         </>
       )}
     </AppShell>
@@ -121,6 +121,39 @@ function PartnerDesignation({
           {busy ? "Saving…" : "Save partner details"}
         </button>
       </form>
+    </Card>
+  );
+}
+
+function PartnerSignupLink({ partnerId }: { partnerId: string }) {
+  const [copied, setCopied] = useState(false);
+  const link =
+    typeof window === "undefined"
+      ? ""
+      : `${window.location.origin}/login?partner=${encodeURIComponent(partnerId)}`;
+
+  async function copy() {
+    await navigator.clipboard?.writeText(link).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <Card title="Partner Signup Link">
+      <p className="text-[12px] leading-relaxed text-slate-500">
+        Copy this link and email it to your Realtor clients. Anyone who signs up with it is
+        automatically connected to your Partner account.
+      </p>
+      <div className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-[12px] leading-relaxed text-brand-800">
+        Suggested message: “Click here to add free school data to your website — no credit card,
+        full-feature school data free forever, zero website redesign.”
+      </div>
+      <div className="mt-3 flex gap-2">
+        <input readOnly value={link} className={`${inp} font-mono text-[12px]`} />
+        <button type="button" onClick={copy} className="shrink-0 rounded-lg border border-brand-600 px-3 py-2 text-sm font-bold text-brand-700 hover:bg-brand-50">
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
     </Card>
   );
 }
@@ -464,7 +497,7 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mt-4 max-w-md rounded-xl border border-slate-200 bg-white p-4">
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-sm font-bold text-ink-900">
           <span className="h-3 w-1.5 rounded bg-brand-500" />

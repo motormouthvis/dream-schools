@@ -57,7 +57,7 @@ export const DEFAULT_PRESENTATION: EmbedPresentation = {
   requireAddress: false,
   searchPageContent: false,
   suppressOnInline: false,
-  suppressIfNeighborhoodExplorer: false,
+  suppressIfNeighborhoodExplorer: true,
   inlineMinHeight: 750,
   inlineShowHeader: false,
   showExternalLinks: false,

@@ -54,7 +54,9 @@ export default function LoginPage() {
         setError(json.error || "Something went wrong.");
         return;
       }
-      if (mode === "signup") {
+      if (json.loggedIn) {
+        window.location.href = json.isOwner ? "/owner" : "/dashboard";
+      } else if (mode === "signup") {
         setSent("verify");
       } else {
         window.location.href = json.isOwner ? "/owner" : "/dashboard";

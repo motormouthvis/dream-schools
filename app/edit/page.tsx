@@ -27,7 +27,7 @@ const BLANK: Form = {
   bottomOffset: 0,
   tooltipMessage: "",
   requireAddress: false,
-  suppressIfNeighborhoodExplorer: false,
+  suppressIfNeighborhoodExplorer: true,
   inlineMinHeight: 0,
   inlineShowHeader: false,
   showExternalLinks: false,
@@ -96,7 +96,7 @@ export default function EditPage() {
 
   return (
     <AppShell active="edit">
-      {() => (
+      {(me) => (
         <>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -156,7 +156,9 @@ export default function EditPage() {
                       <input className={inp} value={form.tooltipMessage} onChange={(e) => set("tooltipMessage", e.target.value)} placeholder="See schools near {{address}}" />
                     </Field>
                     <Check checked={form.requireAddress} onChange={(v) => set("requireAddress", v)} label="Only show when an address is detected" />
-                    <Check checked={form.suppressIfNeighborhoodExplorer} onChange={(v) => set("suppressIfNeighborhoodExplorer", v)} label="Hide when the Neighborhood Explorer is present" />
+                    {(me.isOwner || me.isPartner) && (
+                      <Check checked={form.suppressIfNeighborhoodExplorer} onChange={(v) => set("suppressIfNeighborhoodExplorer", v)} label="Hide when the Neighborhood Explorer is present" />
+                    )}
                   </OptionBlock>
                   <OptionBlock title="Popup code">
                     <CodeBlock code={POPUP_SNIPPET} />
@@ -170,7 +172,7 @@ export default function EditPage() {
                       <input type="number" min={0} className={inp} value={form.inlineMinHeight} onChange={(e) => set("inlineMinHeight", Number(e.target.value) || 0)} />
                     </Field>
                     <Check checked={form.inlineShowHeader} onChange={(v) => set("inlineShowHeader", v)} label="Show the header bar on the inline embed" />
-                    <p className="mt-1 text-[11px] text-slate-400">Width is set per-embed in the snippet: <code>data-max-width="840"</code>.</p>
+                    <p className="mt-1 text-[11px] text-slate-400">Header bar adds a branded title strip above the inline embed. Leave it off if the page already labels the section. Width is set per-embed in the snippet: <code>data-max-width="840"</code>.</p>
                   </OptionBlock>
                   <OptionBlock title="Embed code">
                     <CodeBlock code={INLINE_SNIPPET} />

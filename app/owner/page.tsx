@@ -365,17 +365,6 @@ function OwnerAdmin() {
                     </button>
                     {canEdit && (
                       <>
-                        {role === "owner" && c.isPartner && (
-                          <a
-                            href={`/login?partner=${encodeURIComponent(c.id)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="ml-2 rounded-md border border-brand-200 px-2.5 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50"
-                            title="Give this link to customers so they sign up under this partner."
-                          >
-                            Partner Login
-                          </a>
-                        )}
                         <button
                           onClick={() => setEditing(c)}
                           className="ml-2 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"

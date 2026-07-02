@@ -5,6 +5,7 @@ import { SchoolhouseMark } from "@/components/Logo";
 import { TERMS_URL, PRIVACY_URL } from "@/lib/legalLinks";
 
 interface Me {
+  id: string;
   email: string;
   isOwner: boolean;
   emailVerified: boolean;

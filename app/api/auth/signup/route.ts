@@ -6,6 +6,9 @@ import {
   getUserById,
   createUser,
   setUserPartner,
+  verifyPassword,
+  createSession,
+  sessionCookie,
   createVerificationToken,
   publicOrigin,
 } from "@/lib/auth";
@@ -36,10 +39,16 @@ export async function POST(request: Request) {
   try {
     const existing = await getUserByEmail(email);
     if (existing && existing.emailVerified) {
-      return NextResponse.json(
-        { error: "An account with this email already exists. Please log in." },
-        { status: 409 }
-      );
+      if (!verifyPassword(password, existing.passwordHash)) {
+        return NextResponse.json(
+          { error: "An account with this email already exists. Enter the account password to log in." },
+          { status: 401 }
+        );
+      }
+      const session = await createSession(existing.id);
+      const res = NextResponse.json({ ok: true, loggedIn: true, isOwner: existing.isOwner });
+      res.cookies.set(sessionCookie(session));
+      return res;
     }
     let validPartnerId: string | null = null;
     if (partnerId) {
