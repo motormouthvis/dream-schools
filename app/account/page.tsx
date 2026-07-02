@@ -10,13 +10,28 @@ function fmtDate(v?: string): string {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 }
 
+async function signOut() {
+  await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+  window.location.href = "/login";
+}
+
 export default function AccountPage() {
   return (
     <AppShell active="account">
       {(me) => (
         <>
-          <h1 className="text-xl font-extrabold text-ink-900">Account Settings</h1>
-          <p className="text-[12px] text-slate-500">Your sign-in details.</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-extrabold text-ink-900">Account Settings</h1>
+              <p className="text-[12px] text-slate-500">Your sign-in details.</p>
+            </div>
+            <button
+              onClick={signOut}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              Sign out
+            </button>
+          </div>
 
           <div className="mt-4 max-w-md space-y-3">
             <div className="rounded-xl border border-slate-200 bg-white p-4">
