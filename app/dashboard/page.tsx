@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app/AppShell";
 
-const SNIPPET = `<script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
+// Key value props (mirrors the marketing site's School Explorer card).
+const VALUE_PROPS: [string, React.ReactNode][] = [
+  ["Save $50–$100/month", <>vs. other school-data tools — ours is <strong>free, forever</strong>.</>],
+  ["No website redesign", <>our unique popup technology installs with <strong>one line of code</strong>.</>],
+  ["No ads, ever", <>Your brand, on your site. <strong>No Credit Card — Ever.</strong></>],
+];
 
 const BENEFITS: [string, string, string][] = [
   ["💸", "No expensive data fees", "Avoid paying pricey monthly school-data tools — ours is free forever."],
@@ -16,7 +21,6 @@ const BENEFITS: [string, string, string][] = [
 
 export default function DashboardPage() {
   const [config, setConfig] = useState<any>(null);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetch("/api/app/config")
@@ -30,12 +34,32 @@ export default function DashboardPage() {
 
   return (
     <AppShell active="home">
-      {(me) => (
+      {() => (
         <>
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-extrabold text-ink-900">Your School Explorer</h1>
+          {/* Hero banner — matches the marketing site */}
+          <div className="relative overflow-hidden rounded-3xl ring-1 ring-inset ring-brand-600/10">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/hero-banner.png"
+              alt="A friendly neighborhood with a school and children walking"
+              className="h-[200px] w-full object-cover object-right sm:h-[230px]"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/30 sm:via-white/75 sm:to-transparent" />
+            <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10">
+              <h1 className="max-w-md text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">
+                School Explorer
+              </h1>
+              <p className="mt-1 max-w-[15rem] text-base font-bold leading-snug text-ink-800 sm:max-w-md sm:text-xl">
+                Find the Best Schools in Your New Neighborhood
+              </p>
+              <p className="mt-2 max-w-[17rem] text-xs font-semibold leading-snug text-slate-700 sm:max-w-sm">
+                Real ratings, test scores &amp; safety for any address —{" "}
+                <span className="font-bold text-brand-700">free, forever.</span>
+              </p>
+            </div>
           </div>
 
+          {/* Status + primary CTA */}
           <div
             className={`mt-4 flex items-center justify-between gap-4 rounded-xl p-4 ring-1 ring-inset ${
               active ? "bg-brand-50 ring-brand-600/15" : "bg-amber-50 ring-amber-500/25"
@@ -46,37 +70,43 @@ export default function DashboardPage() {
                 {active ? `● Active on ${domain}` : "Add your website to activate the popup"}
               </div>
               <div className="mt-0.5 text-[12px] text-slate-600">
-                {active ? "Free forever · installed." : "The popup stays off until you set an authorized domain."}
+                {active
+                  ? "Free forever · installed."
+                  : "The popup stays off until you set an authorized domain."}
               </div>
             </div>
             <a
               href="/edit"
               className="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700"
             >
-              Edit School Explorer →
+              Configure School Explorer →
             </a>
           </div>
 
-          <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-            <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">One-line install</div>
-            <div className="flex items-center gap-2">
-              <code className="min-w-0 flex-1 overflow-x-auto rounded bg-slate-900 px-3 py-2 text-[12px] text-slate-100">
-                {SNIPPET}
-              </code>
-              <button
-                onClick={() => {
-                  navigator.clipboard?.writeText(SNIPPET);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 1500);
-                }}
-                className="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
-              >
-                {copied ? "Copied" : "Copy"}
-              </button>
-            </div>
-            <p className="mt-1.5 text-[11px] text-slate-400">Paste before &lt;/body&gt; on every page.</p>
+          {/* Value props */}
+          <div className="mt-4 rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-lime-50 p-6">
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-600/15">
+              ★ Free forever · no ads
+            </span>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600">
+              Put a beautiful school-ratings explorer on every listing — ratings, test scores,
+              college readiness &amp; safety, nationwide.
+            </p>
+            <ul className="mt-4 space-y-2.5 text-sm text-slate-700">
+              {VALUE_PROPS.map(([title, desc], i) => (
+                <li key={i} className="flex items-start gap-2.5">
+                  <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand-600 text-[10px] font-bold text-white">
+                    ✓
+                  </span>
+                  <span>
+                    <strong>{title}</strong> — {desc}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
 
+          {/* Benefits grid */}
           <div className="mt-5 text-sm font-bold text-slate-700">Why agents love it</div>
           <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {BENEFITS.map(([icon, title, desc]) => (
@@ -87,6 +117,33 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
+
+          {/* Coverage + footer — matches the marketing site */}
+          <p className="mx-auto mt-10 max-w-2xl text-center text-[11px] leading-relaxed text-slate-400">
+            Coverage: ~119k U.S. public &amp; private schools (NCES CCD, CRDC, EDFacts, PSS).
+            Private-school data is limited.
+          </p>
+          <footer className="mx-auto mt-6 max-w-2xl border-t border-slate-200 pt-6 text-center text-xs text-slate-500">
+            <p>© 2026 Dream Neighborhood. All rights reserved.</p>
+            <div className="mt-2 flex items-center justify-center gap-5">
+              <a
+                href="https://docs.google.com/document/d/e/2PACX-1vSndxJR71x1k8uI1vmjOZGYvWfpxM-TJSFuMVXclgzx_h5P1Iey2BdKlY0DDiVPSGTJLn0NMLYKXTB5/pub"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-slate-600 transition hover:text-brand-700"
+              >
+                Terms of Service
+              </a>
+              <a
+                href="https://docs.google.com/document/d/e/2PACX-1vREF8QKsVkEpUyWff3FWUU8D4GoS2aRtz67qgCTmMb2uIQcXHjaqgBtJi6OBhUw-uZsqgM5itrsrxFR/pub"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-slate-600 transition hover:text-brand-700"
+              >
+                Privacy Policy
+              </a>
+            </div>
+          </footer>
         </>
       )}
     </AppShell>

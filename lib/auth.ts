@@ -147,6 +147,16 @@ export async function updatePassword(userId: string, newPassword: string): Promi
   ]);
 }
 
+// Change the account's email. Throws a Postgres unique-violation (code 23505)
+// if the new address is already taken.
+export async function updateEmail(userId: string, newEmail: string): Promise<void> {
+  await ensureTables();
+  await getPool().query(`UPDATE app_users SET email = $1 WHERE id = $2`, [
+    normalizeEmail(newEmail),
+    userId,
+  ]);
+}
+
 export async function createUser(email: string, password: string): Promise<AppUser> {
   await ensureTables();
   const pool = getPool();

@@ -114,6 +114,8 @@ export default function LoginPage() {
         <label className="block text-xs font-bold text-slate-600">Email</label>
         <input
           type="email"
+          name="email"
+          autoComplete="username"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -135,6 +137,8 @@ export default function LoginPage() {
             </div>
             <input
               type={showPw ? "text" : "password"}
+              name="password"
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
               required
               minLength={8}
               value={password}

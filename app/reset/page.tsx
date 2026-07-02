@@ -5,6 +5,7 @@ import { SchoolhouseMark } from "@/components/Logo";
 
 export default function ResetPage() {
   const [token, setToken] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -12,8 +13,9 @@ export default function ResetPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = new URLSearchParams(window.location.search).get("token") || "";
-    setToken(t);
+    const params = new URLSearchParams(window.location.search);
+    setToken(params.get("token") || "");
+    setEmail(params.get("email") || "");
   }, []);
 
   async function submit(e: React.FormEvent) {
@@ -58,7 +60,20 @@ export default function ResetPage() {
           </p>
         ) : (
           <form onSubmit={submit} className="mt-4">
-            <div className="flex items-center justify-between">
+            {/* Username field for password managers to associate the new
+                credential with the right account. */}
+            <label className="block text-xs font-bold text-slate-600">Email</label>
+            <input
+              type="email"
+              name="email"
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              readOnly={Boolean(email)}
+              placeholder="you@agency.com"
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+            />
+            <div className="mt-3 flex items-center justify-between">
               <label className="block text-xs font-bold text-slate-600">New password</label>
               <button
                 type="button"
@@ -70,6 +85,8 @@ export default function ResetPage() {
             </div>
             <input
               type={showPw ? "text" : "password"}
+              name="new-password"
+              autoComplete="new-password"
               required
               minLength={8}
               value={password}
@@ -80,6 +97,7 @@ export default function ResetPage() {
             <label className="mt-3 block text-xs font-bold text-slate-600">Confirm password</label>
             <input
               type={showPw ? "text" : "password"}
+              autoComplete="new-password"
               required
               minLength={8}
               value={confirm}

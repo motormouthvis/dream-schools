@@ -99,7 +99,7 @@ export default function EditPage() {
         <>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-extrabold text-ink-900">Edit School Explorer</h1>
+              <h1 className="text-xl font-extrabold text-ink-900">Configure School Explorer</h1>
               <p className="text-[12px] text-slate-500">Grouped by where it appears.</p>
             </div>
             <div className="flex items-center gap-3">
@@ -114,6 +114,8 @@ export default function EditPage() {
             </div>
           </div>
           {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+
+          <InstallCode />
 
           {!loaded ? (
             <p className="mt-6 text-slate-400">Loading…</p>
@@ -168,6 +170,67 @@ export default function EditPage() {
         </>
       )}
     </AppShell>
+  );
+}
+
+const POPUP_SNIPPET = `<script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
+const INLINE_SNIPPET = `<div id="dream-schools-explorer"></div>
+<script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
+
+function InstallCode() {
+  return (
+    <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+      <h2 className="mb-1 flex items-center gap-2 text-sm font-bold text-ink-900">
+        <span className="h-3 w-1.5 rounded bg-brand-500" />
+        Install code
+      </h2>
+      <p className="mb-3 text-[12px] text-slate-500">
+        Paste before <code>&lt;/body&gt;</code> on your site. Works on WordPress, Squarespace, Wix,
+        IDX platforms, and custom sites.
+      </p>
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <div>
+          <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+            Floating popup
+          </div>
+          <CodeBlock code={POPUP_SNIPPET} />
+          <p className="mt-1 text-[11px] text-slate-400">
+            A school-explorer button appears in the corner of every page.
+          </p>
+        </div>
+        <div>
+          <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+            Inline embed
+          </div>
+          <CodeBlock code={INLINE_SNIPPET} />
+          <p className="mt-1 text-[11px] text-slate-400">
+            Renders the explorer directly inside the page where you place the div.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CodeBlock({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="relative">
+      <pre className="overflow-x-auto rounded-lg border border-slate-200 bg-slate-900 px-3 py-2.5 pr-14 text-[12px] leading-relaxed text-slate-100">
+        <code>{code}</code>
+      </pre>
+      <button
+        type="button"
+        onClick={() => {
+          navigator.clipboard?.writeText(code);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        }}
+        className="absolute right-2 top-2 rounded-md bg-white/10 px-2 py-1 text-[11px] font-semibold text-white transition hover:bg-white/20"
+      >
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </div>
   );
 }
 

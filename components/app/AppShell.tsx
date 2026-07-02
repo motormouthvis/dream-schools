@@ -7,6 +7,7 @@ interface Me {
   email: string;
   isOwner: boolean;
   emailVerified: boolean;
+  createdAt?: string;
 }
 
 export function AppShell({
@@ -63,8 +64,8 @@ export function AppShell({
             <span className="block text-[10px] font-semibold tracking-wider text-white/50">SCHOOLS</span>
           </span>
         </div>
-        {link("home", "🏠  Home", "/dashboard")}
-        {link("edit", "Edit School Explorer", "/edit")}
+        {link("home", "Home", "/dashboard")}
+        {link("edit", "Configure School Explorer", "/edit")}
         {link("account", "Account", "/account")}
         {me.isOwner && link("owner", "Owner Admin", "/owner")}
         <div className="mt-auto space-y-2 pt-4 text-[12px] text-white/50">

@@ -25,7 +25,10 @@ export async function POST(request: Request) {
     const user = await getUserByEmail(email);
     if (user) {
       const token = await createResetToken(user.id);
-      await sendResetEmail(email, `${publicOrigin(request)}/reset?token=${token}`);
+      // Include the email so the reset page can present it to password managers
+      // (autocomplete="username") and they save the new credential correctly.
+      const url = `${publicOrigin(request)}/reset?token=${token}&email=${encodeURIComponent(email)}`;
+      await sendResetEmail(email, url);
     }
   } catch (err) {
     console.error("request-reset failed:", err);
