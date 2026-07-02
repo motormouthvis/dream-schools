@@ -4,11 +4,11 @@ import { useState } from "react";
 import { AppShell } from "@/components/app/AppShell";
 
 export default function ContactPage() {
-  return <AppShell active="contact">{(me) => <ContactBody defaultEmail={me.email} />}</AppShell>;
+  return <AppShell active="contact">{() => <ContactBody />}</AppShell>;
 }
 
-function ContactBody({ defaultEmail }: { defaultEmail: string }) {
-  const [email, setEmail] = useState(defaultEmail);
+function ContactBody() {
+  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);

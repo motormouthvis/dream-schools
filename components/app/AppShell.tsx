@@ -55,8 +55,8 @@ export function AppShell({
   );
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
-      <aside className="flex w-60 shrink-0 flex-col bg-[#0b4a3d] p-4 text-white">
+    <div className="flex min-h-screen flex-col bg-slate-100 md:flex-row">
+      <aside className="flex shrink-0 flex-col bg-[#0b4a3d] p-4 text-white md:min-h-screen md:w-60">
         {/* Brand */}
         <div className="flex items-center gap-2 px-1">
           <SchoolhouseMark className="h-7 w-7 rounded" />
@@ -89,18 +89,21 @@ export function AppShell({
           {link("contact", "Contact us", "/contact")}
         </nav>
 
-        {/* Legal (small, bottom) */}
-        <div className="mt-auto flex items-center gap-2 pt-6 text-[11px] text-white/40">
-          <a href={TOS_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white/70">
-            Terms
-          </a>
-          <span aria-hidden>·</span>
-          <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white/70">
-            Privacy
-          </a>
+        {/* Legal + copyright (small, bottom) */}
+        <div className="mt-5 space-y-1 pt-4 text-[11px] text-white/40 md:mt-auto">
+          <p>© 2026 Dream Neighborhood.</p>
+          <div className="flex items-center gap-2">
+            <a href={TOS_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white/70">
+              Terms
+            </a>
+            <span aria-hidden>·</span>
+            <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white/70">
+              Privacy
+            </a>
+          </div>
         </div>
       </aside>
-      <main className="min-w-0 flex-1 overflow-y-auto p-6">{children(me)}</main>
+      <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">{children(me)}</main>
     </div>
   );
 }

@@ -67,6 +67,14 @@ export default function DashboardPage() {
               className="h-[200px] w-full object-cover object-right sm:h-[230px]"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/30 sm:via-white/75 sm:to-transparent" />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(240px 190px at top left, rgba(180,220,100,0.24), rgba(180,220,100,0) 72%)",
+              }}
+            />
             <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10">
               <h1 className="max-w-md text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">
                 School Explorer
@@ -104,6 +112,22 @@ export default function DashboardPage() {
                   </li>
                 ))}
               </ul>
+              <div className="mt-auto flex flex-wrap gap-2 pt-5">
+                <a
+                  href="https://www.dreamneighborhoodschools.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-xl border border-brand-600 px-4 py-2 text-sm font-bold text-brand-700 transition hover:bg-brand-50"
+                >
+                  See it live
+                </a>
+                <a
+                  href="/edit"
+                  className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700"
+                >
+                  Configure
+                </a>
+              </div>
             </div>
 
             {/* RIGHT — Neighborhood Explorer upgrade CTA */}
@@ -122,81 +146,55 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          {/* Status (half) + link to the marketing website (half) */}
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
+          {/* Status */}
+          <div className="mt-5">
             <div
-              className={`flex flex-col justify-center rounded-xl p-4 ring-1 ring-inset ${
-                active ? "bg-brand-50 ring-brand-600/15" : "bg-amber-50 ring-amber-500/25"
+              className={`overflow-hidden rounded-3xl p-5 shadow-sm ring-1 ring-inset ${
+                active
+                  ? "border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-lime-50 ring-brand-600/15"
+                  : "border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-lime-50 ring-amber-500/25"
               }`}
             >
-              <div className={`text-sm font-bold ${active ? "text-brand-900" : "text-amber-900"}`}>
-                {active ? `● Active on ${domain}` : "Add your website to activate the popup"}
-              </div>
-              <div className="mt-0.5 text-[12px] text-slate-600">
-                {active
-                  ? "Free forever · installed."
-                  : "The popup stays off until you set an authorized domain."}
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className={`text-base font-extrabold ${active ? "text-brand-900" : "text-amber-900"}`}>
+                    {active
+                      ? `Popup or Embedded School Explorer Active on ${domain}`
+                      : "Add your website to activate the popup or embed"}
+                  </div>
+                  <div className="mt-0.5 text-[12px] text-slate-600">
+                    {active
+                      ? "Free forever · installed."
+                      : "Both the popup and the embed stay off until you set an authorized domain."}
+                  </div>
+                </div>
+                <a
+                  href="/edit"
+                  className="w-fit shrink-0 rounded-xl bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700"
+                >
+                  Configure
+                </a>
               </div>
               {active && (
-                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-slate-600">
-                  <span>
-                    <strong className="text-ink-900">{(usage?.views ?? 0).toLocaleString()}</strong> views
-                  </span>
-                  {firstInstalled && (
-                    <span>
-                      First installed: <strong className="text-ink-900">{firstInstalled}</strong>
-                    </span>
-                  )}
-                  {lastActive && (
-                    <span>
-                      Last accessed: <strong className="text-ink-900">{lastActive}</strong>
-                    </span>
-                  )}
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <Stat label="Views" value={(usage?.views ?? 0).toLocaleString()} />
+                  <Stat label="First installed" value={firstInstalled || "Not detected yet"} />
+                  <Stat label="Last accessed" value={lastActive || "Not detected yet"} />
                 </div>
               )}
             </div>
-
-            <a
-              href="https://www.dreamneighborhoodschools.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex flex-col justify-center rounded-xl border border-slate-200 bg-white p-4 transition hover:border-brand-300 hover:bg-brand-50/40"
-            >
-              <div className="text-sm font-bold text-ink-900">See it live on our website →</div>
-              <div className="mt-0.5 text-[12px] text-slate-600">
-                Explore the public School Explorer at dreamneighborhoodschools.com.
-              </div>
-            </a>
           </div>
-
-          {/* Coverage + footer — matches the marketing site */}
-          <p className="mx-auto mt-10 max-w-2xl text-center text-[11px] leading-relaxed text-slate-400">
-            Coverage: ~119k U.S. public &amp; private schools (NCES CCD, CRDC, EDFacts, PSS).
-            Private-school data is limited.
-          </p>
-          <footer className="mx-auto mt-6 max-w-2xl border-t border-slate-200 pt-6 text-center text-xs text-slate-500">
-            <p>© 2026 Dream Neighborhood. All rights reserved.</p>
-            <div className="mt-2 flex items-center justify-center gap-5">
-              <a
-                href="https://docs.google.com/document/d/e/2PACX-1vSndxJR71x1k8uI1vmjOZGYvWfpxM-TJSFuMVXclgzx_h5P1Iey2BdKlY0DDiVPSGTJLn0NMLYKXTB5/pub"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-slate-600 transition hover:text-brand-700"
-              >
-                Terms of Service
-              </a>
-              <a
-                href="https://docs.google.com/document/d/e/2PACX-1vREF8QKsVkEpUyWff3FWUU8D4GoS2aRtz67qgCTmMb2uIQcXHjaqgBtJi6OBhUw-uZsqgM5itrsrxFR/pub"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-slate-600 transition hover:text-brand-700"
-              >
-                Privacy Policy
-              </a>
-            </div>
-          </footer>
         </>
       )}
     </AppShell>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/80 bg-white/75 p-3 shadow-sm">
+      <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="mt-1 text-sm font-extrabold text-ink-900">{value}</div>
+    </div>
   );
 }

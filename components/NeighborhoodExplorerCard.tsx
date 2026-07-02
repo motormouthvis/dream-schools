@@ -47,7 +47,7 @@ export function NeighborhoodExplorerCard() {
               {[...row, ...row].map((t, i) => (
                 <span
                   key={`${t}-${i}`}
-                  className="mr-1.5 shrink-0 rounded-full bg-brand-100 px-2.5 py-1 text-[11px] font-semibold text-brand-700 ring-1 ring-inset ring-brand-600/15"
+                  className="mr-1.5 shrink-0 rounded-full bg-lime2-400/25 px-2.5 py-1 text-[11px] font-semibold text-[#49660f] ring-1 ring-inset ring-lime2-500/25"
                 >
                   {t}
                 </span>
