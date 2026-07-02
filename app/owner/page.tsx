@@ -597,7 +597,7 @@ function EditModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
+        className="flex max-h-[90vh] w-full max-w-md flex-col rounded-2xl bg-white p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-extrabold text-ink-900">Edit customer</h2>
@@ -608,7 +608,7 @@ function EditModal({
           </p>
         )}
 
-        <div className="mt-4 space-y-3">
+        <div className="-mr-2 mt-4 flex-1 space-y-3 overflow-y-auto pr-2">
           <L label="Email">
             <input
               type="email"
@@ -724,9 +724,9 @@ function EditModal({
           )}
         </div>
 
-        {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+        {error && <p className="mt-3 shrink-0 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
 
-        <div className="mt-5 flex flex-wrap justify-end gap-2">
+        <div className="mt-4 flex shrink-0 flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
           {customer.deletedAt && (
             <button
               onClick={() => setRestoreReason("")}
