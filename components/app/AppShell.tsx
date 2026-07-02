@@ -2,11 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SchoolhouseMark } from "@/components/Logo";
-
-const TOS_URL =
-  "https://docs.google.com/document/d/e/2PACX-1vSndxJR71x1k8uI1vmjOZGYvWfpxM-TJSFuMVXclgzx_h5P1Iey2BdKlY0DDiVPSGTJLn0NMLYKXTB5/pub";
-const PRIVACY_URL =
-  "https://docs.google.com/document/d/e/2PACX-1vREF8QKsVkEpUyWff3FWUU8D4GoS2aRtz67qgCTmMb2uIQcXHjaqgBtJi6OBhUw-uZsqgM5itrsrxFR/pub";
+import { TERMS_URL, PRIVACY_URL } from "@/lib/legalLinks";
 
 interface Me {
   email: string;
@@ -93,7 +89,7 @@ export function AppShell({
         <div className="mt-5 space-y-1 pt-4 text-[11px] text-white/40 md:mt-auto">
           <p>© 2026 Dream Neighborhood.</p>
           <div className="flex items-center gap-2">
-            <a href={TOS_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white/70">
+            <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white/70">
               Terms
             </a>
             <span aria-hidden>·</span>

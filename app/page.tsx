@@ -7,6 +7,7 @@ import { SettingsMenu } from "@/components/SettingsMenu";
 import { DataSourcesModal } from "@/components/DataSourcesModal";
 import { ExplorerPromo } from "@/components/ExplorerPromo";
 import { getRecent, addRecent, removeRecent, type RecentSearch } from "@/lib/recent";
+import { TERMS_URL, PRIVACY_URL } from "@/lib/legalLinks";
 import type { LookupResult } from "@/lib/types";
 
 interface Suggestion {
@@ -449,7 +450,7 @@ export default function Home() {
         <p>© 2026 Dream Neighborhood. All rights reserved.</p>
         <div className="mt-2 flex items-center justify-center gap-5">
           <a
-            href="https://docs.google.com/document/d/e/2PACX-1vSndxJR71x1k8uI1vmjOZGYvWfpxM-TJSFuMVXclgzx_h5P1Iey2BdKlY0DDiVPSGTJLn0NMLYKXTB5/pub"
+            href={TERMS_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-slate-600 transition hover:text-brand-700"
@@ -457,7 +458,7 @@ export default function Home() {
             Terms of Service
           </a>
           <a
-            href="https://docs.google.com/document/d/e/2PACX-1vREF8QKsVkEpUyWff3FWUU8D4GoS2aRtz67qgCTmMb2uIQcXHjaqgBtJi6OBhUw-uZsqgM5itrsrxFR/pub"
+            href={PRIVACY_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-slate-600 transition hover:text-brand-700"

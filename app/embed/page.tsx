@@ -5,6 +5,7 @@ import { SchoolsTab } from "@/components/SchoolsTab";
 import { SchoolDetailModal } from "@/components/SchoolDetailModal";
 import { SchoolhouseMark } from "@/components/Logo";
 import { getRecent, addRecent, removeRecent, type RecentSearch } from "@/lib/recent";
+import { TERMS_URL, PRIVACY_URL } from "@/lib/legalLinks";
 import type { LookupResult } from "@/lib/types";
 
 // Chrome-less "Dream Neighborhood School Explorer" served for the embeddable
@@ -579,7 +580,7 @@ export default function EmbedExplorer() {
       <footer className="shrink-0 border-t border-slate-100 px-4 py-1.5 text-center text-[10px] text-slate-500">
         © 2026 Dream Neighborhood ·{" "}
         <a
-          href="https://docs.google.com/document/d/e/2PACX-1vSndxJR71x1k8uI1vmjOZGYvWfpxM-TJSFuMVXclgzx_h5P1Iey2BdKlY0DDiVPSGTJLn0NMLYKXTB5/pub"
+          href={TERMS_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="font-medium text-slate-600 hover:underline"
@@ -588,7 +589,7 @@ export default function EmbedExplorer() {
         </a>{" "}
         ·{" "}
         <a
-          href="https://docs.google.com/document/d/e/2PACX-1vREF8QKsVkEpUyWff3FWUU8D4GoS2aRtz67qgCTmMb2uIQcXHjaqgBtJi6OBhUw-uZsqgM5itrsrxFR/pub"
+          href={PRIVACY_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="font-medium text-slate-600 hover:underline"
