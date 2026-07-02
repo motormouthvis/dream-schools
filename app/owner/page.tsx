@@ -24,6 +24,7 @@ interface Customer {
   partnerId: string | null;
   partnerName: string | null;
   companyName: string;
+  businessName: string;
   createdAt: string;
   deletedAt: string | null;
   authorizedDomain: string | null;
@@ -532,6 +533,7 @@ function EditModal({
   const [isPartner, setIsPartner] = useState(customer.isPartner);
   const [partnerId, setPartnerId] = useState(customer.partnerId || "");
   const [companyName, setCompanyName] = useState(customer.companyName || "");
+  const [businessName, setBusinessName] = useState(customer.businessName || "");
   const [restoreReason, setRestoreReason] = useState<null | string>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -553,6 +555,7 @@ function EditModal({
         payload.isPartner = isPartner;
         payload.partnerId = isPartner ? "" : partnerId;
         payload.companyName = companyName;
+        payload.businessName = businessName;
       }
       const res = await fetch("/api/owner/customers", {
         method: "PATCH",
@@ -619,6 +622,11 @@ function EditModal({
               onChange={(e) => setEmail(e.target.value)}
             />
           </L>
+          {isAdmin && (
+            <L label="Business / agent name" hint="Used for personalization in upgrade prompts and notifications.">
+              <input className={inp} value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Coastal Realty or Jane Doe" />
+            </L>
+          )}
           <L label="Authorized domain" hint="Base domain — works on all pages & subdomains. Popup is OFF until set.">
             <input
               className={inp}

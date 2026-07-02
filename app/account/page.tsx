@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app/AppShell";
 
 function fmtDate(v?: string): string {
@@ -46,6 +46,10 @@ export default function AccountPage() {
 
           {me.isPartner && (
             <PartnerDesignation initialCompanyName={me.companyName || ""} isPartner={me.isPartner} />
+          )}
+          <BusinessProfile initialBusinessName={me.businessName || ""} />
+          {(me.isOwner || me.isPartner) && (
+            <UpgradePromptSettings isOwner={me.isOwner} isPartner={me.isPartner} />
           )}
           <ChangeEmail currentEmail={me.email} />
           <ChangePassword email={me.email} />
@@ -118,6 +122,159 @@ function PartnerDesignation({
         </button>
       </form>
     </Card>
+  );
+}
+
+function BusinessProfile({ initialBusinessName }: { initialBusinessName: string }) {
+  const [businessName, setBusinessName] = useState(initialBusinessName);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setDone(false);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/business-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessName }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(j.error || "Could not save business name.");
+        return;
+      }
+      setDone(true);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card title="Business / Agent Name">
+      <form onSubmit={save} className="space-y-3">
+        <div>
+          <label className="block text-xs font-bold text-slate-600">
+            Name used for personalization
+          </label>
+          <input
+            className={inp}
+            value={businessName}
+            onChange={(e) => setBusinessName(e.target.value)}
+            placeholder="Coastal Realty or Jane Doe"
+          />
+          <p className="mt-1 text-[11px] text-slate-400">
+            Used in upgrade prompts and messages when available.
+          </p>
+        </div>
+        {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
+        {done && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">Business name saved ✓</p>}
+        <button type="submit" disabled={busy} className={btn}>
+          {busy ? "Saving…" : "Save business name"}
+        </button>
+      </form>
+    </Card>
+  );
+}
+
+function UpgradePromptSettings({ isOwner, isPartner }: { isOwner: boolean; isPartner: boolean }) {
+  const [loaded, setLoaded] = useState(false);
+  const [views, setViews] = useState("2");
+  const [days, setDays] = useState("7");
+  const [idle, setIdle] = useState("8");
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/upgrade-settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!j) return;
+        const src = isOwner ? j.global : {
+          viewsToTrigger: j.partnerOverride?.viewsToTrigger ?? j.global?.viewsToTrigger,
+          minDaysBetween: j.partnerOverride?.minDaysBetween ?? j.global?.minDaysBetween,
+          idleSeconds: j.partnerOverride?.idleSeconds ?? j.global?.idleSeconds,
+        };
+        setViews(String(src?.viewsToTrigger ?? 2));
+        setDays(String(src?.minDaysBetween ?? 7));
+        setIdle(String(src?.idleSeconds ?? 8));
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, [isOwner]);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setDone(false);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/upgrade-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scope: isPartner && !isOwner ? "partner" : "global",
+          viewsToTrigger: views,
+          minDaysBetween: days,
+          idleSeconds: idle,
+        }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(j.error || "Could not save prompt settings.");
+        return;
+      }
+      setDone(true);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card title={isOwner ? "Upgrade Prompt Defaults" : "Upgrade Prompt Settings"}>
+      <p className="mb-3 text-[12px] leading-relaxed text-slate-500">
+        Controls when the Neighborhood Explorer request prompt appears. It only appears during an idle break, never while a visitor is actively clicking or scrolling. If they request access, it is suppressed for 90 days.
+      </p>
+      {!loaded ? (
+        <p className="text-sm text-slate-400">Loading…</p>
+      ) : (
+        <form onSubmit={save} className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <NumberField label="Views to trigger" value={views} onChange={setViews} min={1} />
+            <NumberField label="Minimum days between prompts" value={days} onChange={setDays} min={1} />
+            <NumberField label="Idle seconds before showing" value={idle} onChange={setIdle} min={3} />
+          </div>
+          {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
+          {done && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">Prompt settings saved ✓</p>}
+          <button type="submit" disabled={busy} className={btn}>
+            {busy ? "Saving…" : "Save prompt settings"}
+          </button>
+        </form>
+      )}
+    </Card>
+  );
+}
+
+function NumberField({ label, value, onChange, min }: { label: string; value: string; onChange: (v: string) => void; min: number }) {
+  return (
+    <label className="block">
+      <span className="block text-xs font-bold text-slate-600">{label}</span>
+      <input
+        type="number"
+        min={min}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={inp}
+      />
+    </label>
   );
 }
 

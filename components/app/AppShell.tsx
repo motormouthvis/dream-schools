@@ -11,6 +11,7 @@ interface Me {
   isPartner: boolean;
   partnerId: string | null;
   companyName: string;
+  businessName: string;
   createdAt?: string;
 }
 

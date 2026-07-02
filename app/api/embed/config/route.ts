@@ -2,6 +2,7 @@ import { preflight, withCors } from "@/lib/embedCors";
 import { presentationPayload, resolveByHost } from "@/lib/embedConfig";
 import { recordUsageAsync } from "@/lib/embedUsage";
 import { getPool, hasDatabase } from "@/lib/db";
+import { getGlobalUpgradeSettings, REQUEST_SUPPRESS_DAYS } from "@/lib/upgradePrompt";
 
 export const dynamic = "force-dynamic";
 
@@ -43,20 +44,48 @@ export async function GET(request: Request) {
   recordUsageAsync(config.partnerId, config.widgetNumber);
 
   let providerName = "";
+  let businessName = "";
+  let partnerId: string | null = null;
+  let partnerOverride: { viewsToTrigger: number | null; minDaysBetween: number | null; idleSeconds: number | null } = {
+    viewsToTrigger: null,
+    minDaysBetween: null,
+    idleSeconds: null,
+  };
   if (hasDatabase() && !config.partnerId.startsWith("host:")) {
     try {
       const { rows } = await getPool().query(
-        `SELECT COALESCE(NULLIF(partner.company_name, ''), NULLIF(u.company_name, '')) AS provider_name
+        `SELECT
+            u.business_name,
+            u.partner_id,
+            COALESCE(NULLIF(partner.company_name, ''), NULLIF(u.company_name, ''), NULLIF(u.business_name, '')) AS provider_name,
+            partner.upgrade_views_to_trigger,
+            partner.upgrade_min_days_between,
+            partner.upgrade_idle_seconds
            FROM app_users u
            LEFT JOIN app_users partner ON partner.id = u.partner_id
           WHERE u.id = $1`,
         [config.partnerId]
       );
       providerName = rows[0]?.provider_name || "";
+      businessName = rows[0]?.business_name || "";
+      partnerId = rows[0]?.partner_id || null;
+      partnerOverride = {
+        viewsToTrigger: rows[0]?.upgrade_views_to_trigger == null ? null : Number(rows[0].upgrade_views_to_trigger),
+        minDaysBetween: rows[0]?.upgrade_min_days_between == null ? null : Number(rows[0].upgrade_min_days_between),
+        idleSeconds: rows[0]?.upgrade_idle_seconds == null ? null : Number(rows[0].upgrade_idle_seconds),
+      };
     } catch (err) {
       console.error("providerName lookup failed:", err);
     }
   }
+  const globalUpgrade = await getGlobalUpgradeSettings();
+  const upgradePrompt = {
+    enabled: true,
+    viewsToTrigger: partnerOverride.viewsToTrigger ?? globalUpgrade.viewsToTrigger,
+    minDaysBetween: partnerOverride.minDaysBetween ?? globalUpgrade.minDaysBetween,
+    idleSeconds: partnerOverride.idleSeconds ?? globalUpgrade.idleSeconds,
+    requestSuppressDays: REQUEST_SUPPRESS_DAYS,
+  };
 
   const payload = {
     enabled: true,
@@ -64,6 +93,10 @@ export async function GET(request: Request) {
     widgetNumber: config.widgetNumber,
     defaultAddress: config.defaultAddress || "",
     providerName,
+    businessName,
+    customerId: config.partnerId,
+    customerPartnerId: partnerId,
+    upgradePrompt,
     ...presentationPayload(config),
   };
   const res = withCors(request, payload);

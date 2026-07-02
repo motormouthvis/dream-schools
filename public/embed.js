@@ -159,6 +159,10 @@
         apiBase: apiBase,
         defaultAddress: (remote && remote.defaultAddress) || "",
         providerName: (remote && remote.providerName) || "",
+        businessName: (remote && remote.businessName) || "",
+        customerId: (remote && (remote.customerId || remote.partnerId)) || partnerId,
+        customerPartnerId: (remote && remote.customerPartnerId) || "",
+        upgradePrompt: (remote && remote.upgradePrompt) || null,
         accentColor: pres.accentColor,
         position: pres.position,
         bottomOffset: pres.bottomOffset,
@@ -397,6 +401,15 @@
     if (mode === "inline" && config.inlineShowHeader) url += "&header=1";
     if (config.showExternalLinks) url += "&links=1";
     if (config.providerName) url += "&provider=" + encodeURIComponent(config.providerName);
+    if (config.businessName) url += "&business=" + encodeURIComponent(config.businessName);
+    if (config.customerId) url += "&customer=" + encodeURIComponent(config.customerId);
+    if (config.customerPartnerId) url += "&partner=" + encodeURIComponent(config.customerPartnerId);
+    if (config.upgradePrompt) {
+      url += "&uv=" + encodeURIComponent(config.upgradePrompt.viewsToTrigger || 2);
+      url += "&ud=" + encodeURIComponent(config.upgradePrompt.minDaysBetween || 7);
+      url += "&ui=" + encodeURIComponent(config.upgradePrompt.idleSeconds || 8);
+      url += "&ur=" + encodeURIComponent(config.upgradePrompt.requestSuppressDays || 90);
+    }
     if (coords) {
       if (coords.address) url += "&address=" + encodeURIComponent(coords.address);
       if (coords.lat != null && coords.lon != null) url += "&lat=" + encodeURIComponent(coords.lat) + "&lng=" + encodeURIComponent(coords.lon);

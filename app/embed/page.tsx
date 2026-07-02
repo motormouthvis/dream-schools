@@ -27,6 +27,13 @@ interface EmbedParams {
   header: boolean;
   links: boolean;
   provider: string;
+  business: string;
+  customer: string;
+  partner: string;
+  upgradeViews: number;
+  upgradeDays: number;
+  upgradeIdle: number;
+  upgradeRequestSuppressDays: number;
 }
 
 interface Suggestion {
@@ -51,6 +58,13 @@ function readParams(): EmbedParams {
     header: p.get("header") === "1",
     links: p.get("links") === "1",
     provider: (p.get("provider") || "").trim(),
+    business: (p.get("business") || "").trim(),
+    customer: (p.get("customer") || "").trim(),
+    partner: (p.get("partner") || "").trim(),
+    upgradeViews: Math.max(1, Number.parseInt(p.get("uv") || "2", 10) || 2),
+    upgradeDays: Math.max(1, Number.parseInt(p.get("ud") || "7", 10) || 7),
+    upgradeIdle: Math.max(3, Number.parseInt(p.get("ui") || "8", 10) || 8),
+    upgradeRequestSuppressDays: Math.max(1, Number.parseInt(p.get("ur") || "90", 10) || 90),
   };
 }
 
@@ -97,6 +111,10 @@ export default function EmbedExplorer() {
   const [nationwide, setNationwide] = useState(false);
   const [view, setView] = useState<"list" | "map">("list");
   const [selected, setSelected] = useState<string | null>(null);
+  const [schoolViews, setSchoolViews] = useState(0);
+  const [upgradeVisible, setUpgradeVisible] = useState(false);
+  const [upgradeRequested, setUpgradeRequested] = useState(false);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [address, setAddress] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -113,6 +131,103 @@ export default function EmbedExplorer() {
   const accent = params?.accent || "#1fa55f";
   const isInline = params?.mode === "inline";
   const headerTitle = `Dream Neighborhood School Explorer${params?.provider ? ` provided by ${params.provider}` : ""}`;
+
+  const upgradeKey = params?.customer ? `dse-upgrade-prompt:${params.customer}` : "";
+  const requestKey = params?.customer ? `dse-upgrade-requested:${params.customer}` : "";
+
+  function canShowUpgrade(): boolean {
+    if (!params?.customer || !upgradeKey || !requestKey) return false;
+    if (schoolViews < params.upgradeViews) return false;
+    try {
+      const now = Date.now();
+      const dismissed = Number(localStorage.getItem(upgradeKey) || 0);
+      const requested = Number(localStorage.getItem(requestKey) || 0);
+      if (dismissed && now - dismissed < params.upgradeDays * 86400000) return false;
+      if (requested && now - requested < params.upgradeRequestSuppressDays * 86400000) return false;
+    } catch {
+      return false;
+    }
+    return true;
+  }
+
+  function markUpgradeDismissed(daysOverride?: number) {
+    try {
+      localStorage.setItem(daysOverride ? requestKey : upgradeKey, String(Date.now()));
+    } catch {}
+    setUpgradeVisible(false);
+  }
+
+  function scheduleUpgradePrompt() {
+    if (!params) return;
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => {
+      if (canShowUpgrade()) setUpgradeVisible(true);
+    }, params.upgradeIdle * 1000);
+  }
+
+  function recordActivity() {
+    if (upgradeVisible) return;
+    scheduleUpgradePrompt();
+  }
+
+  useEffect(() => {
+    if (!params?.customer) return;
+    const events = ["pointerdown", "keydown", "wheel", "touchstart", "scroll"];
+    events.forEach((ev) => window.addEventListener(ev, recordActivity, { passive: true }));
+    return () => {
+      events.forEach((ev) => window.removeEventListener(ev, recordActivity as any));
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params?.customer, schoolViews, upgradeVisible]);
+
+  useEffect(() => {
+    if (schoolViews >= (params?.upgradeViews || 2)) scheduleUpgradePrompt();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schoolViews]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && upgradeVisible) markUpgradeDismissed();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [upgradeVisible]);
+
+  async function requestFullAccess() {
+    if (!params?.customer) return;
+    setUpgradeRequested(true);
+    try {
+      await fetch("/api/upgrade/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: params.customer,
+          partnerId: params.partner,
+          providerName: params.provider || params.business,
+          requesterKey: (() => {
+            try {
+              const key = `dse-visitor:${params.customer}`;
+              let v = localStorage.getItem(key);
+              if (!v) {
+                v = Math.random().toString(36).slice(2) + Date.now().toString(36);
+                localStorage.setItem(key, v);
+              }
+              return v;
+            } catch {
+              return "";
+            }
+          })(),
+          address: params.address || address,
+          source: params.mode,
+        }),
+      });
+      markUpgradeDismissed(params.upgradeRequestSuppressDays);
+    } catch {
+      markUpgradeDismissed(params.upgradeRequestSuppressDays);
+    }
+  }
   const screen: "home" | "results" = data ? "results" : "home";
 
   // Height coordination with the SDK:
@@ -586,7 +701,10 @@ export default function EmbedExplorer() {
                 fairHousing={false}
                 view={view}
                 onViewChange={setView}
-                onOpenSchool={setSelected}
+                onOpenSchool={(id) => {
+                  setSelected(id);
+                  setSchoolViews((n) => n + 1);
+                }}
                 listColumns={2}
               />
             )}
@@ -615,6 +733,100 @@ export default function EmbedExplorer() {
           Privacy
         </a>
       </footer>
+
+      {upgradeVisible && (
+        <UpgradePrompt
+          accent={accent}
+          providerName={params?.provider || params?.business || ""}
+          requested={upgradeRequested}
+          onDismiss={() => markUpgradeDismissed()}
+          onRequest={requestFullAccess}
+        />
+      )}
     </main>
+  );
+}
+
+function UpgradePrompt({
+  accent,
+  providerName,
+  requested,
+  onDismiss,
+  onRequest,
+}: {
+  accent: string;
+  providerName: string;
+  requested: boolean;
+  onDismiss: () => void;
+  onRequest: () => void;
+}) {
+  const buttonText = providerName ? `Request full access from ${providerName}` : "Request full access";
+  return (
+    <div className="fixed inset-0 z-50 flex bg-white">
+      <div className="flex min-h-0 w-full flex-col">
+        <header className="flex shrink-0 items-center justify-between px-4 py-2 text-white" style={{ backgroundColor: accent }}>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20">{PIN_SVG}</span>
+            <span className="truncate text-sm font-bold">Neighborhood Explorer</span>
+          </div>
+          <button
+            onClick={onDismiss}
+            aria-label="Close upgrade prompt"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xl leading-none hover:bg-white/20"
+          >
+            ×
+          </button>
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-b from-white via-lime-50/40 to-white px-5 py-5">
+          <div className="relative overflow-hidden rounded-3xl ring-1 ring-inset ring-brand-600/10">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/hero-banner.png" alt="Neighborhood homes near schools" className="h-[180px] w-full object-cover object-right" />
+            <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/35" />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{ background: "radial-gradient(220px 170px at top left, rgba(180,220,100,0.25), rgba(180,220,100,0) 72%)" }}
+            />
+            <div className="absolute inset-0 flex flex-col justify-center px-6">
+              <h2 className="max-w-xs text-2xl font-extrabold leading-tight text-ink-900">
+                There&apos;s more to this neighborhood
+              </h2>
+              <p className="mt-2 max-w-xs text-sm font-semibold leading-snug text-slate-700">
+                Schools are just the start — see 38 hyperlocal insights.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 space-y-2.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            {[
+              "Home prices & market trends",
+              "Commute times & walkability",
+              "Safety, dining & lifestyle",
+            ].map((t) => (
+              <div key={t} className="flex items-start gap-2 text-sm text-slate-700">
+                <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ backgroundColor: accent }}>
+                  ✓
+                </span>
+                <span>{t}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5 space-y-2">
+            <button
+              onClick={onRequest}
+              disabled={requested}
+              className="w-full rounded-xl px-4 py-3 text-sm font-extrabold text-white shadow-sm transition disabled:opacity-70"
+              style={{ backgroundColor: accent }}
+            >
+              {requested ? "Request sent" : buttonText}
+            </button>
+            <button onClick={onDismiss} className="w-full py-2 text-xs font-semibold text-slate-400 hover:text-slate-600">
+              Maybe later
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

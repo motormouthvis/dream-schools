@@ -19,6 +19,7 @@ export interface CustomerRow {
   partnerId: string | null;
   partnerName: string | null;
   companyName: string;
+  businessName: string;
   createdAt: string;
   deletedAt: string | null;
   authorizedDomain: string | null;
@@ -55,6 +56,7 @@ export async function listCustomers(viewer?: AppUser | null): Promise<CustomerRo
         u.is_partner,
         u.partner_id,
         u.company_name,
+        u.business_name,
         u.created_at,
         u.deleted_at,
         partner.company_name AS partner_company_name,
@@ -85,6 +87,7 @@ export async function listCustomers(viewer?: AppUser | null): Promise<CustomerRo
     partnerId: r.partner_id ?? null,
     partnerName: r.partner_company_name || r.partner_email || null,
     companyName: r.company_name ?? "",
+    businessName: r.business_name ?? "",
     createdAt: r.created_at,
     deletedAt: r.deleted_at ?? null,
     authorizedDomain:
@@ -128,7 +131,7 @@ export async function listPartnerAccounts(): Promise<{ id: string; email: string
 /** Update the account-level fields on a customer (email / owner flag). */
 export async function updateCustomerAccount(
   id: string,
-  fields: { email?: string; isOwner?: boolean; isPartner?: boolean; partnerId?: string | null; companyName?: string }
+  fields: { email?: string; isOwner?: boolean; isPartner?: boolean; partnerId?: string | null; companyName?: string; businessName?: string }
 ): Promise<void> {
   const sets: string[] = [];
   const params: unknown[] = [];
@@ -151,6 +154,10 @@ export async function updateCustomerAccount(
   if (typeof fields.companyName === "string") {
     params.push(fields.companyName.trim());
     sets.push(`company_name = $${params.length}`);
+  }
+  if (typeof fields.businessName === "string") {
+    params.push(fields.businessName.trim());
+    sets.push(`business_name = $${params.length}`);
   }
   if (!sets.length) return;
   params.push(id);

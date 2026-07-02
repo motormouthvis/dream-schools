@@ -25,6 +25,10 @@ export interface AppUser {
   isPartner: boolean;
   partnerId: string | null;
   companyName: string;
+  businessName: string;
+  upgradeViewsToTrigger: number | null;
+  upgradeMinDaysBetween: number | null;
+  upgradeIdleSeconds: number | null;
   createdAt: string;
 }
 
@@ -43,6 +47,10 @@ async function ensureTables(): Promise<void> {
            is_partner     BOOLEAN NOT NULL DEFAULT FALSE,
            partner_id     TEXT,
            company_name   TEXT NOT NULL DEFAULT '',
+           business_name  TEXT NOT NULL DEFAULT '',
+           upgrade_views_to_trigger INTEGER,
+           upgrade_min_days_between INTEGER,
+           upgrade_idle_seconds INTEGER,
            created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
            deleted_at     TIMESTAMPTZ
          )`
@@ -53,7 +61,11 @@ async function ensureTables(): Promise<void> {
              ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ,
              ADD COLUMN IF NOT EXISTS is_partner BOOLEAN NOT NULL DEFAULT FALSE,
              ADD COLUMN IF NOT EXISTS partner_id TEXT,
-             ADD COLUMN IF NOT EXISTS company_name TEXT NOT NULL DEFAULT ''`
+             ADD COLUMN IF NOT EXISTS company_name TEXT NOT NULL DEFAULT '',
+             ADD COLUMN IF NOT EXISTS business_name TEXT NOT NULL DEFAULT '',
+             ADD COLUMN IF NOT EXISTS upgrade_views_to_trigger INTEGER,
+             ADD COLUMN IF NOT EXISTS upgrade_min_days_between INTEGER,
+             ADD COLUMN IF NOT EXISTS upgrade_idle_seconds INTEGER`
         )
       )
       .then(() =>
@@ -136,6 +148,10 @@ function rowToUser(r: any): AppUser {
     isPartner: Boolean(r.is_partner),
     partnerId: r.partner_id ?? null,
     companyName: r.company_name ?? "",
+    businessName: r.business_name ?? "",
+    upgradeViewsToTrigger: r.upgrade_views_to_trigger == null ? null : Number(r.upgrade_views_to_trigger),
+    upgradeMinDaysBetween: r.upgrade_min_days_between == null ? null : Number(r.upgrade_min_days_between),
+    upgradeIdleSeconds: r.upgrade_idle_seconds == null ? null : Number(r.upgrade_idle_seconds),
     createdAt: r.created_at,
   };
 }
@@ -197,6 +213,26 @@ export async function setUserPartner(userId: string, partnerId: string | null): 
 export async function updatePartnerProfile(userId: string, companyName: string): Promise<void> {
   await ensureTables();
   await getPool().query(`UPDATE app_users SET company_name = $1 WHERE id = $2`, [companyName.trim(), userId]);
+}
+
+export async function updateBusinessProfile(userId: string, businessName: string): Promise<void> {
+  await ensureTables();
+  await getPool().query(`UPDATE app_users SET business_name = $1 WHERE id = $2`, [businessName.trim(), userId]);
+}
+
+export async function updatePartnerUpgradeSettings(
+  userId: string,
+  values: { viewsToTrigger: number | null; minDaysBetween: number | null; idleSeconds: number | null }
+): Promise<void> {
+  await ensureTables();
+  await getPool().query(
+    `UPDATE app_users
+       SET upgrade_views_to_trigger = $1,
+           upgrade_min_days_between = $2,
+           upgrade_idle_seconds = $3
+     WHERE id = $4`,
+    [values.viewsToTrigger, values.minDaysBetween, values.idleSeconds, userId]
+  );
 }
 
 export type TokenPurpose = "verify" | "reset";

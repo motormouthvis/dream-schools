@@ -122,6 +122,7 @@ export async function PATCH(request: Request) {
       isPartner?: boolean;
       partnerId?: string | null;
       companyName?: string;
+      businessName?: string;
     } = {};
     if (typeof body.email === "string") {
       if (!isValidEmail(body.email)) {
@@ -133,6 +134,7 @@ export async function PATCH(request: Request) {
       if (typeof body.isOwner === "boolean") accountFields.isOwner = body.isOwner;
       if (typeof body.isPartner === "boolean") accountFields.isPartner = body.isPartner;
       if (typeof body.companyName === "string") accountFields.companyName = body.companyName;
+      if (typeof body.businessName === "string") accountFields.businessName = body.businessName;
       if (body.partnerId !== undefined) {
         const nextPartnerId = String(body.partnerId || "").trim() || null;
         accountFields.partnerId = nextPartnerId === id ? null : nextPartnerId;
