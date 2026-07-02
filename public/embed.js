@@ -438,6 +438,7 @@
   // -------------------------------------------------------------------------
 
   var CSS =
+    "@keyframes dse-title-marquee{0%,15%{transform:translateX(0)}85%,100%{transform:translateX(calc(-100% + 220px))}}" +
     "#dse-root{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.5}" +
     "#dse-root .dse-bubble{position:fixed;bottom:calc(24px + var(--dse-bo,0px));z-index:2147483646;width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;background:var(--dse-accent,#1fa55f);color:#fff;box-shadow:0 4px 20px rgba(0,0,0,.18);transition:transform .2s,box-shadow .2s}" +
     "#dse-root .dse-bubble--right{right:24px}#dse-root .dse-bubble--left{left:24px}" +
@@ -451,6 +452,7 @@
     "#dse-root .dse-hl{display:flex;align-items:center;gap:10px;min-width:0}" +
     "#dse-root .dse-hicon{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center}" +
     "#dse-root .dse-hicon svg{width:18px;height:18px}#dse-root .dse-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px;font-weight:600}" +
+    "@media(max-width:520px){#dse-root .dse-title{display:inline-block;min-width:max-content;animation:dse-title-marquee 12s linear infinite}}" +
     "#dse-root .dse-close{background:none;border:none;color:#fff;cursor:pointer;padding:6px;border-radius:8px;display:flex}" +
     "#dse-root .dse-close:hover{background:rgba(255,255,255,.15)}#dse-root .dse-close svg{width:18px;height:18px}" +
     "#dse-root .dse-iframe{width:100%;border:none;background:#fff;height:520px;transition:height .3s cubic-bezier(.22,1,.36,1)}" +

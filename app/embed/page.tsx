@@ -398,6 +398,19 @@ export default function EmbedExplorer() {
 
   return (
     <main className={`flex flex-col bg-white ${isInline ? "" : "h-screen overflow-hidden"}`}>
+      <style>{`
+        @keyframes dse-inline-title-marquee {
+          0%, 15% { transform: translateX(0); }
+          85%, 100% { transform: translateX(calc(-100% + 220px)); }
+        }
+        @media (max-width: 520px) {
+          .dse-inline-title-marquee {
+            display: inline-block;
+            min-width: max-content;
+            animation: dse-inline-title-marquee 12s linear infinite;
+          }
+        }
+      `}</style>
       {/* Inline embeds have no SDK chrome, so brand the iframe itself. */}
       {isInline && (
         <header
@@ -407,9 +420,11 @@ export default function EmbedExplorer() {
           <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20">
             {PIN_SVG}
           </span>
-          <p className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-bold leading-tight" title={headerTitle}>
-            {headerTitle}
-          </p>
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <p className="dse-inline-title-marquee overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-bold leading-tight" title={headerTitle}>
+              {headerTitle}
+            </p>
+          </div>
         </header>
       )}
 
