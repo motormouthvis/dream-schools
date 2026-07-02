@@ -93,7 +93,7 @@ export async function updateCustomerAccount(
 }
 
 /** Soft-delete a customer: retain account/config/usage/history, remove access. */
-export async function deleteCustomer(id: string): Promise<boolean> {
+export async function deleteCustomer(id: string, reason?: string): Promise<boolean> {
   if (!hasDatabase() || !id) return false;
   const pool = getPool();
   const res = await pool.query(
@@ -105,6 +105,17 @@ export async function deleteCustomer(id: string): Promise<boolean> {
   await pool.query(`UPDATE embed_partners SET enabled = FALSE, updated_at = NOW() WHERE partner_id = $1`, [id]).catch(() => {});
   await pool.query(`DELETE FROM app_sessions WHERE user_id = $1`, [id]).catch(() => {});
   await pool.query(`DELETE FROM app_verify_tokens WHERE user_id = $1`, [id]).catch(() => {});
-  if ((res.rowCount ?? 0) > 0) logUserEventAsync(id, "account_deleted");
+  if ((res.rowCount ?? 0) > 0) logUserEventAsync(id, "account_deleted", reason || null);
+  return (res.rowCount ?? 0) > 0;
+}
+
+/** Restore a soft-deleted customer and leave their explorer disabled until reviewed. */
+export async function restoreCustomer(id: string, reason?: string): Promise<boolean> {
+  if (!hasDatabase() || !id) return false;
+  const res = await getPool().query(
+    `UPDATE app_users SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL`,
+    [id]
+  );
+  if ((res.rowCount ?? 0) > 0) logUserEventAsync(id, "account_restored", reason || null);
   return (res.rowCount ?? 0) > 0;
 }

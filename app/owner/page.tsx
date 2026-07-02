@@ -68,6 +68,7 @@ function OwnerAdmin() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [editing, setEditing] = useState<Customer | null>(null);
   const [historyFor, setHistoryFor] = useState<Customer | null>(null);
+  const [reasonAction, setReasonAction] = useState<null | { type: "delete"; customer: Customer }>(null);
 
   async function load() {
     setLoading(true);
@@ -105,6 +106,8 @@ function OwnerAdmin() {
     const filtered = q
       ? customers.filter(
           (c) =>
+            (q === "active" && !c.deletedAt) ||
+            (q === "deleted" && Boolean(c.deletedAt)) ||
             c.email.toLowerCase().includes(q) ||
             (c.authorizedDomain || "").toLowerCase().includes(q) ||
             fmtDate(c.createdAt).toLowerCase().includes(q) ||
@@ -148,12 +151,11 @@ function OwnerAdmin() {
     return filtered;
   }, [customers, query, sortKey, sortDir]);
 
-  async function remove(c: Customer) {
-    if (!confirm(`Mark ${c.email} as deleted? They will lose access, but the account, config, usage, and history stay in the Customer List.`)) {
-      return;
-    }
+  async function remove(c: Customer, reason: string) {
     const res = await fetch(`/api/owner/customers?id=${encodeURIComponent(c.id)}`, {
       method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
     });
     const j = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -164,7 +166,21 @@ function OwnerAdmin() {
   }
 
   const totalViews = customers.reduce((s, c) => s + c.views, 0);
-  const activeCount = customers.filter((c) => c.enabled).length;
+  const activeCount = customers.filter((c) => !c.deletedAt).length;
+  const deletedCount = customers.filter((c) => c.deletedAt).length;
+  const enabledCount = customers.filter((c) => !c.deletedAt && c.enabled).length;
+  const filterChips = useMemo(() => {
+    const labels = new Set<string>(["Active", "Deleted"]);
+    for (const c of customers) {
+      const d = new Date(c.createdAt);
+      if (!Number.isNaN(d.getTime())) {
+        labels.add(d.toLocaleDateString(undefined, { month: "long" }));
+        labels.add(String(d.getFullYear()));
+        labels.add(d.toLocaleDateString(undefined, { month: "long", year: "numeric" }));
+      }
+    }
+    return Array.from(labels).slice(0, 14);
+  }, [customers]);
 
   return (
     <>
@@ -181,20 +197,49 @@ function OwnerAdmin() {
         </button>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        <Stat label="Customers" value={String(customers.length)} />
-        <Stat label="Active widgets" value={String(activeCount)} />
+      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="Active customers" value={String(activeCount)} />
+        <Stat label="Deleted customers" value={String(deletedCount)} />
+        <Stat label="Enabled widgets" value={String(enabledCount)} />
         <Stat label="Total views" value={totalViews.toLocaleString()} />
       </div>
 
-      <div className="mt-4 flex items-center gap-3">
+      <div className="mt-4 flex flex-wrap items-center gap-3">
         <input
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by email or domain…"
+          onChange={(e) => {
+            // Browser autofill can target the search input while the Edit modal is
+            // open; ignore those changes so customers don't disappear.
+            if (!editing && !historyFor && !reasonAction) setQuery(e.target.value);
+          }}
+          name="customer-list-filter"
+          autoComplete="off"
+          readOnly={Boolean(editing || historyFor || reasonAction)}
+          placeholder="Search email, domain, month, or year…"
           className="w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
         />
         <span className="text-[12px] text-slate-400">{rows.length} shown</span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {filterChips.map((chip) => (
+          <button
+            key={chip}
+            type="button"
+            onClick={() => setQuery(chip)}
+            className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-500 transition hover:border-brand-300 hover:text-brand-700"
+          >
+            {chip}
+          </button>
+        ))}
+        {query && (
+          <button
+            type="button"
+            onClick={() => setQuery("")}
+            className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-slate-400 hover:text-slate-700"
+          >
+            Clear
+          </button>
+        )}
       </div>
 
       {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
@@ -277,16 +322,16 @@ function OwnerAdmin() {
                     >
                       History
                     </button>
+                    <button
+                      onClick={() => setEditing(c)}
+                      className="ml-2 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                    >
+                      Edit
+                    </button>
                     {!c.deletedAt && (
                       <>
                         <button
-                          onClick={() => setEditing(c)}
-                          className="ml-2 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => remove(c)}
+                          onClick={() => setReasonAction({ type: "delete", customer: c })}
                           className="ml-2 rounded-md border border-rose-200 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
                         >
                           Delete
@@ -313,6 +358,18 @@ function OwnerAdmin() {
       )}
 
       {historyFor && <HistoryModal customer={historyFor} onClose={() => setHistoryFor(null)} />}
+      {reasonAction && (
+        <ReasonModal
+          title="Delete customer"
+          customer={reasonAction.customer}
+          actionLabel="Delete customer"
+          onClose={() => setReasonAction(null)}
+          onConfirm={async (reason) => {
+            await remove(reasonAction.customer, reason);
+            setReasonAction(null);
+          }}
+        />
+      )}
     </>
   );
 }
@@ -333,6 +390,7 @@ const EVENT_LABELS: Record<string, string> = {
   default_address_changed: "Default address changed",
   explorer_enabled_changed: "Explorer enabled changed",
   account_deleted: "Account deleted",
+  account_restored: "Account restored",
 };
 
 function HistoryModal({ customer, onClose }: { customer: Customer; onClose: () => void }) {
@@ -409,6 +467,7 @@ function EditModal({
   const [defaultAddress, setDefaultAddress] = useState(customer.defaultAddress || "");
   const [enabled, setEnabled] = useState(customer.enabled);
   const [isOwner, setIsOwner] = useState(customer.isOwner);
+  const [restoreReason, setRestoreReason] = useState<null | string>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -441,6 +500,28 @@ function EditModal({
     }
   }
 
+  async function restore(reason: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/owner/customers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: customer.id, action: "restore", reason }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j.restored) {
+        setError(j.error || "Could not restore.");
+        return;
+      }
+      onSaved();
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
@@ -449,10 +530,22 @@ function EditModal({
       >
         <h2 className="text-lg font-extrabold text-ink-900">Edit customer</h2>
         <p className="mt-0.5 text-[12px] text-slate-500">{customer.email}</p>
+        {customer.deletedAt && (
+          <p className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-[12px] font-semibold text-slate-600">
+            This customer is deleted. You can review/edit their details, or restore the account below.
+          </p>
+        )}
 
         <div className="mt-4 space-y-3">
           <L label="Email">
-            <input className={inp} value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input
+              type="email"
+              name="customer-email-edit"
+              autoComplete="email"
+              className={inp}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </L>
           <L label="Authorized domain" hint="Base domain — works on all pages & subdomains. Popup is OFF until set.">
             <input
@@ -503,7 +596,16 @@ function EditModal({
 
         {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
 
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          {customer.deletedAt && (
+            <button
+              onClick={() => setRestoreReason("")}
+              disabled={busy}
+              className="mr-auto rounded-lg border border-brand-600 px-4 py-2 text-sm font-bold text-brand-700 hover:bg-brand-50 disabled:opacity-60"
+            >
+              Restore customer
+            </button>
+          )}
           <button
             onClick={onClose}
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
@@ -516,6 +618,113 @@ function EditModal({
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-700 disabled:opacity-60"
           >
             {busy ? "Saving…" : "Save"}
+          </button>
+        </div>
+        {restoreReason !== null && (
+          <ReasonModal
+            title="Restore customer"
+            customer={customer}
+            actionLabel="Restore customer"
+            mode="restore"
+            onClose={() => setRestoreReason(null)}
+            onConfirm={async (reason) => {
+              await restore(reason);
+              setRestoreReason(null);
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+const DELETE_REASONS = [
+  "Customer requested deletion",
+  "Duplicate account",
+  "Invalid or test account",
+  "No longer using School Explorer",
+  "Billing/support cleanup",
+  "Other",
+];
+
+const RESTORE_REASONS = [
+  "Customer requested restore",
+  "Deleted by mistake",
+  "Duplicate resolved",
+  "Testing complete",
+  "Other",
+];
+
+function ReasonModal({
+  title,
+  customer,
+  actionLabel,
+  mode = "delete",
+  onClose,
+  onConfirm,
+}: {
+  title: string;
+  customer: Customer;
+  actionLabel: string;
+  mode?: "delete" | "restore";
+  onClose: () => void;
+  onConfirm: (reason: string) => Promise<void>;
+}) {
+  const reasons = mode === "restore" ? RESTORE_REASONS : DELETE_REASONS;
+  const [selected, setSelected] = useState(reasons[0]);
+  const [other, setOther] = useState("");
+  const [busy, setBusy] = useState(false);
+  const reason = selected === "Other" ? other.trim() : selected;
+
+  async function submit() {
+    if (!reason) return;
+    setBusy(true);
+    try {
+      await onConfirm(reason);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-lg font-extrabold text-ink-900">{title}</h2>
+        <p className="mt-0.5 text-[12px] text-slate-500">{customer.email}</p>
+        <div className="mt-4 space-y-3">
+          <L label="Reason">
+            <select className={inp} value={selected} onChange={(e) => setSelected(e.target.value)}>
+              {reasons.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </L>
+          {selected === "Other" && (
+            <L label="Other reason">
+              <textarea
+                rows={3}
+                className={`${inp} resize-y`}
+                value={other}
+                onChange={(e) => setOther(e.target.value)}
+                placeholder="Enter reason"
+              />
+            </L>
+          )}
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            disabled={busy || !reason}
+            className={`rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-60 ${
+              mode === "restore" ? "bg-brand-600 hover:bg-brand-700" : "bg-rose-600 hover:bg-rose-700"
+            }`}
+          >
+            {busy ? "Saving…" : actionLabel}
           </button>
         </div>
       </div>

@@ -5,6 +5,7 @@ import {
   listCustomers,
   updateCustomerAccount,
   deleteCustomer,
+  restoreCustomer,
 } from "@/lib/owner";
 import {
   getByPartner,
@@ -63,6 +64,12 @@ export async function PATCH(request: Request) {
   if (!id) return NextResponse.json({ error: "Customer id is required." }, { status: 400 });
 
   try {
+    if (body.action === "restore") {
+      const reason = String(body.reason || "").trim();
+      const restored = await restoreCustomer(id, reason || undefined);
+      return NextResponse.json({ restored });
+    }
+
     // Account-level fields.
     const accountFields: { email?: string; isOwner?: boolean } = {};
     if (typeof body.email === "string") {
@@ -180,7 +187,14 @@ export async function DELETE(request: Request) {
   }
 
   try {
-    const deleted = await deleteCustomer(id);
+    let reason = "";
+    try {
+      const body = await request.json();
+      reason = String(body?.reason || "").trim();
+    } catch {
+      // DELETE bodies are optional.
+    }
+    const deleted = await deleteCustomer(id, reason || undefined);
     return NextResponse.json({ deleted });
   } catch (err) {
     console.error("owner delete failed:", err);

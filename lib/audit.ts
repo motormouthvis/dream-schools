@@ -14,7 +14,8 @@ export type UserEventType =
   | "domain_changed"
   | "default_address_changed"
   | "explorer_enabled_changed"
-  | "account_deleted";
+  | "account_deleted"
+  | "account_restored";
 
 export interface UserEvent {
   event: UserEventType | string;

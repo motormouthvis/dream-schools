@@ -56,7 +56,7 @@ export default function DashboardPage() {
 
   return (
     <AppShell active="home">
-      {() => (
+      {(me) => (
         <>
           {/* Hero banner — matches the marketing site */}
           <div className="relative overflow-hidden rounded-3xl ring-1 ring-inset ring-brand-600/10">
@@ -168,18 +168,13 @@ export default function DashboardPage() {
                       : "Both the popup and the embed stay off until you set an authorized domain."}
                   </div>
                 </div>
-                <a
-                  href="/edit"
-                  className="w-fit shrink-0 rounded-xl bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700"
-                >
-                  Configure
-                </a>
               </div>
               {active && (
-                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <Stat label="Views" value={(usage?.views ?? 0).toLocaleString()} />
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <Stat label="Account created" value={fmtDateTime(me.createdAt) || "—"} />
                   <Stat label="First installed" value={firstInstalled || "Not detected yet"} />
                   <Stat label="Last accessed" value={lastActive || "Not detected yet"} />
+                  <Stat label="Views" value={(usage?.views ?? 0).toLocaleString()} />
                 </div>
               )}
             </div>
