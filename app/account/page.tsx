@@ -18,10 +18,10 @@ export default function AccountPage() {
           <h1 className="text-xl font-extrabold text-ink-900">Account</h1>
           <p className="text-[12px] text-slate-500">Your sign-in details.</p>
 
-          <div className="mt-4 grid max-w-md grid-cols-2 gap-3">
+          <div className="mt-4 max-w-md space-y-3">
             <div className="rounded-xl border border-slate-200 bg-white p-4">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email</div>
-              <div className="mt-1 truncate text-sm text-ink-900">{me.email}</div>
+              <div className="mt-1 break-all text-sm text-ink-900">{me.email}</div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Date created</div>

@@ -8,16 +8,17 @@ import { NeighborhoodExplorerCard } from "@/components/NeighborhoodExplorerCard"
 const VALUE_PROPS: [string, React.ReactNode][] = [
   ["Save $50–$100/month", <>vs. other school-data tools — ours is <strong>free, forever</strong>.</>],
   ["No website redesign", <>our unique popup technology installs with <strong>one line of code</strong>.</>],
-  ["No ads, ever", <>Your brand, on your site. <strong>No Credit Card — Ever.</strong></>],
+  ["Embedded option too", <>Embedded School Explorer also available — <strong>one line of code</strong>, minimal website redesign.</>],
 ];
 
 const BENEFITS: [string, string, string][] = [
   ["🔑", "Data no one else has", "Displays critical school data that no one else has."],
+  ["💬", "Popup", "Zero website redesign — auto-detects the address of the listing or neighborhood page."],
+  ["📐", "Embed", "Minimal website design change — exact placement and size, inline in your page."],
   ["💸", "No expensive data fees", "Avoid paying pricey monthly school-data tools — ours is free forever."],
   ["⏱", "Keep buyers on your site", "Rich school data on every listing, so visitors don't leave for Zillow."],
   ["📈", "Stronger SEO", "More time on page and richer local content help listings rank."],
   ["🎓", "Ratings, tests & safety", "Dream Rating, test scores, college readiness & safety, nationwide."],
-  ["🧩", "One line of code", "Installs with a single snippet — no website redesign."],
 ];
 
 export default function DashboardPage() {

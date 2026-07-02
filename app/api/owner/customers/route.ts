@@ -14,7 +14,8 @@ import {
   normalizeHost,
   DEFAULT_PRESENTATION,
 } from "@/lib/embedConfig";
-import { isValidEmail } from "@/lib/auth";
+import { isValidEmail, getUserById } from "@/lib/auth";
+import { logUserEventAsync } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +73,11 @@ export async function PATCH(request: Request) {
     }
     if (typeof body.isOwner === "boolean") accountFields.isOwner = body.isOwner;
     if (Object.keys(accountFields).length) {
+      const before = accountFields.email ? await getUserById(id) : null;
       await updateCustomerAccount(id, accountFields);
+      if (before && accountFields.email && before.email !== accountFields.email) {
+        logUserEventAsync(id, "email_changed", `${before.email} → ${accountFields.email} (by owner)`);
+      }
     }
 
     // Widget config fields — merge onto existing so we don't clobber styling.

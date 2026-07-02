@@ -8,6 +8,7 @@ import {
   publicOrigin,
 } from "@/lib/auth";
 import { sendVerificationEmail } from "@/lib/email";
+import { logUserEventAsync } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
     }
     // New user, or an unverified one re-signing up → (re)send the verification link.
     const user = existing ?? (await createUser(email, password));
+    if (!existing) logUserEventAsync(user.id, "account_created");
     const token = await createVerificationToken(user.id);
     await sendVerificationEmail(email, `${publicOrigin(request)}/api/auth/verify?token=${token}`);
     return NextResponse.json({ ok: true, message: "Check your email to verify your account." });

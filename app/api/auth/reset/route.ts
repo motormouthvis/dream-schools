@@ -6,6 +6,7 @@ import {
   createSession,
   sessionCookie,
 } from "@/lib/auth";
+import { logUserEventAsync } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
       );
     }
     await updatePassword(user.id, password);
+    logUserEventAsync(user.id, "password_reset");
     const session = await createSession(user.id);
     const res = NextResponse.json({ ok: true, isOwner: user.isOwner });
     res.cookies.set(sessionCookie(session));

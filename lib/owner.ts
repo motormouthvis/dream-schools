@@ -2,6 +2,7 @@ import { getPool, hasDatabase } from "@/lib/db";
 import { currentUser, type AppUser } from "@/lib/auth";
 import { deleteUsage } from "@/lib/embedUsage";
 import { deletePartner } from "@/lib/embedConfig";
+import { deleteUserEvents } from "@/lib/audit";
 
 // ---------------------------------------------------------------------------
 // Owner-admin data access: the customers table with signup + usage, and the
@@ -94,9 +95,11 @@ export async function updateCustomerAccount(
 export async function deleteCustomer(id: string): Promise<boolean> {
   if (!hasDatabase() || !id) return false;
   const pool = getPool();
-  // Widget config + usage aren't FK-linked to app_users, so clear them first.
+  // Widget config, usage, and audit events aren't FK-linked to app_users, so
+  // clear them first.
   await deletePartner(id, 1).catch(() => {});
   await deleteUsage(id).catch(() => {});
+  await deleteUserEvents(id).catch(() => {});
   // Sessions & verify tokens cascade via ON DELETE CASCADE.
   const res = await pool.query(`DELETE FROM app_users WHERE id = $1`, [id]);
   return (res.rowCount ?? 0) > 0;

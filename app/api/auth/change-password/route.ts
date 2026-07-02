@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasDatabase } from "@/lib/db";
 import { currentUser, getUserById, verifyPassword, updatePassword } from "@/lib/auth";
+import { logUserEventAsync } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Your current password is incorrect." }, { status: 400 });
     }
     await updatePassword(me.id, newPassword);
+    logUserEventAsync(me.id, "password_changed");
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("change-password failed:", err);

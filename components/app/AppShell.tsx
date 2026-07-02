@@ -14,7 +14,7 @@ export function AppShell({
   active,
   children,
 }: {
-  active: "home" | "edit" | "owner" | "account";
+  active: "home" | "edit" | "help" | "owner" | "account";
   children: (me: Me) => React.ReactNode;
 }) {
   const [me, setMe] = useState<Me | null>(null);
@@ -66,8 +66,9 @@ export function AppShell({
         </div>
         {link("home", "Home", "/dashboard")}
         {link("edit", "Configure School Explorer", "/edit")}
+        {link("help", "Help", "/help")}
+        {me.isOwner && link("owner", "Customer List", "/owner")}
         {link("account", "Account", "/account")}
-        {me.isOwner && link("owner", "Owner Admin", "/owner")}
         <div className="mt-auto space-y-2 pt-4 text-[12px] text-white/50">
           <div className="truncate">{me.email}</div>
           <button onClick={logout} className="text-white/70 hover:text-white">Sign out</button>

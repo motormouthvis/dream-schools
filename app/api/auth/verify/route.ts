@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasDatabase } from "@/lib/db";
 import { consumeVerificationToken, createSession, sessionCookie, publicOrigin } from "@/lib/auth";
+import { logUserEventAsync } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export async function GET(request: Request) {
     if (!user) {
       return NextResponse.redirect(`${origin}/login?error=verify`);
     }
+    logUserEventAsync(user.id, "email_verified");
     const session = await createSession(user.id);
     const res = NextResponse.redirect(`${origin}/onboarding`);
     res.cookies.set(sessionCookie(session));

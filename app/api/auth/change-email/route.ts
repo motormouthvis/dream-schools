@@ -8,6 +8,7 @@ import {
   updateEmail,
   isValidEmail,
 } from "@/lib/auth";
+import { logUserEventAsync } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "That email is already in use." }, { status: 409 });
     }
     await updateEmail(me.id, newEmail);
+    logUserEventAsync(me.id, "email_changed", `${full.email} → ${newEmail}`);
     return NextResponse.json({ ok: true, email: newEmail });
   } catch (err: any) {
     if (err?.code === "23505") {

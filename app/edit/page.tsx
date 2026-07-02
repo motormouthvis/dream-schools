@@ -116,6 +116,31 @@ export default function EditPage() {
           </div>
           {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
 
+          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+            <h2 className="mb-1 flex items-center gap-2 text-sm font-bold text-ink-900">
+              <span className="h-3 w-1.5 rounded bg-brand-500" />
+              New here? Popup vs. embed
+            </h2>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <p className="text-[12px] leading-relaxed text-slate-600">
+                <strong className="text-brand-700">Popup</strong> — a small button that floats in the
+                corner of every page and <strong>auto-detects the listing’s address</strong>. Zero
+                redesign; one line of code.
+              </p>
+              <p className="text-[12px] leading-relaxed text-slate-600">
+                <strong>Embed</strong> — the explorer rendered <strong>inline</strong> where you place a{" "}
+                <code className="rounded bg-slate-100 px-1">&lt;div&gt;</code> (an empty HTML container
+                that marks the spot). Exact placement and size.
+              </p>
+            </div>
+            <p className="mt-2 text-[12px] text-slate-500">
+              Both stay <strong>off</strong> until you set your authorized domain below.{" "}
+              <a href="/help" className="font-semibold text-brand-700 hover:text-brand-800">
+                Full install help &amp; pros/cons →
+              </a>
+            </p>
+          </div>
+
           <InstallCode />
 
           {!loaded ? (
@@ -143,10 +168,10 @@ export default function EditPage() {
               </Section>
 
               <Section title="Popup (floating bubble)">
-                <Field label="Position">
+                <Field label="Location" hint="Where the floating button sits on the page.">
                   <select className={inp} value={form.position} onChange={(e) => set("position", e.target.value as "left" | "right")}>
-                    <option value="right">Right</option>
-                    <option value="left">Left</option>
+                    <option value="right">Bottom right</option>
+                    <option value="left">Bottom left</option>
                   </select>
                 </Field>
                 <Field label="Bottom offset (px)" hint="Lift the bubble above a chat widget, etc.">
