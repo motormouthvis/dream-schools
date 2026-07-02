@@ -68,10 +68,17 @@ export function AppShell({
         {/* Account (top, above nav) */}
         <div className="mt-5 flex items-center gap-2.5 rounded-xl bg-white/5 px-3 py-2.5 ring-1 ring-inset ring-white/10">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15 text-sm font-bold uppercase">
-            {me.email.charAt(0)}
+            {(me.isPartner && me.companyName ? me.companyName : me.email).charAt(0)}
           </div>
           <div className="min-w-0">
-            <div className="truncate text-[13px] font-semibold leading-tight">{me.email}</div>
+            {me.isPartner && me.companyName ? (
+              <>
+                <div className="truncate text-[13px] font-semibold leading-tight">{me.companyName}</div>
+                <div className="truncate text-[10px] text-white/50">{me.email}</div>
+              </>
+            ) : (
+              <div className="truncate text-[13px] font-semibold leading-tight">{me.email}</div>
+            )}
             <div className="text-[10px] uppercase tracking-wide text-white/45">
               {me.isOwner ? "Admin" : me.isPartner ? "Partner" : "Account"}
             </div>

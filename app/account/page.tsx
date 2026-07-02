@@ -44,7 +44,7 @@ export default function AccountPage() {
             </div>
           </div>
 
-          {(me.isPartner || me.isOwner) && (
+          {me.isPartner && (
             <PartnerDesignation initialCompanyName={me.companyName || ""} isPartner={me.isPartner} />
           )}
           <ChangeEmail currentEmail={me.email} />

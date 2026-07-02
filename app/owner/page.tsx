@@ -614,30 +614,6 @@ function EditModal({
               placeholder="1500 N 23rd St, Fort Pierce, FL"
             />
           </L>
-          <div className="rounded-lg border border-slate-200 p-3">
-            <label className="flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-slate-800">
-              <input
-                type="checkbox"
-                checked={isPartner}
-                onChange={(e) => {
-                  setIsPartner(e.target.checked);
-                  if (e.target.checked) setPartnerId("");
-                }}
-                className="h-4 w-4 cursor-pointer accent-brand-600"
-              />
-              Partner
-            </label>
-            <p className="mt-1 pl-6 text-[11px] leading-relaxed text-slate-500">
-              Partners can see customers assigned to them and can use a Partner Login link for new signups.
-            </p>
-            {isPartner && (
-              <div className="mt-3 pl-6">
-                <L label="Partner company name" hint="Shown in popup/embed headers for customers assigned to this partner.">
-                  <input className={inp} value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Partner Company" />
-                </L>
-              </div>
-            )}
-          </div>
           {!isPartner && (
             <L label="Belongs to partner" hint="Optional. Customers assigned here are visible to that partner.">
               <select className={inp} value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
@@ -676,6 +652,48 @@ function EditModal({
             {isOwner && !customer.isOwner && (
               <p className="mt-1.5 rounded-md bg-amber-50 px-2 py-1.5 pl-6 text-[11px] font-semibold text-amber-800">
                 ⚠ You’re granting full admin access to this account.
+              </p>
+            )}
+          </div>
+
+          {/* Danger zone — partner status conversion */}
+          <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-3">
+            <div className="text-[11px] font-extrabold uppercase tracking-wide text-rose-700">Danger zone</div>
+            <label className="mt-2 flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-rose-900">
+              <input
+                type="checkbox"
+                checked={isPartner}
+                onChange={(e) => {
+                  if (e.target.checked && !customer.isPartner) {
+                    const ok = window.confirm(
+                      "Change this customer's status to PARTNER?\n\n" +
+                        "Partners can see EVERY customer assigned to them and get a Partner Login link that auto-associates new signups.\n\n" +
+                        "Only do this for real business partners — never a regular customer. Continue?"
+                    );
+                    if (!ok) return;
+                  }
+                  setIsPartner(e.target.checked);
+                  if (e.target.checked) setPartnerId("");
+                }}
+                className="h-4 w-4 cursor-pointer accent-rose-600"
+              />
+              Change Customer Status to Partner
+            </label>
+            <p className="mt-1 pl-6 text-[11px] leading-relaxed text-rose-700/90">
+              This grants access to a partner-scoped Customer List and a Partner Login link. It changes
+              what this account can see and do. Assigned customers are keyed to the partner’s account —
+              renaming the company later is safe and updates everywhere automatically.
+            </p>
+            {isPartner && (
+              <div className="mt-3 pl-6">
+                <L label="Partner company name" hint="Shown in popup/embed headers for this partner's customers. Safe to change anytime.">
+                  <input className={inp} value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Partner Company" />
+                </L>
+              </div>
+            )}
+            {isPartner && !customer.isPartner && (
+              <p className="mt-2 rounded-md bg-rose-100 px-2 py-1.5 pl-6 text-[11px] font-semibold text-rose-800">
+                ⚠ You’re converting this customer into a Partner account.
               </p>
             )}
           </div>
