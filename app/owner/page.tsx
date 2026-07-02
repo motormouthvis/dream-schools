@@ -68,7 +68,7 @@ function OwnerAdmin() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [editing, setEditing] = useState<Customer | null>(null);
   const [historyFor, setHistoryFor] = useState<Customer | null>(null);
-  const [reasonAction, setReasonAction] = useState<null | { type: "delete"; customer: Customer }>(null);
+  const [reasonAction, setReasonAction] = useState<null | { type: "disable"; customer: Customer }>(null);
 
   async function load() {
     setLoading(true);
@@ -107,7 +107,7 @@ function OwnerAdmin() {
       ? customers.filter(
           (c) =>
             (q === "active" && !c.deletedAt) ||
-            (q === "deleted" && Boolean(c.deletedAt)) ||
+            ((q === "disabled" || q === "deleted") && Boolean(c.deletedAt)) ||
             c.email.toLowerCase().includes(q) ||
             (c.authorizedDomain || "").toLowerCase().includes(q) ||
             fmtDate(c.createdAt).toLowerCase().includes(q) ||
@@ -159,7 +159,7 @@ function OwnerAdmin() {
     });
     const j = await res.json().catch(() => ({}));
     if (!res.ok) {
-      alert(j.error || "Could not delete.");
+      alert(j.error || "Could not disable.");
       return;
     }
     load();
@@ -167,20 +167,8 @@ function OwnerAdmin() {
 
   const totalViews = customers.reduce((s, c) => s + c.views, 0);
   const activeCount = customers.filter((c) => !c.deletedAt).length;
-  const deletedCount = customers.filter((c) => c.deletedAt).length;
+  const disabledCount = customers.filter((c) => c.deletedAt).length;
   const enabledCount = customers.filter((c) => !c.deletedAt && c.enabled).length;
-  const filterChips = useMemo(() => {
-    const labels = new Set<string>(["Active", "Deleted"]);
-    for (const c of customers) {
-      const d = new Date(c.createdAt);
-      if (!Number.isNaN(d.getTime())) {
-        labels.add(d.toLocaleDateString(undefined, { month: "long" }));
-        labels.add(String(d.getFullYear()));
-        labels.add(d.toLocaleDateString(undefined, { month: "long", year: "numeric" }));
-      }
-    }
-    return Array.from(labels).slice(0, 14);
-  }, [customers]);
 
   return (
     <>
@@ -199,7 +187,7 @@ function OwnerAdmin() {
 
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Active customers" value={String(activeCount)} />
-        <Stat label="Deleted customers" value={String(deletedCount)} />
+        <Stat label="Disabled customers" value={String(disabledCount)} />
         <Stat label="Enabled widgets" value={String(enabledCount)} />
         <Stat label="Total views" value={totalViews.toLocaleString()} />
       </div>
@@ -220,17 +208,23 @@ function OwnerAdmin() {
         />
         <span className="text-[12px] text-slate-400">{rows.length} shown</span>
       </div>
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {filterChips.map((chip) => (
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {["Active", "Disabled"].map((chip) => (
           <button
             key={chip}
             type="button"
-            onClick={() => setQuery(chip)}
-            className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-500 transition hover:border-brand-300 hover:text-brand-700"
+            onClick={() => setQuery(query.toLowerCase() === chip.toLowerCase() ? "" : chip)}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
+              query.toLowerCase() === chip.toLowerCase()
+                ? "border-brand-300 bg-brand-50 text-brand-700"
+                : "border-slate-200 bg-white text-slate-500 hover:border-brand-300 hover:text-brand-700"
+            }`}
           >
             {chip}
+            {query.toLowerCase() === chip.toLowerCase() && <span aria-hidden>×</span>}
           </button>
         ))}
+        <span className="text-[11px] text-slate-400">Search also supports month/year, e.g. "July" or "2026".</span>
         {query && (
           <button
             type="button"
@@ -277,7 +271,7 @@ function OwnerAdmin() {
                   <td className="px-3 py-2.5">
                     <div className="font-semibold text-ink-900">{c.email}</div>
                     <div className="mt-0.5 flex gap-1">
-                      {c.deletedAt && <Badge tone="slate">Deleted</Badge>}
+                      {c.deletedAt && <Badge tone="slate">Disabled</Badge>}
                       {!c.deletedAt && c.isOwner && <Badge tone="brand">Admin</Badge>}
                       {c.emailVerified ? (
                         <Badge tone="green">Verified</Badge>
@@ -303,7 +297,7 @@ function OwnerAdmin() {
                   </td>
                   <td className="px-3 py-2.5">
                     {c.deletedAt ? (
-                      <Badge tone="slate">Deleted</Badge>
+                      <Badge tone="slate">Disabled</Badge>
                     ) : c.enabled ? (
                       <Badge tone="green">Enabled</Badge>
                     ) : (
@@ -331,10 +325,10 @@ function OwnerAdmin() {
                     {!c.deletedAt && (
                       <>
                         <button
-                          onClick={() => setReasonAction({ type: "delete", customer: c })}
+                          onClick={() => setReasonAction({ type: "disable", customer: c })}
                           className="ml-2 rounded-md border border-rose-200 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
                         >
-                          Delete
+                          Disable
                         </button>
                       </>
                     )}
@@ -360,9 +354,9 @@ function OwnerAdmin() {
       {historyFor && <HistoryModal customer={historyFor} onClose={() => setHistoryFor(null)} />}
       {reasonAction && (
         <ReasonModal
-          title="Delete customer"
+          title="Disable customer"
           customer={reasonAction.customer}
-          actionLabel="Delete customer"
+          actionLabel="Disable customer"
           onClose={() => setReasonAction(null)}
           onConfirm={async (reason) => {
             await remove(reasonAction.customer, reason);
@@ -389,8 +383,8 @@ const EVENT_LABELS: Record<string, string> = {
   domain_changed: "Website URL changed",
   default_address_changed: "Default address changed",
   explorer_enabled_changed: "Explorer enabled changed",
-  account_deleted: "Account deleted",
-  account_restored: "Account restored",
+  account_deleted: "Customer disabled",
+  account_restored: "Customer re-enabled",
 };
 
 function HistoryModal({ customer, onClose }: { customer: Customer; onClose: () => void }) {
@@ -511,7 +505,7 @@ function EditModal({
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok || !j.restored) {
-        setError(j.error || "Could not restore.");
+        setError(j.error || "Could not re-enable.");
         return;
       }
       onSaved();
@@ -532,7 +526,7 @@ function EditModal({
         <p className="mt-0.5 text-[12px] text-slate-500">{customer.email}</p>
         {customer.deletedAt && (
           <p className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-[12px] font-semibold text-slate-600">
-            This customer is deleted. You can review/edit their details, or restore the account below.
+            This customer is disabled. You can review/edit their details, or re-enable the account below.
           </p>
         )}
 
@@ -603,7 +597,7 @@ function EditModal({
               disabled={busy}
               className="mr-auto rounded-lg border border-brand-600 px-4 py-2 text-sm font-bold text-brand-700 hover:bg-brand-50 disabled:opacity-60"
             >
-              Restore customer
+              Re-enable customer
             </button>
           )}
           <button
@@ -622,9 +616,9 @@ function EditModal({
         </div>
         {restoreReason !== null && (
           <ReasonModal
-            title="Restore customer"
+            title="Re-enable customer"
             customer={customer}
-            actionLabel="Restore customer"
+            actionLabel="Re-enable customer"
             mode="restore"
             onClose={() => setRestoreReason(null)}
             onConfirm={async (reason) => {
@@ -639,7 +633,7 @@ function EditModal({
 }
 
 const DELETE_REASONS = [
-  "Customer requested deletion",
+  "Customer requested disable",
   "Duplicate account",
   "Invalid or test account",
   "No longer using School Explorer",
@@ -648,8 +642,8 @@ const DELETE_REASONS = [
 ];
 
 const RESTORE_REASONS = [
-  "Customer requested restore",
-  "Deleted by mistake",
+  "Customer requested re-enable",
+  "Disabled by mistake",
   "Duplicate resolved",
   "Testing complete",
   "Other",

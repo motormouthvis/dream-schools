@@ -92,7 +92,7 @@ export async function updateCustomerAccount(
   await getPool().query(`UPDATE app_users SET ${sets.join(", ")} WHERE id = $${params.length}`, params);
 }
 
-/** Soft-delete a customer: retain account/config/usage/history, remove access. */
+/** Disable a customer: retain account/config/usage/history, remove access. */
 export async function deleteCustomer(id: string, reason?: string): Promise<boolean> {
   if (!hasDatabase() || !id) return false;
   const pool = getPool();
@@ -109,13 +109,23 @@ export async function deleteCustomer(id: string, reason?: string): Promise<boole
   return (res.rowCount ?? 0) > 0;
 }
 
-/** Restore a soft-deleted customer and leave their explorer disabled until reviewed. */
+/** Re-enable a disabled customer. If they have a domain, turn the Explorer back on too. */
 export async function restoreCustomer(id: string, reason?: string): Promise<boolean> {
   if (!hasDatabase() || !id) return false;
-  const res = await getPool().query(
+  const pool = getPool();
+  const res = await pool.query(
     `UPDATE app_users SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL`,
     [id]
   );
+  if ((res.rowCount ?? 0) > 0) {
+    await pool.query(
+      `UPDATE embed_partners
+         SET enabled = TRUE, updated_at = NOW()
+       WHERE partner_id = $1
+         AND array_length(allowed_hosts, 1) > 0`,
+      [id]
+    ).catch(() => {});
+  }
   if ((res.rowCount ?? 0) > 0) logUserEventAsync(id, "account_restored", reason || null);
   return (res.rowCount ?? 0) > 0;
 }
