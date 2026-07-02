@@ -53,7 +53,7 @@ function NotAuthorized() {
   return (
     <>
       <h1 className="text-xl font-extrabold text-ink-900">Not authorized</h1>
-      <p className="mt-2 text-sm text-slate-600">This area is for the account owner.</p>
+      <p className="mt-2 text-sm text-slate-600">This area is for admins only.</p>
     </>
   );
 }
@@ -223,7 +223,7 @@ function OwnerAdmin() {
                   <td className="px-3 py-2.5">
                     <div className="font-semibold text-ink-900">{c.email}</div>
                     <div className="mt-0.5 flex gap-1">
-                      {c.isOwner && <Badge tone="brand">Owner</Badge>}
+                      {c.isOwner && <Badge tone="brand">Admin</Badge>}
                       {c.emailVerified ? (
                         <Badge tone="green">Verified</Badge>
                       ) : (
@@ -233,7 +233,18 @@ function OwnerAdmin() {
                   </td>
                   <td className="px-3 py-2.5 text-slate-600">{fmtDate(c.createdAt)}</td>
                   <td className="px-3 py-2.5 text-slate-600">
-                    {c.authorizedDomain || <span className="text-slate-400">— none —</span>}
+                    {c.authorizedDomain ? (
+                      <a
+                        href={`https://${c.authorizedDomain}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-brand-700 hover:text-brand-800 hover:underline"
+                      >
+                        {c.authorizedDomain}
+                      </a>
+                    ) : (
+                      <span className="text-slate-400">— none —</span>
+                    )}
                   </td>
                   <td className="px-3 py-2.5">
                     {c.enabled ? (
@@ -448,15 +459,26 @@ function EditModal({
             />
             Explorer enabled (requires a domain)
           </label>
-          <label className="flex cursor-pointer items-center gap-2 text-[13px] text-slate-700">
-            <input
-              type="checkbox"
-              checked={isOwner}
-              onChange={(e) => setIsOwner(e.target.checked)}
-              className="h-4 w-4 cursor-pointer accent-brand-600"
-            />
-            Owner (full admin access)
-          </label>
+          <div className="rounded-lg border border-slate-200 p-3">
+            <label className="flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-slate-800">
+              <input
+                type="checkbox"
+                checked={isOwner}
+                onChange={(e) => setIsOwner(e.target.checked)}
+                className="h-4 w-4 cursor-pointer accent-brand-600"
+              />
+              Admin
+            </label>
+            <p className="mt-1 pl-6 text-[11px] leading-relaxed text-slate-500">
+              Admins get full access to the Customer List — they can view, edit, and delete every
+              account. Only grant this to your own team members, never to customers.
+            </p>
+            {isOwner && !customer.isOwner && (
+              <p className="mt-1.5 rounded-md bg-amber-50 px-2 py-1.5 pl-6 text-[11px] font-semibold text-amber-800">
+                ⚠ You’re granting full admin access to this account.
+              </p>
+            )}
+          </div>
         </div>
 
         {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}

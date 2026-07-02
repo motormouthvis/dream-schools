@@ -234,7 +234,7 @@ export default function Home() {
       {/* Line 3 — search box (no address yet / changing) OR address bar.
           Home is a SEPARATE button to the left (matches the popup/embed). */}
       {!showSearch && data && (
-        <div className="mx-auto mt-4 flex max-w-2xl items-center gap-2.5">
+        <div className="mt-4 flex max-w-2xl items-center gap-2.5">
           <button
             type="button"
             aria-label="Home"

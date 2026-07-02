@@ -19,6 +19,7 @@ export function AddressAutocomplete({
   const [suggestions, setSuggestions] = useState<{ label: string }[]>([]);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
+  const [focused, setFocused] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const acRef = useRef<AbortController | null>(null);
   const suppressRef = useRef(false);
@@ -28,6 +29,9 @@ export function AddressAutocomplete({
       suppressRef.current = false;
       return;
     }
+    // Only fetch/open while the field is focused, so the list never pops up on
+    // page load (when the saved value is populated programmatically).
+    if (!focused) return;
     if (value.trim().length < 3) {
       setSuggestions([]);
       return;
@@ -53,7 +57,7 @@ export function AddressAutocomplete({
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+  }, [value, focused]);
 
   function pick(label: string) {
     suppressRef.current = true;
@@ -69,8 +73,16 @@ export function AddressAutocomplete({
         value={value}
         autoComplete="off"
         onChange={(e) => onChange(e.target.value)}
-        onFocus={() => suggestions.length > 0 && setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onFocus={() => {
+          setFocused(true);
+          if (suggestions.length > 0) setOpen(true);
+        }}
+        onBlur={() =>
+          setTimeout(() => {
+            setFocused(false);
+            setOpen(false);
+          }, 150)
+        }
         onKeyDown={(e) => {
           if (!open || suggestions.length === 0) return;
           if (e.key === "ArrowDown") {

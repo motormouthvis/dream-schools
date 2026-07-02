@@ -13,26 +13,46 @@ const VALUE_PROPS: [string, React.ReactNode][] = [
 
 const BENEFITS: [string, string, string][] = [
   ["🔑", "Data no one else has", "Displays critical school data that no one else has."],
+  ["💸", "No expensive data fees", "Avoid paying pricey monthly school-data tools — ours is full features and free forever."],
+  ["⏱", "Engagement & SEO", "Rich school data on every listing keeps visitors on your site (not Zillow) and boosts local SEO."],
+  ["🎓", "Ratings, tests & safety", "Dream Rating, test scores, college readiness & safety, nationwide."],
   ["💬", "Popup", "Zero website redesign — auto-detects the address of the listing or neighborhood page."],
   ["📐", "Embed", "Minimal website design change — exact placement and size, inline in your page."],
-  ["💸", "No expensive data fees", "Avoid paying pricey monthly school-data tools — ours is free forever."],
-  ["⏱", "Keep buyers on your site", "Rich school data on every listing, so visitors don't leave for Zillow."],
-  ["📈", "Stronger SEO", "More time on page and richer local content help listings rank."],
-  ["🎓", "Ratings, tests & safety", "Dream Rating, test scores, college readiness & safety, nationwide."],
 ];
+
+function fmtDateTime(v: string | null | undefined): string {
+  if (!v) return "";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
 export default function DashboardPage() {
   const [config, setConfig] = useState<any>(null);
+  const [usage, setUsage] = useState<{ views: number; firstSeen: string | null; lastSeen: string | null } | null>(null);
 
   useEffect(() => {
     fetch("/api/app/config")
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => j && setConfig(j.config))
+      .then((j) => {
+        if (j) {
+          setConfig(j.config);
+          setUsage(j.usage ?? null);
+        }
+      })
       .catch(() => {});
   }, []);
 
   const domain = config?.allowedHosts?.[0];
   const active = Boolean(domain && config?.enabled);
+  const firstInstalled = fmtDateTime(usage?.firstSeen);
+  const lastActive = fmtDateTime(usage?.lastSeen);
 
   return (
     <AppShell active="home">
@@ -117,6 +137,23 @@ export default function DashboardPage() {
                   ? "Free forever · installed."
                   : "The popup stays off until you set an authorized domain."}
               </div>
+              {active && (
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-slate-600">
+                  <span>
+                    <strong className="text-ink-900">{(usage?.views ?? 0).toLocaleString()}</strong> views
+                  </span>
+                  {firstInstalled && (
+                    <span>
+                      First installed: <strong className="text-ink-900">{firstInstalled}</strong>
+                    </span>
+                  )}
+                  {lastActive && (
+                    <span>
+                      Last accessed: <strong className="text-ink-900">{lastActive}</strong>
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             <a

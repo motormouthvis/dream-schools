@@ -66,12 +66,40 @@ export function AppShell({
         </div>
         {link("home", "Home", "/dashboard")}
         {link("edit", "Configure School Explorer", "/edit")}
-        {link("help", "Help", "/help")}
         {me.isOwner && link("owner", "Customer List", "/owner")}
-        {link("account", "Account", "/account")}
-        <div className="mt-auto space-y-2 pt-4 text-[12px] text-white/50">
-          <div className="truncate">{me.email}</div>
-          <button onClick={logout} className="text-white/70 hover:text-white">Sign out</button>
+        {link("account", "Account Settings", "/account")}
+
+        <div className="mt-auto space-y-3 pt-4">
+          {link("help", "Help", "/help")}
+          <div className="space-y-1 border-t border-white/10 pt-3 text-[12px] text-white/60">
+            <div className="font-semibold uppercase tracking-wide text-white/40">Contact us</div>
+            <a href="mailto:support@dreamneighborhood.com" className="block truncate hover:text-white">
+              support@dreamneighborhood.com
+            </a>
+            <a href="tel:+17722020185" className="block hover:text-white">(772) 202-0185</a>
+          </div>
+          <div className="space-y-1 border-t border-white/10 pt-3 text-[12px]">
+            <a
+              href="https://docs.google.com/document/d/e/2PACX-1vSndxJR71x1k8uI1vmjOZGYvWfpxM-TJSFuMVXclgzx_h5P1Iey2BdKlY0DDiVPSGTJLn0NMLYKXTB5/pub"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-white/60 hover:text-white"
+            >
+              Terms of Service
+            </a>
+            <a
+              href="https://docs.google.com/document/d/e/2PACX-1vREF8QKsVkEpUyWff3FWUU8D4GoS2aRtz67qgCTmMb2uIQcXHjaqgBtJi6OBhUw-uZsqgM5itrsrxFR/pub"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-white/60 hover:text-white"
+            >
+              Privacy Policy
+            </a>
+          </div>
+          <div className="space-y-2 border-t border-white/10 pt-3 text-[12px] text-white/50">
+            <div className="truncate">{me.email}</div>
+            <button onClick={logout} className="text-white/70 hover:text-white">Sign out</button>
+          </div>
         </div>
       </aside>
       <main className="min-w-0 flex-1 overflow-y-auto p-6">{children(me)}</main>

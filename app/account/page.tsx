@@ -15,7 +15,7 @@ export default function AccountPage() {
     <AppShell active="account">
       {(me) => (
         <>
-          <h1 className="text-xl font-extrabold text-ink-900">Account</h1>
+          <h1 className="text-xl font-extrabold text-ink-900">Account Settings</h1>
           <p className="text-[12px] text-slate-500">Your sign-in details.</p>
 
           <div className="mt-4 max-w-md space-y-3">

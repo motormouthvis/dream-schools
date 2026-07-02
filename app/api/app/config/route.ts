@@ -9,6 +9,7 @@ import {
   normalizeHost,
   DEFAULT_PRESENTATION,
 } from "@/lib/embedConfig";
+import { getUsage } from "@/lib/embedUsage";
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +21,11 @@ export async function GET(request: Request) {
   const user = await currentUser(request);
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   const config = await getByPartner(user.id, 1);
+  const usage = await getUsage(user.id, 1);
   return NextResponse.json({
     email: user.email,
     config: config ?? { ...DEFAULT_PRESENTATION, allowedHosts: [], defaultAddress: "", enabled: false },
+    usage,
   });
 }
 
