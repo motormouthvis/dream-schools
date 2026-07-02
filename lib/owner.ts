@@ -1,8 +1,6 @@
 import { getPool, hasDatabase } from "@/lib/db";
 import { currentUser, type AppUser } from "@/lib/auth";
-import { deleteUsage } from "@/lib/embedUsage";
-import { deletePartner } from "@/lib/embedConfig";
-import { deleteUserEvents } from "@/lib/audit";
+import { logUserEventAsync } from "@/lib/audit";
 
 // ---------------------------------------------------------------------------
 // Owner-admin data access: the customers table with signup + usage, and the
@@ -18,6 +16,7 @@ export interface CustomerRow {
   emailVerified: boolean;
   isOwner: boolean;
   createdAt: string;
+  deletedAt: string | null;
   authorizedDomain: string | null;
   enabled: boolean;
   defaultAddress: string;
@@ -42,6 +41,7 @@ export async function listCustomers(): Promise<CustomerRow[]> {
         u.email_verified,
         u.is_owner,
         u.created_at,
+        u.deleted_at,
         p.allowed_hosts,
         p.enabled,
         p.default_address,
@@ -53,7 +53,7 @@ export async function listCustomers(): Promise<CustomerRow[]> {
         ON p.partner_id = u.id AND p.widget_number = 1
       LEFT JOIN embed_usage usg
         ON usg.partner_id = u.id AND usg.widget_number = 1
-      ORDER BY u.created_at DESC`
+      ORDER BY (u.deleted_at IS NOT NULL) ASC, u.created_at DESC`
   );
   return rows.map((r: any) => ({
     id: r.id,
@@ -61,6 +61,7 @@ export async function listCustomers(): Promise<CustomerRow[]> {
     emailVerified: Boolean(r.email_verified),
     isOwner: Boolean(r.is_owner),
     createdAt: r.created_at,
+    deletedAt: r.deleted_at ?? null,
     authorizedDomain:
       Array.isArray(r.allowed_hosts) && r.allowed_hosts.length ? r.allowed_hosts[0] : null,
     enabled: Boolean(r.enabled),
@@ -91,16 +92,19 @@ export async function updateCustomerAccount(
   await getPool().query(`UPDATE app_users SET ${sets.join(", ")} WHERE id = $${params.length}`, params);
 }
 
-/** Delete a customer and everything owned by them (config, usage, sessions). */
+/** Soft-delete a customer: retain account/config/usage/history, remove access. */
 export async function deleteCustomer(id: string): Promise<boolean> {
   if (!hasDatabase() || !id) return false;
   const pool = getPool();
-  // Widget config, usage, and audit events aren't FK-linked to app_users, so
-  // clear them first.
-  await deletePartner(id, 1).catch(() => {});
-  await deleteUsage(id).catch(() => {});
-  await deleteUserEvents(id).catch(() => {});
-  // Sessions & verify tokens cascade via ON DELETE CASCADE.
-  const res = await pool.query(`DELETE FROM app_users WHERE id = $1`, [id]);
+  const res = await pool.query(
+    `UPDATE app_users
+       SET deleted_at = COALESCE(deleted_at, NOW()), is_owner = FALSE
+       WHERE id = $1 AND deleted_at IS NULL`,
+    [id]
+  );
+  await pool.query(`UPDATE embed_partners SET enabled = FALSE, updated_at = NOW() WHERE partner_id = $1`, [id]).catch(() => {});
+  await pool.query(`DELETE FROM app_sessions WHERE user_id = $1`, [id]).catch(() => {});
+  await pool.query(`DELETE FROM app_verify_tokens WHERE user_id = $1`, [id]).catch(() => {});
+  if ((res.rowCount ?? 0) > 0) logUserEventAsync(id, "account_deleted");
   return (res.rowCount ?? 0) > 0;
 }

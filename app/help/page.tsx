@@ -227,12 +227,9 @@ function ProsCons({ title, pros, cons }: { title: string; pros: string[]; cons: 
 function SnippetCard({ title, code }: { title: string; code: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div>
-      <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">{title}</div>
-      <div className="relative">
-        <pre className="overflow-x-auto rounded-lg border border-slate-200 bg-slate-900 px-3 py-2.5 pr-14 text-[12px] leading-relaxed text-slate-100">
-          <code>{code}</code>
-        </pre>
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-900">
+      <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
+        <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{title}</div>
         <button
           type="button"
           onClick={() => {
@@ -240,10 +237,15 @@ function SnippetCard({ title, code }: { title: string; code: string }) {
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
           }}
-          className="absolute right-2 top-2 rounded-md bg-white/10 px-2 py-1 text-[11px] font-semibold text-white transition hover:bg-white/20"
+          className="rounded-md bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-white/20"
         >
           {copied ? "Copied" : "Copy"}
         </button>
+      </div>
+      <div>
+        <pre className="overflow-x-auto px-3 py-2.5 text-[12px] leading-relaxed text-slate-100">
+          <code>{code}</code>
+        </pre>
       </div>
     </div>
   );

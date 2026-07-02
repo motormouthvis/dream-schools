@@ -10,7 +10,11 @@ export type UserEventType =
   | "email_verified"
   | "email_changed"
   | "password_changed"
-  | "password_reset";
+  | "password_reset"
+  | "domain_changed"
+  | "default_address_changed"
+  | "explorer_enabled_changed"
+  | "account_deleted";
 
 export interface UserEvent {
   event: UserEventType | string;

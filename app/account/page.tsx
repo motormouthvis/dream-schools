@@ -55,6 +55,7 @@ export default function AccountPage() {
 function ChangeEmail({ currentEmail }: { currentEmail: string }) {
   const [newEmail, setNewEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -86,26 +87,43 @@ function ChangeEmail({ currentEmail }: { currentEmail: string }) {
   }
 
   return (
-    <Card title="Change email">
+    <Card
+      title="Change email"
+      action={
+        <button
+          type="button"
+          onClick={() => setShowPw((s) => !s)}
+          className="text-[11px] font-semibold text-brand-700 hover:text-brand-800"
+        >
+          {showPw ? "Hide" : "Show"}
+        </button>
+      }
+    >
       <form onSubmit={submit} className="space-y-3">
         <input type="email" name="username" autoComplete="username" value={currentEmail} readOnly hidden />
-        <input
-          type="email"
-          required
-          value={newEmail}
-          onChange={(e) => setNewEmail(e.target.value)}
-          placeholder="new@agency.com"
-          className={inp}
-        />
-        <input
-          type="password"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Current password"
-          className={inp}
-        />
+        <div>
+          <label className="block text-xs font-bold text-slate-600">New email</label>
+          <input
+            type="email"
+            required
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            placeholder="new@agency.com"
+            className={inp}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-slate-600">Current password</label>
+          <input
+            type={showPw ? "text" : "password"}
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Required to change your email"
+            className={inp}
+          />
+        </div>
         {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
         {done && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">Email updated ✓</p>}
         <button type="submit" disabled={busy} className={btn}>

@@ -10,6 +10,7 @@ import {
   DEFAULT_PRESENTATION,
 } from "@/lib/embedConfig";
 import { getUsage } from "@/lib/embedUsage";
+import { logUserEventAsync } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -86,6 +87,25 @@ export async function POST(request: Request) {
     // The popup only turns on once a domain is authorized.
     enabled: allowedHosts.length > 0 ? bool(body.enabled, true) : false,
   });
+  const priorDomain = existing?.allowedHosts?.[0] ?? "";
+  const nextDomain = saved.allowedHosts?.[0] ?? "";
+  if (priorDomain !== nextDomain) {
+    logUserEventAsync(
+      user.id,
+      "domain_changed",
+      `${priorDomain || "(none)"} → ${nextDomain || "(none)"}`
+    );
+  }
+  if ((existing?.defaultAddress ?? "") !== (saved.defaultAddress ?? "")) {
+    logUserEventAsync(
+      user.id,
+      "default_address_changed",
+      `${existing?.defaultAddress || "(none)"} → ${saved.defaultAddress || "(none)"}`
+    );
+  }
+  if (existing && Boolean(existing.enabled) !== Boolean(saved.enabled)) {
+    logUserEventAsync(user.id, "explorer_enabled_changed", `${existing.enabled ? "on" : "off"} → ${saved.enabled ? "on" : "off"}`);
+  }
   // Take over any stale legacy `host:` registration for these domains.
   if (allowedHosts.length) {
     await claimHostForPartner(user.id, allowedHosts).catch((err) =>

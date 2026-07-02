@@ -104,7 +104,7 @@ export async function PATCH(request: Request) {
           );
         }
       }
-      await upsertPartner({
+      const saved = await upsertPartner({
         partnerId: id,
         widgetNumber: 1,
         allowedHosts,
@@ -131,6 +131,25 @@ export async function PATCH(request: Request) {
               : base.enabled
             : false,
       });
+      const priorDomain = existing?.allowedHosts?.[0] ?? "";
+      const nextDomain = saved.allowedHosts?.[0] ?? "";
+      if (priorDomain !== nextDomain) {
+        logUserEventAsync(id, "domain_changed", `${priorDomain || "(none)"} → ${nextDomain || "(none)"} (by admin)`);
+      }
+      if ((existing?.defaultAddress ?? "") !== (saved.defaultAddress ?? "")) {
+        logUserEventAsync(
+          id,
+          "default_address_changed",
+          `${existing?.defaultAddress || "(none)"} → ${saved.defaultAddress || "(none)"} (by admin)`
+        );
+      }
+      if (existing && Boolean(existing.enabled) !== Boolean(saved.enabled)) {
+        logUserEventAsync(
+          id,
+          "explorer_enabled_changed",
+          `${existing.enabled ? "on" : "off"} → ${saved.enabled ? "on" : "off"} (by admin)`
+        );
+      }
       if (allowedHosts.length) {
         await claimHostForPartner(id, allowedHosts).catch((err) =>
           console.error("claimHostForPartner failed:", err)

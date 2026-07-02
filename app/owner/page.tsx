@@ -10,6 +10,7 @@ interface Customer {
   emailVerified: boolean;
   isOwner: boolean;
   createdAt: string;
+  deletedAt: string | null;
   authorizedDomain: string | null;
   enabled: boolean;
   defaultAddress: string;
@@ -105,12 +106,20 @@ function OwnerAdmin() {
       ? customers.filter(
           (c) =>
             c.email.toLowerCase().includes(q) ||
-            (c.authorizedDomain || "").toLowerCase().includes(q)
+            (c.authorizedDomain || "").toLowerCase().includes(q) ||
+            fmtDate(c.createdAt).toLowerCase().includes(q) ||
+            new Date(c.createdAt)
+              .toLocaleDateString(undefined, { month: "long", year: "numeric" })
+              .toLowerCase()
+              .includes(q) ||
+            new Date(c.createdAt).getFullYear().toString().includes(q)
         )
       : customers.slice();
 
     const dir = sortDir === "asc" ? 1 : -1;
     filtered.sort((a, b) => {
+      if (a.deletedAt && !b.deletedAt) return 1;
+      if (!a.deletedAt && b.deletedAt) return -1;
       let av: string | number = 0;
       let bv: string | number = 0;
       switch (sortKey) {
@@ -140,7 +149,7 @@ function OwnerAdmin() {
   }, [customers, query, sortKey, sortDir]);
 
   async function remove(c: Customer) {
-    if (!confirm(`Delete ${c.email}? This removes their account, widget config, and usage. This cannot be undone.`)) {
+    if (!confirm(`Mark ${c.email} as deleted? They will lose access, but the account, config, usage, and history stay in the Customer List.`)) {
       return;
     }
     const res = await fetch(`/api/owner/customers?id=${encodeURIComponent(c.id)}`, {
@@ -197,7 +206,7 @@ function OwnerAdmin() {
               <Th label="Customer" k="email" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <Th label="Signed up" k="createdAt" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <th className="px-3 py-2 font-semibold">Domain</th>
-              <th className="px-3 py-2 font-semibold">Status</th>
+              <th className="px-3 py-2 font-semibold" title="Enabled means an authorized domain is set and the Explorer toggle is on. Actual usage is shown by Views / Last active.">Status</th>
               <Th label="Views" k="views" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
               <Th label="Code detected" k="firstSeen" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <Th label="Last active" k="lastSeen" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
@@ -223,7 +232,8 @@ function OwnerAdmin() {
                   <td className="px-3 py-2.5">
                     <div className="font-semibold text-ink-900">{c.email}</div>
                     <div className="mt-0.5 flex gap-1">
-                      {c.isOwner && <Badge tone="brand">Admin</Badge>}
+                      {c.deletedAt && <Badge tone="slate">Deleted</Badge>}
+                      {!c.deletedAt && c.isOwner && <Badge tone="brand">Admin</Badge>}
                       {c.emailVerified ? (
                         <Badge tone="green">Verified</Badge>
                       ) : (
@@ -247,8 +257,10 @@ function OwnerAdmin() {
                     )}
                   </td>
                   <td className="px-3 py-2.5">
-                    {c.enabled ? (
-                      <Badge tone="green">Live</Badge>
+                    {c.deletedAt ? (
+                      <Badge tone="slate">Deleted</Badge>
+                    ) : c.enabled ? (
+                      <Badge tone="green">Enabled</Badge>
                     ) : (
                       <Badge tone="slate">Off</Badge>
                     )}
@@ -265,18 +277,22 @@ function OwnerAdmin() {
                     >
                       History
                     </button>
-                    <button
-                      onClick={() => setEditing(c)}
-                      className="ml-2 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => remove(c)}
-                      className="ml-2 rounded-md border border-rose-200 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                    >
-                      Delete
-                    </button>
+                    {!c.deletedAt && (
+                      <>
+                        <button
+                          onClick={() => setEditing(c)}
+                          className="ml-2 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => remove(c)}
+                          className="ml-2 rounded-md border border-rose-200 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))
@@ -313,6 +329,10 @@ const EVENT_LABELS: Record<string, string> = {
   email_changed: "Email changed",
   password_changed: "Password changed",
   password_reset: "Password reset",
+  domain_changed: "Website URL changed",
+  default_address_changed: "Default address changed",
+  explorer_enabled_changed: "Explorer enabled changed",
+  account_deleted: "Account deleted",
 };
 
 function HistoryModal({ customer, onClose }: { customer: Customer; onClose: () => void }) {
