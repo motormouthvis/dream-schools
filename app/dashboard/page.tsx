@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app/AppShell";
+import { NeighborhoodExplorerCard } from "@/components/NeighborhoodExplorerCard";
 
 // Key value props (mirrors the marketing site's School Explorer card).
 const VALUE_PROPS: [string, React.ReactNode][] = [
@@ -11,12 +12,12 @@ const VALUE_PROPS: [string, React.ReactNode][] = [
 ];
 
 const BENEFITS: [string, string, string][] = [
+  ["🔑", "Data no one else has", "Displays critical school data that no one else has."],
   ["💸", "No expensive data fees", "Avoid paying pricey monthly school-data tools — ours is free forever."],
   ["⏱", "Keep buyers on your site", "Rich school data on every listing, so visitors don't leave for Zillow."],
   ["📈", "Stronger SEO", "More time on page and richer local content help listings rank."],
   ["🎓", "Ratings, tests & safety", "Dream Rating, test scores, college readiness & safety, nationwide."],
   ["🧩", "One line of code", "Installs with a single snippet — no website redesign."],
-  ["🚫", "No ads, ever", "Your brand, on your site. No credit card — ever."],
 ];
 
 export default function DashboardPage() {
@@ -53,57 +54,39 @@ export default function DashboardPage() {
                 Find the Best Schools in Your New Neighborhood
               </p>
               <p className="mt-2 max-w-[17rem] text-xs font-semibold leading-snug text-slate-700 sm:max-w-sm">
-                Real ratings, test scores &amp; safety for any address —{" "}
-                <span className="font-bold text-brand-700">free, forever.</span>
+                Real ratings, test scores &amp; safety for any address
               </p>
             </div>
           </div>
 
-          {/* Status + primary CTA */}
-          <div
-            className={`mt-4 flex items-center justify-between gap-4 rounded-xl p-4 ring-1 ring-inset ${
-              active ? "bg-brand-50 ring-brand-600/15" : "bg-amber-50 ring-amber-500/25"
-            }`}
-          >
-            <div className="min-w-0">
-              <div className={`text-sm font-bold ${active ? "text-brand-900" : "text-amber-900"}`}>
-                {active ? `● Active on ${domain}` : "Add your website to activate the popup"}
-              </div>
-              <div className="mt-0.5 text-[12px] text-slate-600">
-                {active
-                  ? "Free forever · installed."
-                  : "The popup stays off until you set an authorized domain."}
-              </div>
+          {/* Two halves: School Explorer (this product) + Neighborhood Explorer upgrade */}
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            {/* LEFT — School Explorer value props */}
+            <div className="flex flex-col rounded-3xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-lime-50 p-6 shadow-sm">
+              <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-600/15">
+                ★ Free forever · no ads - no credit card required
+              </span>
+              <h3 className="mt-3 text-xl font-extrabold tracking-tight text-ink-900">School Explorer</h3>
+              <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                Put a beautiful school-ratings explorer on every listing — ratings, test scores,
+                college readiness &amp; safety, nationwide.
+              </p>
+              <ul className="mt-4 space-y-2.5 text-sm text-slate-700">
+                {VALUE_PROPS.map(([title, desc], i) => (
+                  <li key={i} className="flex items-start gap-2.5">
+                    <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand-600 text-[10px] font-bold text-white">
+                      ✓
+                    </span>
+                    <span>
+                      <strong>{title}</strong> — {desc}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <a
-              href="/edit"
-              className="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700"
-            >
-              Configure School Explorer →
-            </a>
-          </div>
 
-          {/* Value props */}
-          <div className="mt-4 rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-lime-50 p-6">
-            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-600/15">
-              ★ Free forever · no ads
-            </span>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600">
-              Put a beautiful school-ratings explorer on every listing — ratings, test scores,
-              college readiness &amp; safety, nationwide.
-            </p>
-            <ul className="mt-4 space-y-2.5 text-sm text-slate-700">
-              {VALUE_PROPS.map(([title, desc], i) => (
-                <li key={i} className="flex items-start gap-2.5">
-                  <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand-600 text-[10px] font-bold text-white">
-                    ✓
-                  </span>
-                  <span>
-                    <strong>{title}</strong> — {desc}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            {/* RIGHT — Neighborhood Explorer upgrade CTA */}
+            <NeighborhoodExplorerCard />
           </div>
 
           {/* Benefits grid */}
@@ -116,6 +99,36 @@ export default function DashboardPage() {
                 <div className="text-[11px] leading-relaxed text-slate-500">{desc}</div>
               </div>
             ))}
+          </div>
+
+          {/* Status (half) + link to the marketing website (half) */}
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div
+              className={`flex flex-col justify-center rounded-xl p-4 ring-1 ring-inset ${
+                active ? "bg-brand-50 ring-brand-600/15" : "bg-amber-50 ring-amber-500/25"
+              }`}
+            >
+              <div className={`text-sm font-bold ${active ? "text-brand-900" : "text-amber-900"}`}>
+                {active ? `● Active on ${domain}` : "Add your website to activate the popup"}
+              </div>
+              <div className="mt-0.5 text-[12px] text-slate-600">
+                {active
+                  ? "Free forever · installed."
+                  : "The popup stays off until you set an authorized domain."}
+              </div>
+            </div>
+
+            <a
+              href="https://www.dreamneighborhoodschools.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-col justify-center rounded-xl border border-slate-200 bg-white p-4 transition hover:border-brand-300 hover:bg-brand-50/40"
+            >
+              <div className="text-sm font-bold text-ink-900">See it live on our website →</div>
+              <div className="mt-0.5 text-[12px] text-slate-600">
+                Explore the public School Explorer at dreamneighborhoodschools.com.
+              </div>
+            </a>
           </div>
 
           {/* Coverage + footer — matches the marketing site */}
