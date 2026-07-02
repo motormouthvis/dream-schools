@@ -122,9 +122,26 @@ export default function EditPage() {
             <div className="mt-4 space-y-5">
               <IntroBlock />
 
+              {/* Realistic screenshot-style previews — standalone, equal height */}
+              <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2">
+                <PreviewCard
+                  label="Popup"
+                  title="Floating button"
+                  caption="A button floats in the corner of every listing page and auto-detects the address — zero redesign."
+                >
+                  <PopupShot accent={form.accentColor} side={form.position} />
+                </PreviewCard>
+                <PreviewCard
+                  label="Embed"
+                  title="Inline on your page"
+                  caption="The explorer renders inside your page exactly where you place the div — full control of placement."
+                >
+                  <EmbedShot accent={form.accentColor} />
+                </PreviewCard>
+              </div>
+
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 <TechColumn title="Popup" subtitle="A floating school button for every listing page.">
-                  <PopupPreview accent={form.accentColor} side={form.position} />
                   <OptionBlock title="Popup options">
                     <Field label="Location" hint="Where the floating button sits on the page.">
                       <select className={inp} value={form.position} onChange={(e) => set("position", e.target.value as "left" | "right")}>
@@ -148,7 +165,6 @@ export default function EditPage() {
                 </TechColumn>
 
                 <TechColumn title="Embed" subtitle="An inline explorer placed exactly where you want it.">
-                  <EmbedPreview accent={form.accentColor} />
                   <OptionBlock title="Embed options">
                     <Field label="Min height (px)" hint="0 = auto-fit to content.">
                       <input type="number" min={0} className={inp} value={form.inlineMinHeight} onChange={(e) => set("inlineMinHeight", Number(e.target.value) || 0)} />
@@ -305,54 +321,131 @@ function OptionBlock({ title, children }: { title: string; children: React.React
   );
 }
 
-function PopupPreview({ accent, side }: { accent: string; side: "left" | "right" }) {
+function PreviewCard({
+  label,
+  title,
+  caption,
+  children,
+}: {
+  label: string;
+  title: string;
+  caption: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="relative h-56 overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-lime-50 p-4">
-      <div className="rounded-xl bg-white p-3 shadow-sm">
-        <div className="h-3 w-28 rounded bg-slate-200" />
-        <div className="mt-2 h-2 w-full rounded bg-slate-100" />
-        <div className="mt-1 h-2 w-3/4 rounded bg-slate-100" />
+    <div className="flex h-full flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-600/15">
+          {label}
+        </span>
+        <span className="text-sm font-bold text-ink-900">{title}</span>
+        <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400">
+          Example
+        </span>
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <div className="h-20 rounded-xl bg-white shadow-sm" />
-        <div className="h-20 rounded-xl bg-white shadow-sm" />
+      {children}
+      <p className="mt-3 text-[12px] leading-relaxed text-slate-500">{caption}</p>
+    </div>
+  );
+}
+
+// A fake browser window so the mock is instantly recognizable as a screenshot.
+function BrowserMock({ url, children }: { url: string; children: React.ReactNode }) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-300 bg-white shadow-md ring-1 ring-black/5">
+      <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-100 px-3 py-2">
+        <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
+        <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+        <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+        <div className="ml-2 flex-1 truncate rounded-md bg-white px-2 py-1 text-[10px] text-slate-400 ring-1 ring-slate-200">
+          {url}
+        </div>
       </div>
-      <div className={`absolute bottom-4 ${side === "right" ? "right-4" : "left-4"} flex items-center gap-2`}>
-        <div className="rounded-xl bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 shadow-lg">
-          See schools nearby
-        </div>
-        <div className="flex h-12 w-12 items-center justify-center rounded-full text-xl font-bold text-white shadow-xl" style={{ backgroundColor: accent }}>
-          S
-        </div>
+      <div className="relative h-[268px] overflow-hidden bg-white">{children}</div>
+    </div>
+  );
+}
+
+function ListingHeader() {
+  return (
+    <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+      <div className="flex items-center gap-1.5">
+        <div className="h-4 w-4 rounded bg-slate-300" />
+        <div className="h-2.5 w-20 rounded bg-slate-200" />
+      </div>
+      <div className="flex gap-2">
+        <div className="h-2 w-8 rounded bg-slate-100" />
+        <div className="h-2 w-8 rounded bg-slate-100" />
+        <div className="h-2 w-8 rounded bg-slate-100" />
       </div>
     </div>
   );
 }
 
-function EmbedPreview({ accent }: { accent: string }) {
+function PopupShot({ accent, side }: { accent: string; side: "left" | "right" }) {
   return (
-    <div className="h-56 overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-lime-50 p-4">
-      <div className="rounded-xl bg-white p-3 shadow-sm">
-        <div className="h-3 w-32 rounded bg-slate-200" />
-        <div className="mt-2 h-2 w-full rounded bg-slate-100" />
+    <BrowserMock url="youragency.com/listings/123-main-st">
+      <ListingHeader />
+      <div className="relative mx-3 mt-3 h-28 rounded-lg bg-gradient-to-br from-slate-200 to-slate-300">
+        <span className="absolute bottom-1 left-2 text-[9px] font-semibold text-slate-500/80">Listing photo</span>
       </div>
-      <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
-        <div className="flex items-center justify-between">
-          <div className="text-sm font-extrabold text-ink-900">School Explorer</div>
-          <span className="h-2 w-12 rounded-full" style={{ backgroundColor: accent }} />
+      <div className="px-3 pt-2">
+        <div className="text-[14px] font-extrabold text-ink-900">$525,000</div>
+        <div className="text-[11px] font-semibold text-slate-600">123 Main St, Fort Pierce, FL</div>
+        <div className="mt-0.5 text-[10px] text-slate-400">3 bd · 2 ba · 1,850 sqft</div>
+      </div>
+      {/* Floating popup button + tooltip */}
+      <div className={`absolute bottom-3 flex items-center gap-2 ${side === "right" ? "right-3 flex-row" : "left-3 flex-row-reverse"}`}>
+        <div className="rounded-lg bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-700 shadow-lg ring-1 ring-black/5">
+          See schools near this home
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <div className="rounded-xl border border-slate-100 p-2">
-            <div className="h-2 w-16 rounded bg-slate-200" />
-            <div className="mt-2 h-8 rounded bg-lime2-400/25" />
-          </div>
-          <div className="rounded-xl border border-slate-100 p-2">
-            <div className="h-2 w-16 rounded bg-slate-200" />
-            <div className="mt-2 h-8 rounded bg-brand-100" />
-          </div>
+        <div
+          className="flex h-11 w-11 items-center justify-center rounded-full text-white shadow-xl"
+          style={{ backgroundColor: accent }}
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         </div>
       </div>
-    </div>
+    </BrowserMock>
+  );
+}
+
+function EmbedShot({ accent }: { accent: string }) {
+  const rows: [string, string, string][] = [
+    ["Lincoln Elementary", "Public · K–5", "#16a34a"],
+    ["Riverside Middle", "Public · 6–8", "#16a34a"],
+    ["Central High", "Public · 9–12", "#d97706"],
+  ];
+  return (
+    <BrowserMock url="youragency.com/listings/123-main-st">
+      <ListingHeader />
+      <div className="px-3 pt-2">
+        <div className="text-[12px] font-extrabold text-ink-900">$525,000 · 123 Main St</div>
+        <div className="text-[10px] text-slate-400">3 bd · 2 ba · 1,850 sqft</div>
+      </div>
+      {/* Inline embedded explorer */}
+      <div className="mx-3 mt-2 overflow-hidden rounded-lg border border-slate-200 shadow-sm">
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-white" style={{ backgroundColor: accent }}>
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white/25">
+            <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </span>
+          <span className="text-[10px] font-bold">Dream Neighborhood School Explorer</span>
+        </div>
+        <div className="space-y-1.5 p-2">
+          {rows.map(([name, meta, color]) => (
+            <div key={name} className="flex items-center justify-between rounded-md border border-slate-100 px-2 py-1">
+              <div>
+                <div className="text-[10px] font-semibold text-ink-900">{name}</div>
+                <div className="text-[8px] text-slate-400">{meta}</div>
+              </div>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold text-white" style={{ backgroundColor: color }}>
+                {color === "#16a34a" ? "9" : "6"}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </BrowserMock>
   );
 }
 
