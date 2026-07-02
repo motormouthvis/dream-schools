@@ -3,6 +3,7 @@ import { presentationPayload, resolveByHost } from "@/lib/embedConfig";
 import { recordUsageAsync } from "@/lib/embedUsage";
 import { getPool, hasDatabase } from "@/lib/db";
 import { getGlobalUpgradeSettings, REQUEST_SUPPRESS_DAYS } from "@/lib/upgradePrompt";
+import { ensureAuthTables } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,7 @@ export async function GET(request: Request) {
   };
   if (hasDatabase() && !config.partnerId.startsWith("host:")) {
     try {
+      await ensureAuthTables();
       const { rows } = await getPool().query(
         `SELECT
             u.business_name,

@@ -103,6 +103,10 @@ async function ensureTables(): Promise<void> {
   return tableReady;
 }
 
+export function ensureAuthTables(): Promise<void> {
+  return ensureTables();
+}
+
 function normalizeEmail(email: string): string {
   return String(email || "").trim().toLowerCase();
 }
