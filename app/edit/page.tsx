@@ -126,14 +126,14 @@ export default function EditPage() {
               <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2">
                 <PreviewCard
                   label="Popup"
-                  title="Floating button"
+                  title="Screenshot of Popup Floating Button on Listing Page"
                   caption="A button floats in the corner of every listing page and auto-detects the address — zero redesign."
                 >
                   <PopupShot accent={form.accentColor} side={form.position} />
                 </PreviewCard>
                 <PreviewCard
                   label="Embed"
-                  title="Inline on your page"
+                  title="Screenshot of Embedded Explorer on Listing Page"
                   caption="The explorer renders inside your page exactly where you place the div — full control of placement."
                 >
                   <EmbedShot accent={form.accentColor} />
@@ -386,8 +386,11 @@ function PopupShot({ accent, side }: { accent: string; side: "left" | "right" })
   return (
     <BrowserMock url="youragency.com/listings/123-main-st">
       <ListingHeader />
-      <div className="relative mx-3 mt-3 h-28 rounded-lg bg-gradient-to-br from-slate-200 to-slate-300">
-        <span className="absolute bottom-1 left-2 text-[9px] font-semibold text-slate-500/80">Listing photo</span>
+      <div className="relative mx-3 mt-3 h-28 overflow-hidden rounded-lg bg-gradient-to-br from-slate-200 to-slate-300">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/hero-banner.png" alt="Listing photo preview" className="h-full w-full object-cover object-right opacity-90" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
+        <span className="absolute bottom-1 left-2 text-[9px] font-semibold text-white/90">Listing photo</span>
       </div>
       <div className="px-3 pt-2">
         <div className="text-[14px] font-extrabold text-ink-900">$525,000</div>
