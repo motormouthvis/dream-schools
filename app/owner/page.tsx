@@ -55,7 +55,7 @@ function fmtDateTime(v: string | null): string {
 export default function OwnerPage() {
   return (
     <AppShell active="owner">
-      {(me) => (me.isOwner ? <OwnerAdmin /> : <NotAuthorized />)}
+      {(me) => (me.isOwner || me.isPartner ? <OwnerAdmin /> : <NotAuthorized />)}
     </AppShell>
   );
 }
@@ -291,15 +291,20 @@ function OwnerAdmin() {
                 <tr key={c.id} className="hover:bg-slate-50/60">
                   <td className="px-3 py-2.5">
                     <div className="font-semibold text-ink-900">{c.email}</div>
-                    <div className="mt-0.5 flex gap-1">
+                    <div className="mt-0.5 flex flex-wrap gap-1">
                       {c.deletedAt && <Badge tone="slate">Disabled</Badge>}
                       {!c.deletedAt && c.isOwner && <Badge tone="brand">Admin</Badge>}
+                      {!c.deletedAt && !c.isOwner && c.isPartner && <Badge tone="brand">Partner</Badge>}
+                      {!c.deletedAt && !c.isOwner && !c.isPartner && <Badge tone="slate">Customer</Badge>}
                       {c.emailVerified ? (
                         <Badge tone="green">Verified</Badge>
                       ) : (
                         <Badge tone="amber">Unverified</Badge>
                       )}
                     </div>
+                    {c.isPartner && c.companyName && (
+                      <div className="mt-0.5 text-[11px] font-semibold text-brand-700">{c.companyName}</div>
+                    )}
                   </td>
                   <td className="px-3 py-2.5 text-slate-600">{fmtDate(c.createdAt)}</td>
                   <td className="px-3 py-2.5 text-slate-600">
@@ -317,9 +322,7 @@ function OwnerAdmin() {
                     )}
                   </td>
                   <td className="px-3 py-2.5 text-slate-600">
-                    {c.isPartner ? (
-                      <span className="font-semibold text-brand-700">{c.companyName || c.email}</span>
-                    ) : c.partnerName ? (
+                    {!c.isPartner && c.partnerName ? (
                       c.partnerName
                     ) : (
                       <span className="text-slate-400">—</span>
