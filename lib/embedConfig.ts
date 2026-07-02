@@ -411,6 +411,38 @@ export async function claimHostForPartner(
   }
 }
 
+/**
+ * Return the subset of `hosts` already authorized by a DIFFERENT customer
+ * account, so callers can block duplicate domain registrations. Legacy auto
+ * `host:` partners are ignored — those get retired/merged when a real account
+ * claims the domain (see claimHostForPartner).
+ */
+export async function hostsClaimedByOthers(
+  hosts: string[],
+  excludePartnerId: string
+): Promise<string[]> {
+  if (!hasDatabase()) return [];
+  const norm = Array.from(new Set(hosts.map((h) => normalizeHost(h)).filter(Boolean)));
+  if (!norm.length) return [];
+  await ensureTable();
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT allowed_hosts FROM embed_partners
+       WHERE partner_id <> $1
+         AND partner_id NOT LIKE 'host:%'
+         AND allowed_hosts && $2::text[]`,
+    [excludePartnerId, norm]
+  );
+  const taken = new Set<string>();
+  for (const r of rows) {
+    for (const h of r.allowed_hosts || []) {
+      const n = normalizeHost(h);
+      if (norm.includes(n)) taken.add(n);
+    }
+  }
+  return Array.from(taken);
+}
+
 export async function deletePartner(
   partnerId: string,
   widgetNumber: number

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app/AppShell";
+import { AddressAutocomplete } from "@/components/app/AddressAutocomplete";
 
 type Form = {
   authorizedDomain: string;
@@ -126,7 +127,12 @@ export default function EditPage() {
                   <input className={inp} value={form.authorizedDomain} onChange={(e) => set("authorizedDomain", e.target.value)} placeholder="youragency.com" />
                 </Field>
                 <Field label="Default address (fallback)" hint="Shown when no address is detected on the page.">
-                  <input className={inp} value={form.defaultAddress} onChange={(e) => set("defaultAddress", e.target.value)} placeholder="1500 N 23rd St, Fort Pierce, FL" />
+                  <AddressAutocomplete
+                    className={inp}
+                    value={form.defaultAddress}
+                    onChange={(v) => set("defaultAddress", v)}
+                    placeholder="1500 N 23rd St, Fort Pierce, FL"
+                  />
                 </Field>
                 <Field label="Accent color">
                   <div className="flex items-center gap-2">

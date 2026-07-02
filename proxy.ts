@@ -33,7 +33,8 @@ function isAllowedOnAppHost(pathname: string): boolean {
     pathname.startsWith("/api/auth/") ||
     pathname.startsWith("/api/app/") ||
     pathname.startsWith("/api/owner/") ||
-    pathname.startsWith("/api/embed/")
+    pathname.startsWith("/api/embed/") ||
+    pathname === "/api/autocomplete"
   ) {
     return true;
   }

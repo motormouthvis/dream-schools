@@ -5,6 +5,7 @@ import {
   getByPartner,
   upsertPartner,
   claimHostForPartner,
+  hostsClaimedByOthers,
   normalizeHost,
   DEFAULT_PRESENTATION,
 } from "@/lib/embedConfig";
@@ -44,6 +45,19 @@ export async function POST(request: Request) {
     domainRaw !== undefined
       ? [normalizeHost(String(domainRaw))].filter(Boolean)
       : existing?.allowedHosts ?? [];
+
+  // A domain can only belong to one account.
+  if (allowedHosts.length) {
+    const taken = await hostsClaimedByOthers(allowedHosts, user.id);
+    if (taken.length) {
+      return NextResponse.json(
+        {
+          error: `${taken.join(", ")} is already registered to another account. Each domain can belong to only one account.`,
+        },
+        { status: 409 }
+      );
+    }
+  }
 
   const num = (v: unknown, d: number) => (Number.isFinite(Number(v)) ? Number(v) : d);
   const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);

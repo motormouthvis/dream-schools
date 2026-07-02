@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app/AppShell";
+import { AddressAutocomplete } from "@/components/app/AddressAutocomplete";
 
 interface Customer {
   id: string;
@@ -348,10 +349,10 @@ function EditModal({
             />
           </L>
           <L label="Default address (fallback)">
-            <input
+            <AddressAutocomplete
               className={inp}
               value={defaultAddress}
-              onChange={(e) => setDefaultAddress(e.target.value)}
+              onChange={setDefaultAddress}
               placeholder="1500 N 23rd St, Fort Pierce, FL"
             />
           </L>
