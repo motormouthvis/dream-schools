@@ -23,6 +23,7 @@ export function AppShell({
 }) {
   const [me, setMe] = useState<Me | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -37,6 +38,24 @@ export function AppShell({
       })
       .catch(() => (window.location.href = "/login"));
   }, []);
+
+  useEffect(() => {
+    const saved = typeof window !== "undefined" ? window.localStorage.getItem("dn_sidebar_open") : null;
+    if (saved !== null) setSidebarOpen(saved === "1");
+    else if (typeof window !== "undefined" && window.innerWidth < 768) setSidebarOpen(false);
+  }, []);
+
+  function toggleSidebar() {
+    setSidebarOpen((v) => {
+      const next = !v;
+      try {
+        window.localStorage.setItem("dn_sidebar_open", next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }
 
   if (!loaded || !me) {
     return <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-400">Loading…</div>;
@@ -55,14 +74,24 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-100 md:flex-row">
+      {sidebarOpen && (
       <aside className="flex shrink-0 flex-col bg-[#0b4a3d] p-4 text-white md:min-h-screen md:w-60">
         {/* Brand */}
-        <div className="flex items-center gap-2 px-1">
-          <SchoolhouseMark className="h-7 w-7 rounded" />
-          <span className="text-sm font-extrabold leading-tight">
-            Dream Neighborhood
-            <span className="block text-[10px] font-semibold tracking-wider text-white/50">SCHOOLS</span>
-          </span>
+        <div className="flex items-center justify-between gap-2 px-1">
+          <div className="flex items-center gap-2">
+            <SchoolhouseMark className="h-7 w-7 rounded" />
+            <span className="text-sm font-extrabold leading-tight">
+              Dream Neighborhood
+              <span className="block text-[10px] font-semibold tracking-wider text-white/50">SCHOOLS</span>
+            </span>
+          </div>
+          <button
+            onClick={toggleSidebar}
+            aria-label="Hide menu"
+            className="rounded-md p-1 text-white/60 transition hover:bg-white/10 hover:text-white"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 19l-7-7 7-7M19 19l-7-7 7-7"/></svg>
+          </button>
         </div>
 
         {/* Account (top, above nav) */}
@@ -109,7 +138,25 @@ export function AppShell({
           </div>
         </div>
       </aside>
-      <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">{children(me)}</main>
+      )}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {!sidebarOpen && (
+          <div className="flex items-center gap-2 border-b border-slate-200 bg-white px-3 py-2">
+            <button
+              onClick={toggleSidebar}
+              aria-label="Show menu"
+              className="rounded-md p-1.5 text-slate-600 transition hover:bg-slate-100"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+            </button>
+            <div className="flex items-center gap-2">
+              <SchoolhouseMark className="h-6 w-6 rounded" />
+              <span className="text-sm font-extrabold text-ink-900">Dream Neighborhood Schools</span>
+            </div>
+          </div>
+        )}
+        <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">{children(me)}</main>
+      </div>
     </div>
   );
 }

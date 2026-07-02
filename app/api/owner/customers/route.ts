@@ -8,7 +8,9 @@ import {
   updateCustomerAccount,
   deleteCustomer,
   restoreCustomer,
+  getCustomerScope,
 } from "@/lib/owner";
+import type { AppUser } from "@/lib/auth";
 import {
   getByPartner,
   upsertPartner,
@@ -39,6 +41,28 @@ async function guard(request: Request) {
   return { owner };
 }
 
+// Authorize a mutation on a specific customer. Admins may edit anyone; partners
+// may only edit customers assigned to them (and never another partner/admin).
+async function mutateGuard(
+  request: Request,
+  targetId: string
+): Promise<{ error?: NextResponse; actor?: AppUser; isAdmin?: boolean }> {
+  if (!hasDatabase()) {
+    return { error: NextResponse.json({ error: "Database required." }, { status: 503 }) };
+  }
+  const actor = await requireCustomerListAccess(request);
+  if (!actor) {
+    return { error: NextResponse.json({ error: "Customer List access required." }, { status: 403 }) };
+  }
+  if (actor.isOwner) return { actor, isAdmin: true };
+  // Partner: only their own customers.
+  const scope = await getCustomerScope(targetId);
+  if (!scope || scope.partnerId !== actor.id || scope.isOwner || scope.isPartner) {
+    return { error: NextResponse.json({ error: "Not authorized for this customer." }, { status: 403 }) };
+  }
+  return { actor, isAdmin: false };
+}
+
 async function listGuard(request: Request) {
   if (!hasDatabase()) {
     return { error: NextResponse.json({ error: "Database required." }, { status: 503 }) };
@@ -56,7 +80,12 @@ export async function GET(request: Request) {
   try {
     const customers = await listCustomers(g.user);
     const partners = g.user!.isOwner ? await listPartnerAccounts() : [];
-    return NextResponse.json({ customers, partners, canEdit: g.user!.isOwner });
+    return NextResponse.json({
+      customers,
+      partners,
+      canEdit: true,
+      role: g.user!.isOwner ? "owner" : "partner",
+    });
   } catch (err) {
     console.error("owner list failed:", err);
     return NextResponse.json({ error: "Failed to list customers." }, { status: 500 });
@@ -64,9 +93,6 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const g = await guard(request);
-  if (g.error) return g.error;
-
   let body: Record<string, unknown>;
   try {
     body = await request.json();
@@ -77,6 +103,11 @@ export async function PATCH(request: Request) {
   const id = String(body.id || "").trim();
   if (!id) return NextResponse.json({ error: "Customer id is required." }, { status: 400 });
 
+  const g = await mutateGuard(request, id);
+  if (g.error) return g.error;
+  const isAdmin = Boolean(g.isAdmin);
+  const by = isAdmin ? "admin" : "partner";
+
   try {
     if (body.action === "restore") {
       const reason = String(body.reason || "").trim();
@@ -84,7 +115,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ restored });
     }
 
-    // Account-level fields.
+    // Account-level fields. Partners may only change email (support use).
     const accountFields: {
       email?: string;
       isOwner?: boolean;
@@ -98,18 +129,20 @@ export async function PATCH(request: Request) {
       }
       accountFields.email = body.email;
     }
-    if (typeof body.isOwner === "boolean") accountFields.isOwner = body.isOwner;
-    if (typeof body.isPartner === "boolean") accountFields.isPartner = body.isPartner;
-    if (typeof body.companyName === "string") accountFields.companyName = body.companyName;
-    if (body.partnerId !== undefined) {
-      const nextPartnerId = String(body.partnerId || "").trim() || null;
-      accountFields.partnerId = nextPartnerId === id ? null : nextPartnerId;
+    if (isAdmin) {
+      if (typeof body.isOwner === "boolean") accountFields.isOwner = body.isOwner;
+      if (typeof body.isPartner === "boolean") accountFields.isPartner = body.isPartner;
+      if (typeof body.companyName === "string") accountFields.companyName = body.companyName;
+      if (body.partnerId !== undefined) {
+        const nextPartnerId = String(body.partnerId || "").trim() || null;
+        accountFields.partnerId = nextPartnerId === id ? null : nextPartnerId;
+      }
     }
     if (Object.keys(accountFields).length) {
       const before = await getUserById(id);
       await updateCustomerAccount(id, accountFields);
       if (before && accountFields.email && before.email !== accountFields.email) {
-        logUserEventAsync(id, "email_changed", `${before.email} → ${accountFields.email} (by owner)`);
+        logUserEventAsync(id, "email_changed", `${before.email} → ${accountFields.email} (by ${by})`);
       }
       if (before && "partnerId" in accountFields && before.partnerId !== accountFields.partnerId) {
         logUserEventAsync(id, "partner_assignment_changed", `${before.partnerId || "(none)"} → ${accountFields.partnerId || "(none)"} (by admin)`);
@@ -173,20 +206,20 @@ export async function PATCH(request: Request) {
       const priorDomain = existing?.allowedHosts?.[0] ?? "";
       const nextDomain = saved.allowedHosts?.[0] ?? "";
       if (priorDomain !== nextDomain) {
-        logUserEventAsync(id, "domain_changed", `${priorDomain || "(none)"} → ${nextDomain || "(none)"} (by admin)`);
+        logUserEventAsync(id, "domain_changed", `${priorDomain || "(none)"} → ${nextDomain || "(none)"} (by ${by})`);
       }
       if ((existing?.defaultAddress ?? "") !== (saved.defaultAddress ?? "")) {
         logUserEventAsync(
           id,
           "default_address_changed",
-          `${existing?.defaultAddress || "(none)"} → ${saved.defaultAddress || "(none)"} (by admin)`
+          `${existing?.defaultAddress || "(none)"} → ${saved.defaultAddress || "(none)"} (by ${by})`
         );
       }
       if (existing && Boolean(existing.enabled) !== Boolean(saved.enabled)) {
         logUserEventAsync(
           id,
           "explorer_enabled_changed",
-          `${existing.enabled ? "on" : "off"} → ${saved.enabled ? "on" : "off"} (by admin)`
+          `${existing.enabled ? "on" : "off"} → ${saved.enabled ? "on" : "off"} (by ${by})`
         );
       }
       if (allowedHosts.length) {
@@ -208,13 +241,13 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const g = await guard(request);
-  if (g.error) return g.error;
-
   const { searchParams } = new URL(request.url);
   const id = (searchParams.get("id") || "").trim();
   if (!id) return NextResponse.json({ error: "Customer id is required." }, { status: 400 });
-  if (id === g.owner!.id) {
+
+  const g = await mutateGuard(request, id);
+  if (g.error) return g.error;
+  if (id === g.actor!.id) {
     return NextResponse.json({ error: "You can't delete your own account." }, { status: 400 });
   }
 

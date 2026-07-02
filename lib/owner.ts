@@ -97,6 +97,23 @@ export async function listCustomers(viewer?: AppUser | null): Promise<CustomerRo
   }));
 }
 
+/** Lookup a customer's ownership info (includes disabled rows) for authorization. */
+export async function getCustomerScope(
+  id: string
+): Promise<{ partnerId: string | null; isOwner: boolean; isPartner: boolean } | null> {
+  if (!hasDatabase() || !id) return null;
+  const { rows } = await getPool().query(
+    `SELECT partner_id, is_owner, is_partner FROM app_users WHERE id = $1`,
+    [id]
+  );
+  if (!rows[0]) return null;
+  return {
+    partnerId: rows[0].partner_id ?? null,
+    isOwner: Boolean(rows[0].is_owner),
+    isPartner: Boolean(rows[0].is_partner),
+  };
+}
+
 export async function listPartnerAccounts(): Promise<{ id: string; email: string; companyName: string }[]> {
   if (!hasDatabase()) return [];
   const { rows } = await getPool().query(

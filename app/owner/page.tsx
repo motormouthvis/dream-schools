@@ -4,6 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app/AppShell";
 import { AddressAutocomplete } from "@/components/app/AddressAutocomplete";
 
+// Close a modal when the Escape key is pressed.
+function useEscapeKey(onClose: () => void) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+}
+
 interface Customer {
   id: string;
   email: string;
@@ -73,6 +84,7 @@ function OwnerAdmin() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [partners, setPartners] = useState<PartnerOption[]>([]);
   const [canEdit, setCanEdit] = useState(false);
+  const [role, setRole] = useState<"owner" | "partner">("partner");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -95,6 +107,7 @@ function OwnerAdmin() {
       setCustomers(j.customers || []);
       setPartners(j.partners || []);
       setCanEdit(Boolean(j.canEdit));
+      setRole(j.role === "owner" ? "owner" : "partner");
     } catch {
       setError("Network error.");
     } finally {
@@ -265,7 +278,7 @@ function OwnerAdmin() {
               <Th label="Customer" k="email" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <Th label="Signed up" k="createdAt" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <th className="px-3 py-2 font-semibold">Domain</th>
-              <Th label="Partner" k="partnerName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+              <Th label="Partner Of" k="partnerName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <th className="px-3 py-2 font-semibold" title="Enabled means an authorized domain is set and the Explorer toggle is on. Actual usage is shown by Views / Last active.">Status</th>
               <Th label="Views" k="views" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
               <Th label="Code detected" k="firstSeen" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
@@ -351,7 +364,7 @@ function OwnerAdmin() {
                     </button>
                     {canEdit && (
                       <>
-                        {c.isPartner && (
+                        {role === "owner" && c.isPartner && (
                           <a
                             href={`/login?partner=${encodeURIComponent(c.id)}`}
                             target="_blank"
@@ -390,6 +403,7 @@ function OwnerAdmin() {
         <EditModal
           customer={editing}
           partners={partners}
+          isAdmin={role === "owner"}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
@@ -439,6 +453,7 @@ const EVENT_LABELS: Record<string, string> = {
 function HistoryModal({ customer, onClose }: { customer: Customer; onClose: () => void }) {
   const [events, setEvents] = useState<HistoryEvent[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  useEscapeKey(onClose);
 
   useEffect(() => {
     fetch(`/api/owner/history?id=${encodeURIComponent(customer.id)}`)
@@ -499,11 +514,13 @@ function HistoryModal({ customer, onClose }: { customer: Customer; onClose: () =
 function EditModal({
   customer,
   partners,
+  isAdmin,
   onClose,
   onSaved,
 }: {
   customer: Customer;
   partners: PartnerOption[];
+  isAdmin: boolean;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -518,25 +535,29 @@ function EditModal({
   const [restoreReason, setRestoreReason] = useState<null | string>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useEscapeKey(onClose);
 
   async function save() {
     setBusy(true);
     setError(null);
     try {
+      const payload: Record<string, unknown> = {
+        id: customer.id,
+        email,
+        authorizedDomain,
+        defaultAddress,
+        enabled,
+      };
+      if (isAdmin) {
+        payload.isOwner = isOwner;
+        payload.isPartner = isPartner;
+        payload.partnerId = isPartner ? "" : partnerId;
+        payload.companyName = companyName;
+      }
       const res = await fetch("/api/owner/customers", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: customer.id,
-          email,
-          authorizedDomain,
-          defaultAddress,
-          enabled,
-          isOwner,
-          isPartner,
-          partnerId: isPartner ? "" : partnerId,
-          companyName,
-        }),
+        body: JSON.stringify(payload),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -614,7 +635,7 @@ function EditModal({
               placeholder="1500 N 23rd St, Fort Pierce, FL"
             />
           </L>
-          {!isPartner && (
+          {isAdmin && !isPartner && (
             <L label="Belongs to partner" hint="Optional. Customers assigned here are visible to that partner.">
               <select className={inp} value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
                 <option value="">No partner</option>
@@ -635,6 +656,7 @@ function EditModal({
             />
             Explorer enabled (requires a domain)
           </label>
+          {isAdmin && (
           <div className="rounded-lg border border-slate-200 p-3">
             <label className="flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-slate-800">
               <input
@@ -655,8 +677,10 @@ function EditModal({
               </p>
             )}
           </div>
+          )}
 
-          {/* Danger zone — partner status conversion */}
+          {/* Danger zone — partner status conversion (admins only) */}
+          {isAdmin && (
           <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-3">
             <div className="text-[11px] font-extrabold uppercase tracking-wide text-rose-700">Danger zone</div>
             <label className="mt-2 flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-rose-900">
@@ -697,6 +721,7 @@ function EditModal({
               </p>
             )}
           </div>
+          )}
         </div>
 
         {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
@@ -780,6 +805,7 @@ function ReasonModal({
   const [other, setOther] = useState("");
   const [busy, setBusy] = useState(false);
   const reason = selected === "Other" ? other.trim() : selected;
+  useEscapeKey(onClose);
 
   async function submit() {
     if (!reason) return;
