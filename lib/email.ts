@@ -29,6 +29,7 @@ async function sendViaMailgun(mail: Mail): Promise<boolean> {
       text: mail.text,
       html: mail.html,
     });
+    if (mail.replyTo) form.append("h:Reply-To", mail.replyTo);
     const res = await fetch(`${base}/v3/${domain}/messages`, {
       method: "POST",
       headers: {
@@ -50,6 +51,7 @@ interface Mail {
   subject: string;
   html: string;
   text: string;
+  replyTo?: string;
 }
 
 async function sendViaResend(mail: Mail): Promise<boolean> {
@@ -59,7 +61,7 @@ async function sendViaResend(mail: Mail): Promise<boolean> {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: FROM, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text }),
+      body: JSON.stringify({ from: FROM, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text, reply_to: mail.replyTo }),
     });
     if (!res.ok) console.error("Resend send failed:", res.status, await res.text());
     return res.ok;
@@ -80,7 +82,7 @@ async function sendViaSmtp(mail: Mail): Promise<boolean> {
       secure: String(process.env.SMTP_SECURE || "").toLowerCase() === "true" || Number(process.env.SMTP_PORT) === 465,
       auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
     });
-    await transport.sendMail({ from: FROM, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text });
+    await transport.sendMail({ from: FROM, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text, replyTo: mail.replyTo });
     return true;
   } catch (err) {
     console.error("SMTP error:", err);
@@ -102,6 +104,52 @@ function shell(bodyHtml: string): string {
     ${bodyHtml}
     <p style="color:#94a3b8;font-size:11px;margin-top:24px">If you didn't request this, you can ignore this email.</p>
   </div>`;
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+const SUPPORT_TO = process.env.SUPPORT_EMAIL || "support@dreamneighborhood.com";
+
+// A contact-form message from a signed-in user, sent to support with the
+// sender set as Reply-To so support can reply directly.
+export async function sendContactMessage(
+  fromEmail: string,
+  message: string,
+  phone?: string
+): Promise<void> {
+  await send({
+    to: SUPPORT_TO,
+    replyTo: fromEmail,
+    subject: `School Explorer contact — ${fromEmail}`,
+    text: `From: ${fromEmail}\nPhone: ${phone || "-"}\n\n${message}`,
+    html: shell(
+      `<h1 style="font-size:18px;margin:0 0 8px">New contact message</h1>
+       <p style="color:#475569;font-size:13px;margin:0 0 4px"><strong>From:</strong> ${escapeHtml(fromEmail)}</p>
+       ${phone ? `<p style="color:#475569;font-size:13px;margin:0 0 12px"><strong>Phone:</strong> ${escapeHtml(phone)}</p>` : ""}
+       <p style="color:#0f172a;font-size:14px;white-space:pre-wrap;margin-top:12px">${escapeHtml(message)}</p>`
+    ),
+  });
+}
+
+export async function sendResetEmail(to: string, resetUrl: string): Promise<void> {
+  await send({
+    to,
+    subject: "Reset your password — Dream Neighborhood Schools",
+    text: `We received a request to reset your password. Click below to set a new one:\n\n${resetUrl}\n\nThis link expires in 48 hours. If you didn't request this, you can ignore this email.`,
+    html: shell(
+      `<h1 style="font-size:20px;margin:0 0 8px">Reset your password</h1>
+       <p style="color:#475569;font-size:14px;margin:0 0 20px">Click the button below to choose a new password for your account.</p>
+       <a href="${resetUrl}" style="display:inline-block;background:#12854c;color:#fff;font-weight:700;text-decoration:none;padding:12px 20px;border-radius:10px;font-size:14px">Set a new password →</a>
+       <p style="color:#94a3b8;font-size:12px;margin-top:16px">Or paste this link: <br>${resetUrl}</p>
+       <p style="color:#94a3b8;font-size:12px">This link expires in 48 hours.</p>`
+    ),
+  });
 }
 
 export async function sendVerificationEmail(to: string, verifyUrl: string): Promise<void> {

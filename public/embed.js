@@ -52,6 +52,12 @@
     if (!isFinite(n)) return null;
     return min != null ? Math.max(min, n) : n;
   }
+
+  function escHtml(s) {
+    return String(s || "").replace(/[&<>"']/g, function (ch) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch];
+    });
+  }
   function floatAttr(el, name) {
     if (!el || !el.hasAttribute(name)) return null;
     var n = parseFloat(el.getAttribute(name));
@@ -152,6 +158,7 @@
         widgetNumber: widgetNumber,
         apiBase: apiBase,
         defaultAddress: (remote && remote.defaultAddress) || "",
+        providerName: (remote && remote.providerName) || "",
         accentColor: pres.accentColor,
         position: pres.position,
         bottomOffset: pres.bottomOffset,
@@ -389,6 +396,7 @@
     var url = config.apiBase + "/embed?mode=" + encodeURIComponent(mode) + "&accent=" + encodeURIComponent(config.accentColor);
     if (mode === "inline" && config.inlineShowHeader) url += "&header=1";
     if (config.showExternalLinks) url += "&links=1";
+    if (config.providerName) url += "&provider=" + encodeURIComponent(config.providerName);
     if (coords) {
       if (coords.address) url += "&address=" + encodeURIComponent(coords.address);
       if (coords.lat != null && coords.lon != null) url += "&lat=" + encodeURIComponent(coords.lat) + "&lng=" + encodeURIComponent(coords.lon);
@@ -430,6 +438,7 @@
   // -------------------------------------------------------------------------
 
   var CSS =
+    "@keyframes dse-title-marquee{0%,15%{transform:translateX(0)}85%,100%{transform:translateX(calc(-100% + 220px))}}" +
     "#dse-root{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.5}" +
     "#dse-root .dse-bubble{position:fixed;bottom:calc(24px + var(--dse-bo,0px));z-index:2147483646;width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;background:var(--dse-accent,#1fa55f);color:#fff;box-shadow:0 4px 20px rgba(0,0,0,.18);transition:transform .2s,box-shadow .2s}" +
     "#dse-root .dse-bubble--right{right:24px}#dse-root .dse-bubble--left{left:24px}" +
@@ -440,9 +449,10 @@
     "#dse-root .dse-panel{width:1100px;max-width:calc(100vw - 32px);max-height:min(680px,95vh);border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 12px 56px rgba(0,0,0,.22);display:flex;flex-direction:column;transform:scale(.97);transition:transform .28s cubic-bezier(.22,1,.36,1)}" +
     "#dse-root .dse-open .dse-panel{transform:scale(1)}" +
     "#dse-root .dse-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--dse-accent,#1fa55f);color:#fff;flex-shrink:0}" +
-    "#dse-root .dse-hl{display:flex;align-items:center;gap:10px}" +
+    "#dse-root .dse-hl{display:flex;align-items:center;gap:10px;min-width:0}" +
     "#dse-root .dse-hicon{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center}" +
-    "#dse-root .dse-hicon svg{width:18px;height:18px}#dse-root .dse-title{font-size:15px;font-weight:600}" +
+    "#dse-root .dse-hicon svg{width:18px;height:18px}#dse-root .dse-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px;font-weight:600}" +
+    "@media(max-width:520px){#dse-root .dse-title{display:inline-block;min-width:max-content;animation:dse-title-marquee 12s linear infinite}}" +
     "#dse-root .dse-close{background:none;border:none;color:#fff;cursor:pointer;padding:6px;border-radius:8px;display:flex}" +
     "#dse-root .dse-close:hover{background:rgba(255,255,255,.15)}#dse-root .dse-close svg{width:18px;height:18px}" +
     "#dse-root .dse-iframe{width:100%;border:none;background:#fff;height:520px;transition:height .3s cubic-bezier(.22,1,.36,1)}" +
@@ -536,8 +546,9 @@
     backdrop = document.createElement("div");
     backdrop.className = "dse-backdrop";
     backdrop.style.display = "none";
+    var title = "Dream Neighborhood School Explorer" + (config.providerName ? " provided by " + config.providerName : "");
     backdrop.innerHTML =
-      '<div class="dse-panel"><div class="dse-header"><div class="dse-hl"><div class="dse-hicon">' + ICON_PIN + '</div><span class="dse-title">Dream Neighborhood School Explorer</span></div>' +
+      '<div class="dse-panel"><div class="dse-header"><div class="dse-hl"><div class="dse-hicon">' + ICON_PIN + '</div><span class="dse-title" title="' + escHtml(title) + '">' + escHtml(title) + '</span></div>' +
       '<button class="dse-close" aria-label="Close">' + ICON_CLOSE + '</button></div>' +
       '<div class="dse-loading dse-hidden"><div class="dse-spinner"></div></div>' +
       '<iframe class="dse-iframe" allow="geolocation" allowfullscreen></iframe></div>';

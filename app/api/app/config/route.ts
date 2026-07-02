@@ -4,9 +4,13 @@ import { currentUser } from "@/lib/auth";
 import {
   getByPartner,
   upsertPartner,
+  claimHostForPartner,
+  hostsClaimedByOthers,
   normalizeHost,
   DEFAULT_PRESENTATION,
 } from "@/lib/embedConfig";
+import { getUsage } from "@/lib/embedUsage";
+import { logUserEventAsync } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +22,11 @@ export async function GET(request: Request) {
   const user = await currentUser(request);
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   const config = await getByPartner(user.id, 1);
+  const usage = await getUsage(user.id, 1);
   return NextResponse.json({
     email: user.email,
     config: config ?? { ...DEFAULT_PRESENTATION, allowedHosts: [], defaultAddress: "", enabled: false },
+    usage,
   });
 }
 
@@ -43,6 +49,19 @@ export async function POST(request: Request) {
     domainRaw !== undefined
       ? [normalizeHost(String(domainRaw))].filter(Boolean)
       : existing?.allowedHosts ?? [];
+
+  // A domain can only belong to one account.
+  if (allowedHosts.length) {
+    const taken = await hostsClaimedByOthers(allowedHosts, user.id);
+    if (taken.length) {
+      return NextResponse.json(
+        {
+          error: `${taken.join(", ")} is already registered to another account. Each domain can belong to only one account.`,
+        },
+        { status: 409 }
+      );
+    }
+  }
 
   const num = (v: unknown, d: number) => (Number.isFinite(Number(v)) ? Number(v) : d);
   const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
@@ -68,5 +87,30 @@ export async function POST(request: Request) {
     // The popup only turns on once a domain is authorized.
     enabled: allowedHosts.length > 0 ? bool(body.enabled, true) : false,
   });
+  const priorDomain = existing?.allowedHosts?.[0] ?? "";
+  const nextDomain = saved.allowedHosts?.[0] ?? "";
+  if (priorDomain !== nextDomain) {
+    logUserEventAsync(
+      user.id,
+      "domain_changed",
+      `${priorDomain || "(none)"} → ${nextDomain || "(none)"}`
+    );
+  }
+  if ((existing?.defaultAddress ?? "") !== (saved.defaultAddress ?? "")) {
+    logUserEventAsync(
+      user.id,
+      "default_address_changed",
+      `${existing?.defaultAddress || "(none)"} → ${saved.defaultAddress || "(none)"}`
+    );
+  }
+  if (existing && Boolean(existing.enabled) !== Boolean(saved.enabled)) {
+    logUserEventAsync(user.id, "explorer_enabled_changed", `${existing.enabled ? "on" : "off"} → ${saved.enabled ? "on" : "off"}`);
+  }
+  // Take over any stale legacy `host:` registration for these domains.
+  if (allowedHosts.length) {
+    await claimHostForPartner(user.id, allowedHosts).catch((err) =>
+      console.error("claimHostForPartner failed:", err)
+    );
+  }
   return NextResponse.json({ ok: true, config: saved });
 }

@@ -5,6 +5,7 @@ import { SchoolsTab } from "@/components/SchoolsTab";
 import { SchoolDetailModal } from "@/components/SchoolDetailModal";
 import { SchoolhouseMark } from "@/components/Logo";
 import { getRecent, addRecent, removeRecent, type RecentSearch } from "@/lib/recent";
+import { TERMS_URL, PRIVACY_URL } from "@/lib/legalLinks";
 import type { LookupResult } from "@/lib/types";
 
 // Chrome-less "Dream Neighborhood School Explorer" served for the embeddable
@@ -25,6 +26,7 @@ interface EmbedParams {
   mode: "popup" | "inline";
   header: boolean;
   links: boolean;
+  provider: string;
 }
 
 interface Suggestion {
@@ -48,6 +50,7 @@ function readParams(): EmbedParams {
     mode: p.get("mode") === "inline" ? "inline" : "popup",
     header: p.get("header") === "1",
     links: p.get("links") === "1",
+    provider: (p.get("provider") || "").trim(),
   };
 }
 
@@ -109,6 +112,7 @@ export default function EmbedExplorer() {
 
   const accent = params?.accent || "#1fa55f";
   const isInline = params?.mode === "inline";
+  const headerTitle = `Dream Neighborhood School Explorer${params?.provider ? ` provided by ${params.provider}` : ""}`;
   const screen: "home" | "results" = data ? "results" : "home";
 
   // Height coordination with the SDK:
@@ -394,6 +398,19 @@ export default function EmbedExplorer() {
 
   return (
     <main className={`flex flex-col bg-white ${isInline ? "" : "h-screen overflow-hidden"}`}>
+      <style>{`
+        @keyframes dse-inline-title-marquee {
+          0%, 15% { transform: translateX(0); }
+          85%, 100% { transform: translateX(calc(-100% + 220px)); }
+        }
+        @media (max-width: 520px) {
+          .dse-inline-title-marquee {
+            display: inline-block;
+            min-width: max-content;
+            animation: dse-inline-title-marquee 12s linear infinite;
+          }
+        }
+      `}</style>
       {/* Inline embeds have no SDK chrome, so brand the iframe itself. */}
       {isInline && (
         <header
@@ -403,9 +420,11 @@ export default function EmbedExplorer() {
           <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20">
             {PIN_SVG}
           </span>
-          <p className="truncate text-[13px] font-bold leading-tight">
-            Dream Neighborhood School Explorer
-          </p>
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <p className="dse-inline-title-marquee overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-bold leading-tight" title={headerTitle}>
+              {headerTitle}
+            </p>
+          </div>
         </header>
       )}
 
@@ -579,7 +598,7 @@ export default function EmbedExplorer() {
       <footer className="shrink-0 border-t border-slate-100 px-4 py-1.5 text-center text-[10px] text-slate-500">
         © 2026 Dream Neighborhood ·{" "}
         <a
-          href="https://docs.google.com/document/d/e/2PACX-1vSndxJR71x1k8uI1vmjOZGYvWfpxM-TJSFuMVXclgzx_h5P1Iey2BdKlY0DDiVPSGTJLn0NMLYKXTB5/pub"
+          href={TERMS_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="font-medium text-slate-600 hover:underline"
@@ -588,7 +607,7 @@ export default function EmbedExplorer() {
         </a>{" "}
         ·{" "}
         <a
-          href="https://docs.google.com/document/d/e/2PACX-1vREF8QKsVkEpUyWff3FWUU8D4GoS2aRtz67qgCTmMb2uIQcXHjaqgBtJi6OBhUw-uZsqgM5itrsrxFR/pub"
+          href={PRIVACY_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="font-medium text-slate-600 hover:underline"

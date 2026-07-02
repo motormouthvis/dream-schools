@@ -22,6 +22,9 @@ export interface AppUser {
   email: string;
   emailVerified: boolean;
   isOwner: boolean;
+  isPartner: boolean;
+  partnerId: string | null;
+  companyName: string;
   createdAt: string;
 }
 
@@ -37,8 +40,21 @@ async function ensureTables(): Promise<void> {
            password_hash  TEXT NOT NULL,
            email_verified BOOLEAN NOT NULL DEFAULT FALSE,
            is_owner       BOOLEAN NOT NULL DEFAULT FALSE,
-           created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+           is_partner     BOOLEAN NOT NULL DEFAULT FALSE,
+           partner_id     TEXT,
+           company_name   TEXT NOT NULL DEFAULT '',
+           created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+           deleted_at     TIMESTAMPTZ
          )`
+      )
+      .then(() =>
+        pool.query(
+          `ALTER TABLE app_users
+             ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ,
+             ADD COLUMN IF NOT EXISTS is_partner BOOLEAN NOT NULL DEFAULT FALSE,
+             ADD COLUMN IF NOT EXISTS partner_id TEXT,
+             ADD COLUMN IF NOT EXISTS company_name TEXT NOT NULL DEFAULT ''`
+        )
       )
       .then(() =>
         pool.query(
@@ -57,6 +73,13 @@ async function ensureTables(): Promise<void> {
              user_id    TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
              expires_at TIMESTAMPTZ NOT NULL
            )`
+        )
+      )
+      // One token table serves both email verification and password resets.
+      .then(() =>
+        pool.query(
+          `ALTER TABLE app_verify_tokens
+             ADD COLUMN IF NOT EXISTS purpose TEXT NOT NULL DEFAULT 'verify'`
         )
       )
       .then(() => undefined)
@@ -110,6 +133,9 @@ function rowToUser(r: any): AppUser {
     email: r.email,
     emailVerified: Boolean(r.email_verified),
     isOwner: Boolean(r.is_owner),
+    isPartner: Boolean(r.is_partner),
+    partnerId: r.partner_id ?? null,
+    companyName: r.company_name ?? "",
     createdAt: r.created_at,
   };
 }
@@ -118,50 +144,116 @@ export async function getUserByEmail(email: string): Promise<(AppUser & { passwo
   if (!hasDatabase()) return null;
   await ensureTables();
   const pool = getPool();
-  const { rows } = await pool.query(`SELECT * FROM app_users WHERE email = $1`, [normalizeEmail(email)]);
+  const { rows } = await pool.query(`SELECT * FROM app_users WHERE email = $1 AND deleted_at IS NULL`, [normalizeEmail(email)]);
   if (!rows[0]) return null;
   return { ...rowToUser(rows[0]), passwordHash: rows[0].password_hash };
 }
 
-export async function createUser(email: string, password: string): Promise<AppUser> {
+export async function getUserById(id: string): Promise<(AppUser & { passwordHash: string }) | null> {
+  if (!hasDatabase() || !id) return null;
+  await ensureTables();
+  const pool = getPool();
+  const { rows } = await pool.query(`SELECT * FROM app_users WHERE id = $1 AND deleted_at IS NULL`, [id]);
+  if (!rows[0]) return null;
+  return { ...rowToUser(rows[0]), passwordHash: rows[0].password_hash };
+}
+
+export async function updatePassword(userId: string, newPassword: string): Promise<void> {
+  await ensureTables();
+  await getPool().query(`UPDATE app_users SET password_hash = $1 WHERE id = $2`, [
+    hashPassword(newPassword),
+    userId,
+  ]);
+}
+
+// Change the account's email. Throws a Postgres unique-violation (code 23505)
+// if the new address is already taken.
+export async function updateEmail(userId: string, newEmail: string): Promise<void> {
+  await ensureTables();
+  await getPool().query(`UPDATE app_users SET email = $1 WHERE id = $2`, [
+    normalizeEmail(newEmail),
+    userId,
+  ]);
+}
+
+export async function createUser(email: string, password: string, partnerId?: string | null): Promise<AppUser> {
   await ensureTables();
   const pool = getPool();
   const id = randomUUID();
   const owner = isOwnerEmail(email);
   const { rows } = await pool.query(
-    `INSERT INTO app_users (id, email, password_hash, is_owner)
-     VALUES ($1,$2,$3,$4) RETURNING *`,
-    [id, normalizeEmail(email), hashPassword(password), owner]
+    `INSERT INTO app_users (id, email, password_hash, is_owner, partner_id)
+     VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+    [id, normalizeEmail(email), hashPassword(password), owner, partnerId || null]
   );
   return rowToUser(rows[0]);
 }
 
+export async function setUserPartner(userId: string, partnerId: string | null): Promise<void> {
+  await ensureTables();
+  await getPool().query(`UPDATE app_users SET partner_id = $1 WHERE id = $2`, [partnerId, userId]);
+}
+
+export async function updatePartnerProfile(userId: string, companyName: string): Promise<void> {
+  await ensureTables();
+  await getPool().query(`UPDATE app_users SET company_name = $1 WHERE id = $2`, [companyName.trim(), userId]);
+}
+
+export type TokenPurpose = "verify" | "reset";
+
 // A one-time magic-link token; returns the RAW token to embed in the email URL.
-export async function createVerificationToken(userId: string): Promise<string> {
+export async function createToken(userId: string, purpose: TokenPurpose = "verify"): Promise<string> {
   await ensureTables();
   const pool = getPool();
   const raw = randomBytes(32).toString("hex");
   const expires = new Date(Date.now() + VERIFY_TTL_HOURS * 3600 * 1000);
   await pool.query(
-    `INSERT INTO app_verify_tokens (token_hash, user_id, expires_at) VALUES ($1,$2,$3)`,
-    [sha256(raw), userId, expires]
+    `INSERT INTO app_verify_tokens (token_hash, user_id, expires_at, purpose) VALUES ($1,$2,$3,$4)`,
+    [sha256(raw), userId, expires, purpose]
   );
   return raw;
+}
+
+export function createVerificationToken(userId: string): Promise<string> {
+  return createToken(userId, "verify");
+}
+
+export function createResetToken(userId: string): Promise<string> {
+  return createToken(userId, "reset");
+}
+
+// Consume a one-time token of the given purpose; returns its user id (or null).
+async function consumeToken(raw: string, purpose: TokenPurpose): Promise<string | null> {
+  if (!hasDatabase() || !raw) return null;
+  await ensureTables();
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `DELETE FROM app_verify_tokens
+       WHERE token_hash = $1 AND purpose = $2 AND expires_at > NOW()
+       RETURNING user_id`,
+    [sha256(raw), purpose]
+  );
+  return rows[0]?.user_id ?? null;
 }
 
 // Consume a verification token: mark the user verified, delete the token, and
 // return the user (or null if invalid/expired).
 export async function consumeVerificationToken(raw: string): Promise<AppUser | null> {
-  if (!hasDatabase() || !raw) return null;
-  await ensureTables();
-  const pool = getPool();
-  const { rows } = await pool.query(
-    `DELETE FROM app_verify_tokens WHERE token_hash = $1 AND expires_at > NOW() RETURNING user_id`,
-    [sha256(raw)]
-  );
-  const userId = rows[0]?.user_id;
+  const userId = await consumeToken(raw, "verify");
   if (!userId) return null;
-  const upd = await pool.query(
+  const upd = await getPool().query(
+    `UPDATE app_users SET email_verified = TRUE WHERE id = $1 RETURNING *`,
+    [userId]
+  );
+  return upd.rows[0] ? rowToUser(upd.rows[0]) : null;
+}
+
+// Consume a reset token and return the user. Receiving the reset email proves
+// ownership, so we also mark the address verified.
+export async function consumeResetToken(raw: string): Promise<AppUser | null> {
+  const userId = await consumeToken(raw, "reset");
+  if (!userId) return null;
+  const upd = await getPool().query(
     `UPDATE app_users SET email_verified = TRUE WHERE id = $1 RETURNING *`,
     [userId]
   );
@@ -193,7 +285,7 @@ export async function getUserBySession(raw: string | undefined | null): Promise<
   const pool = getPool();
   const { rows } = await pool.query(
     `SELECT u.* FROM app_sessions s JOIN app_users u ON u.id = s.user_id
-       WHERE s.token_hash = $1 AND s.expires_at > NOW()`,
+       WHERE s.token_hash = $1 AND s.expires_at > NOW() AND u.deleted_at IS NULL`,
     [sha256(raw)]
   );
   return rows[0] ? rowToUser(rows[0]) : null;
