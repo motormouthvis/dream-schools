@@ -274,7 +274,7 @@ function UpgradePromptSettings({ isOwner, isPartner }: { isOwner: boolean; isPar
   return (
     <Card title={isOwner ? "Upgrade Prompt Defaults" : "Upgrade Prompt Settings"}>
       <p className="mb-3 text-[12px] leading-relaxed text-slate-500">
-        Controls when the Neighborhood Explorer request prompt appears. It only appears during an idle break, never while a visitor is actively clicking or scrolling. If they request access, it is suppressed for 90 days.
+        Controls when the Neighborhood Explorer Upgrade prompt appears. It only appears during an idle break, never while a visitor is actively clicking or scrolling. If they request the Upgrade, it is suppressed for 90 days.
       </p>
       {!loaded ? (
         <p className="text-sm text-slate-400">Loading…</p>

@@ -46,7 +46,7 @@ async function sendViaMailgun(mail: Mail): Promise<boolean> {
   }
 }
 
-interface Mail {
+export interface Mail {
   to: string;
   subject: string;
   html: string;
@@ -96,6 +96,18 @@ async function send(mail: Mail): Promise<void> {
   if (await sendViaSmtp(mail)) return;
   // Dev fallback — surface the content (incl. any link) in logs.
   console.info(`[email:dev] To: ${mail.to}\nSubject: ${mail.subject}\n${mail.text}`);
+}
+
+export async function sendTransactionalEmail(mail: Mail): Promise<void> {
+  await send(mail);
+}
+
+export function emailShell(bodyHtml: string): string {
+  return shell(bodyHtml);
+}
+
+export function htmlEscape(s: string): string {
+  return escapeHtml(s);
 }
 
 function shell(bodyHtml: string): string {

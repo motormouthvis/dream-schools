@@ -279,7 +279,7 @@ function OwnerAdmin() {
               <Th label="Customer" k="email" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <Th label="Signed up" k="createdAt" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <th className="px-3 py-2 font-semibold">Domain</th>
-              <Th label="Partner Of" k="partnerName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+              <Th label="Customer of This Partner" k="partnerName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <th className="px-3 py-2 font-semibold" title="Enabled means an authorized domain is set and the Explorer toggle is on. Actual usage is shown by Views / Last active.">Status</th>
               <Th label="Views" k="views" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
               <Th label="Code detected" k="firstSeen" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />

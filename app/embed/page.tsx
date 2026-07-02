@@ -115,6 +115,7 @@ export default function EmbedExplorer() {
   const [upgradeVisible, setUpgradeVisible] = useState(false);
   const [upgradeRequested, setUpgradeRequested] = useState(false);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastCountedResultRef = useRef<string>("");
 
   const [address, setAddress] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -134,6 +135,39 @@ export default function EmbedExplorer() {
 
   const upgradeKey = params?.customer ? `dse-upgrade-prompt:${params.customer}` : "";
   const requestKey = params?.customer ? `dse-upgrade-requested:${params.customer}` : "";
+  const viewCountKey = params?.customer ? `dse-upgrade-view-count:${params.customer}` : "";
+
+  function incrementUpgradeView() {
+    if (!viewCountKey) {
+      setSchoolViews((n) => n + 1);
+      return;
+    }
+    try {
+      const next = Number(localStorage.getItem(viewCountKey) || 0) + 1;
+      localStorage.setItem(viewCountKey, String(next));
+      setSchoolViews(next);
+    } catch {
+      setSchoolViews((n) => n + 1);
+    }
+  }
+
+  useEffect(() => {
+    if (!viewCountKey) return;
+    try {
+      setSchoolViews(Number(localStorage.getItem(viewCountKey) || 0));
+    } catch {
+      /* ignore */
+    }
+  }, [viewCountKey]);
+
+  useEffect(() => {
+    if (!data || !params?.customer) return;
+    const key = data.geocode?.matchedAddress || `${data.center?.lat || ""},${data.center?.lon || ""}`;
+    if (!key || key === lastCountedResultRef.current) return;
+    lastCountedResultRef.current = key;
+    incrementUpgradeView();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, params?.customer]);
 
   function canShowUpgrade(): boolean {
     if (!params?.customer || !upgradeKey || !requestKey) return false;
@@ -703,7 +737,7 @@ export default function EmbedExplorer() {
                 onViewChange={setView}
                 onOpenSchool={(id) => {
                   setSelected(id);
-                  setSchoolViews((n) => n + 1);
+                  incrementUpgradeView();
                 }}
                 listColumns={2}
               />
