@@ -9,6 +9,10 @@ interface Customer {
   email: string;
   emailVerified: boolean;
   isOwner: boolean;
+  isPartner: boolean;
+  partnerId: string | null;
+  partnerName: string | null;
+  companyName: string;
   createdAt: string;
   deletedAt: string | null;
   authorizedDomain: string | null;
@@ -19,7 +23,13 @@ interface Customer {
   lastSeen: string | null;
 }
 
-type SortKey = "email" | "createdAt" | "views" | "firstSeen" | "lastSeen";
+interface PartnerOption {
+  id: string;
+  email: string;
+  companyName: string;
+}
+
+type SortKey = "email" | "createdAt" | "views" | "firstSeen" | "lastSeen" | "partnerName";
 type SortDir = "asc" | "desc";
 
 function fmtDate(v: string | null): string {
@@ -61,6 +71,8 @@ function NotAuthorized() {
 
 function OwnerAdmin() {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [partners, setPartners] = useState<PartnerOption[]>([]);
+  const [canEdit, setCanEdit] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -81,6 +93,8 @@ function OwnerAdmin() {
         return;
       }
       setCustomers(j.customers || []);
+      setPartners(j.partners || []);
+      setCanEdit(Boolean(j.canEdit));
     } catch {
       setError("Network error.");
     } finally {
@@ -110,6 +124,8 @@ function OwnerAdmin() {
             ((q === "disabled" || q === "deleted") && Boolean(c.deletedAt)) ||
             c.email.toLowerCase().includes(q) ||
             (c.authorizedDomain || "").toLowerCase().includes(q) ||
+            (c.partnerName || "").toLowerCase().includes(q) ||
+            (c.companyName || "").toLowerCase().includes(q) ||
             fmtDate(c.createdAt).toLowerCase().includes(q) ||
             new Date(c.createdAt)
               .toLocaleDateString(undefined, { month: "long", year: "numeric" })
@@ -133,6 +149,10 @@ function OwnerAdmin() {
         case "views":
           av = a.views;
           bv = b.views;
+          break;
+        case "partnerName":
+          av = (a.partnerName || "").toLowerCase();
+          bv = (b.partnerName || "").toLowerCase();
           break;
         case "createdAt":
         case "firstSeen":
@@ -245,6 +265,7 @@ function OwnerAdmin() {
               <Th label="Customer" k="email" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <Th label="Signed up" k="createdAt" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <th className="px-3 py-2 font-semibold">Domain</th>
+              <Th label="Partner" k="partnerName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <th className="px-3 py-2 font-semibold" title="Enabled means an authorized domain is set and the Explorer toggle is on. Actual usage is shown by Views / Last active.">Status</th>
               <Th label="Views" k="views" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
               <Th label="Code detected" k="firstSeen" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
@@ -255,13 +276,13 @@ function OwnerAdmin() {
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               <tr>
-                <td colSpan={8} className="px-3 py-8 text-center text-slate-400">
+                <td colSpan={9} className="px-3 py-8 text-center text-slate-400">
                   Loading…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-3 py-8 text-center text-slate-400">
+                <td colSpan={9} className="px-3 py-8 text-center text-slate-400">
                   No customers yet.
                 </td>
               </tr>
@@ -295,6 +316,15 @@ function OwnerAdmin() {
                       <span className="text-slate-400">— none —</span>
                     )}
                   </td>
+                  <td className="px-3 py-2.5 text-slate-600">
+                    {c.isPartner ? (
+                      <span className="font-semibold text-brand-700">{c.companyName || c.email}</span>
+                    ) : c.partnerName ? (
+                      c.partnerName
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
                   <td className="px-3 py-2.5">
                     {c.deletedAt ? (
                       <Badge tone="slate">Disabled</Badge>
@@ -316,20 +346,33 @@ function OwnerAdmin() {
                     >
                       History
                     </button>
-                    <button
-                      onClick={() => setEditing(c)}
-                      className="ml-2 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                    >
-                      Edit
-                    </button>
-                    {!c.deletedAt && (
+                    {canEdit && (
                       <>
+                        {c.isPartner && (
+                          <a
+                            href={`/login?partner=${encodeURIComponent(c.id)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-2 rounded-md border border-brand-200 px-2.5 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50"
+                            title="Give this link to customers so they sign up under this partner."
+                          >
+                            Partner Login
+                          </a>
+                        )}
                         <button
-                          onClick={() => setReasonAction({ type: "disable", customer: c })}
-                          className="ml-2 rounded-md border border-rose-200 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                          onClick={() => setEditing(c)}
+                          className="ml-2 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                         >
-                          Disable
+                          Edit
                         </button>
+                        {!c.deletedAt && (
+                          <button
+                            onClick={() => setReasonAction({ type: "disable", customer: c })}
+                            className="ml-2 rounded-md border border-rose-200 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                          >
+                            Disable
+                          </button>
+                        )}
                       </>
                     )}
                   </td>
@@ -343,6 +386,7 @@ function OwnerAdmin() {
       {editing && (
         <EditModal
           customer={editing}
+          partners={partners}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
@@ -385,6 +429,8 @@ const EVENT_LABELS: Record<string, string> = {
   explorer_enabled_changed: "Explorer enabled changed",
   account_deleted: "Customer disabled",
   account_restored: "Customer re-enabled",
+  partner_assignment_changed: "Partner assignment changed",
+  partner_status_changed: "Partner status changed",
 };
 
 function HistoryModal({ customer, onClose }: { customer: Customer; onClose: () => void }) {
@@ -449,10 +495,12 @@ function HistoryModal({ customer, onClose }: { customer: Customer; onClose: () =
 
 function EditModal({
   customer,
+  partners,
   onClose,
   onSaved,
 }: {
   customer: Customer;
+  partners: PartnerOption[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -461,6 +509,9 @@ function EditModal({
   const [defaultAddress, setDefaultAddress] = useState(customer.defaultAddress || "");
   const [enabled, setEnabled] = useState(customer.enabled);
   const [isOwner, setIsOwner] = useState(customer.isOwner);
+  const [isPartner, setIsPartner] = useState(customer.isPartner);
+  const [partnerId, setPartnerId] = useState(customer.partnerId || "");
+  const [companyName, setCompanyName] = useState(customer.companyName || "");
   const [restoreReason, setRestoreReason] = useState<null | string>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -479,6 +530,9 @@ function EditModal({
           defaultAddress,
           enabled,
           isOwner,
+          isPartner,
+          partnerId: isPartner ? "" : partnerId,
+          companyName,
         }),
       });
       const j = await res.json().catch(() => ({}));
@@ -557,6 +611,42 @@ function EditModal({
               placeholder="1500 N 23rd St, Fort Pierce, FL"
             />
           </L>
+          <div className="rounded-lg border border-slate-200 p-3">
+            <label className="flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-slate-800">
+              <input
+                type="checkbox"
+                checked={isPartner}
+                onChange={(e) => {
+                  setIsPartner(e.target.checked);
+                  if (e.target.checked) setPartnerId("");
+                }}
+                className="h-4 w-4 cursor-pointer accent-brand-600"
+              />
+              Partner
+            </label>
+            <p className="mt-1 pl-6 text-[11px] leading-relaxed text-slate-500">
+              Partners can see customers assigned to them and can use a Partner Login link for new signups.
+            </p>
+            {isPartner && (
+              <div className="mt-3 pl-6">
+                <L label="Partner company name" hint="Shown in popup/embed headers for customers assigned to this partner.">
+                  <input className={inp} value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Partner Company" />
+                </L>
+              </div>
+            )}
+          </div>
+          {!isPartner && (
+            <L label="Belongs to partner" hint="Optional. Customers assigned here are visible to that partner.">
+              <select className={inp} value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
+                <option value="">No partner</option>
+                {partners.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.companyName || p.email}
+                  </option>
+                ))}
+              </select>
+            </L>
+          )}
           <label className="flex cursor-pointer items-center gap-2 text-[13px] text-slate-700">
             <input
               type="checkbox"

@@ -11,6 +11,9 @@ export async function GET(request: Request) {
       user: {
         email: user.email,
         isOwner: user.isOwner,
+        isPartner: user.isPartner,
+        partnerId: user.partnerId,
+        companyName: user.companyName,
         emailVerified: user.emailVerified,
         createdAt: user.createdAt,
       },

@@ -44,11 +44,80 @@ export default function AccountPage() {
             </div>
           </div>
 
+          {(me.isPartner || me.isOwner) && (
+            <PartnerDesignation initialCompanyName={me.companyName || ""} isPartner={me.isPartner} />
+          )}
           <ChangeEmail currentEmail={me.email} />
           <ChangePassword email={me.email} />
         </>
       )}
     </AppShell>
+  );
+}
+
+function PartnerDesignation({
+  initialCompanyName,
+  isPartner,
+}: {
+  initialCompanyName: string;
+  isPartner: boolean;
+}) {
+  const [companyName, setCompanyName] = useState(initialCompanyName);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setDone(false);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/partner-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyName }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(j.error || "Could not save partner details.");
+        return;
+      }
+      setDone(true);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card title="Partner Designation">
+      <div className="mb-3 rounded-lg bg-brand-50 px-3 py-2 text-[12px] text-brand-800">
+        {isPartner
+          ? "This account is a Partner. Customers who sign up through your Partner Login link will be associated with your account."
+          : "Admin account: you can set a company name here if needed, but partner branding applies to accounts marked Partner."}
+      </div>
+      <form onSubmit={save} className="space-y-3">
+        <div>
+          <label className="block text-xs font-bold text-slate-600">Company name shown in popup/embed</label>
+          <input
+            className={inp}
+            value={companyName}
+            onChange={(e) => setCompanyName(e.target.value)}
+            placeholder="Your Company Name"
+          />
+          <p className="mt-1 text-[11px] text-slate-400">
+            Header text: Dream Neighborhood School Explorer provided by your company name.
+          </p>
+        </div>
+        {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
+        {done && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">Partner details saved ✓</p>}
+        <button type="submit" disabled={busy} className={btn}>
+          {busy ? "Saving…" : "Save partner details"}
+        </button>
+      </form>
+    </Card>
   );
 }
 

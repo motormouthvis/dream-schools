@@ -8,6 +8,9 @@ interface Me {
   email: string;
   isOwner: boolean;
   emailVerified: boolean;
+  isPartner: boolean;
+  partnerId: string | null;
+  companyName: string;
   createdAt?: string;
 }
 
@@ -70,7 +73,7 @@ export function AppShell({
           <div className="min-w-0">
             <div className="truncate text-[13px] font-semibold leading-tight">{me.email}</div>
             <div className="text-[10px] uppercase tracking-wide text-white/45">
-              {me.isOwner ? "Admin" : "Account"}
+              {me.isOwner ? "Admin" : me.isPartner ? "Partner" : "Account"}
             </div>
           </div>
         </div>
@@ -79,7 +82,7 @@ export function AppShell({
         <nav className="mt-5 space-y-1">
           {link("home", "Home", "/dashboard")}
           {link("edit", "Configure School Explorer", "/edit")}
-          {me.isOwner && link("owner", "Customer List", "/owner")}
+          {(me.isOwner || me.isPartner) && link("owner", "Customer List", "/owner")}
           {link("account", "Account Settings", "/account")}
           {link("help", "Help", "/help")}
           {link("contact", "Contact us", "/contact")}

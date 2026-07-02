@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { hasDatabase } from "@/lib/db";
 import {
   requireOwner,
+  requireCustomerListAccess,
   listCustomers,
+  listPartnerAccounts,
   updateCustomerAccount,
   deleteCustomer,
   restoreCustomer,
@@ -20,7 +22,7 @@ import { logUserEventAsync } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
-// Owner-only CRUD over customer accounts (same-origin; no CORS).
+// Admin/partner customer listing + admin-only CRUD over customer accounts.
 //
 //   GET    /api/owner/customers                → list customers + usage
 //   PATCH  /api/owner/customers  { id, ... }   → edit account + widget config
@@ -37,12 +39,24 @@ async function guard(request: Request) {
   return { owner };
 }
 
+async function listGuard(request: Request) {
+  if (!hasDatabase()) {
+    return { error: NextResponse.json({ error: "Database required." }, { status: 503 }) };
+  }
+  const user = await requireCustomerListAccess(request);
+  if (!user) {
+    return { error: NextResponse.json({ error: "Customer List access required." }, { status: 403 }) };
+  }
+  return { user };
+}
+
 export async function GET(request: Request) {
-  const g = await guard(request);
+  const g = await listGuard(request);
   if (g.error) return g.error;
   try {
-    const customers = await listCustomers();
-    return NextResponse.json({ customers });
+    const customers = await listCustomers(g.user);
+    const partners = g.user!.isOwner ? await listPartnerAccounts() : [];
+    return NextResponse.json({ customers, partners, canEdit: g.user!.isOwner });
   } catch (err) {
     console.error("owner list failed:", err);
     return NextResponse.json({ error: "Failed to list customers." }, { status: 500 });
@@ -71,7 +85,13 @@ export async function PATCH(request: Request) {
     }
 
     // Account-level fields.
-    const accountFields: { email?: string; isOwner?: boolean } = {};
+    const accountFields: {
+      email?: string;
+      isOwner?: boolean;
+      isPartner?: boolean;
+      partnerId?: string | null;
+      companyName?: string;
+    } = {};
     if (typeof body.email === "string") {
       if (!isValidEmail(body.email)) {
         return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
@@ -79,11 +99,23 @@ export async function PATCH(request: Request) {
       accountFields.email = body.email;
     }
     if (typeof body.isOwner === "boolean") accountFields.isOwner = body.isOwner;
+    if (typeof body.isPartner === "boolean") accountFields.isPartner = body.isPartner;
+    if (typeof body.companyName === "string") accountFields.companyName = body.companyName;
+    if (body.partnerId !== undefined) {
+      const nextPartnerId = String(body.partnerId || "").trim() || null;
+      accountFields.partnerId = nextPartnerId === id ? null : nextPartnerId;
+    }
     if (Object.keys(accountFields).length) {
-      const before = accountFields.email ? await getUserById(id) : null;
+      const before = await getUserById(id);
       await updateCustomerAccount(id, accountFields);
       if (before && accountFields.email && before.email !== accountFields.email) {
         logUserEventAsync(id, "email_changed", `${before.email} → ${accountFields.email} (by owner)`);
+      }
+      if (before && "partnerId" in accountFields && before.partnerId !== accountFields.partnerId) {
+        logUserEventAsync(id, "partner_assignment_changed", `${before.partnerId || "(none)"} → ${accountFields.partnerId || "(none)"} (by admin)`);
+      }
+      if (before && typeof accountFields.isPartner === "boolean" && before.isPartner !== accountFields.isPartner) {
+        logUserEventAsync(id, "partner_status_changed", `${before.isPartner ? "partner" : "customer"} → ${accountFields.isPartner ? "partner" : "customer"} (by admin)`);
       }
     }
 

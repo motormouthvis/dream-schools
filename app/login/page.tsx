@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SchoolhouseMark } from "@/components/Logo";
 
 type Mode = "signup" | "login" | "reset";
@@ -10,9 +10,18 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
+  const [partner, setPartner] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<null | "verify" | "reset">(null);
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get("partner") || "";
+    if (p) {
+      setPartner(p);
+      setMode("signup");
+    }
+  }, []);
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -38,7 +47,7 @@ export default function LoginPage() {
       const res = await fetch(path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password, partner }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -90,6 +99,11 @@ export default function LoginPage() {
       <p className="mt-1 text-center text-[13px] text-slate-500">
         Free forever · <strong className="font-extrabold text-brand-700">No Credit Card — Ever</strong>
       </p>
+      {partner && mode === "signup" && (
+        <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-center text-[12px] font-semibold text-brand-700">
+          Partner signup link applied.
+        </p>
+      )}
 
       {mode !== "reset" && (
         <div className="mt-5 inline-flex w-full rounded-full bg-slate-100 p-0.5 text-sm font-semibold">

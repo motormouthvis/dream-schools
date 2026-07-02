@@ -26,6 +26,7 @@ interface EmbedParams {
   mode: "popup" | "inline";
   header: boolean;
   links: boolean;
+  provider: string;
 }
 
 interface Suggestion {
@@ -49,6 +50,7 @@ function readParams(): EmbedParams {
     mode: p.get("mode") === "inline" ? "inline" : "popup",
     header: p.get("header") === "1",
     links: p.get("links") === "1",
+    provider: (p.get("provider") || "").trim(),
   };
 }
 
@@ -110,6 +112,7 @@ export default function EmbedExplorer() {
 
   const accent = params?.accent || "#1fa55f";
   const isInline = params?.mode === "inline";
+  const headerTitle = `Dream Neighborhood School Explorer${params?.provider ? ` provided by ${params.provider}` : ""}`;
   const screen: "home" | "results" = data ? "results" : "home";
 
   // Height coordination with the SDK:
@@ -404,8 +407,8 @@ export default function EmbedExplorer() {
           <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20">
             {PIN_SVG}
           </span>
-          <p className="truncate text-[13px] font-bold leading-tight">
-            Dream Neighborhood School Explorer
+          <p className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-bold leading-tight" title={headerTitle}>
+            {headerTitle}
           </p>
         </header>
       )}

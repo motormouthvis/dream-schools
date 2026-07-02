@@ -22,6 +22,9 @@ export interface AppUser {
   email: string;
   emailVerified: boolean;
   isOwner: boolean;
+  isPartner: boolean;
+  partnerId: string | null;
+  companyName: string;
   createdAt: string;
 }
 
@@ -37,6 +40,9 @@ async function ensureTables(): Promise<void> {
            password_hash  TEXT NOT NULL,
            email_verified BOOLEAN NOT NULL DEFAULT FALSE,
            is_owner       BOOLEAN NOT NULL DEFAULT FALSE,
+           is_partner     BOOLEAN NOT NULL DEFAULT FALSE,
+           partner_id     TEXT,
+           company_name   TEXT NOT NULL DEFAULT '',
            created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
            deleted_at     TIMESTAMPTZ
          )`
@@ -44,7 +50,10 @@ async function ensureTables(): Promise<void> {
       .then(() =>
         pool.query(
           `ALTER TABLE app_users
-             ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`
+             ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ,
+             ADD COLUMN IF NOT EXISTS is_partner BOOLEAN NOT NULL DEFAULT FALSE,
+             ADD COLUMN IF NOT EXISTS partner_id TEXT,
+             ADD COLUMN IF NOT EXISTS company_name TEXT NOT NULL DEFAULT ''`
         )
       )
       .then(() =>
@@ -124,6 +133,9 @@ function rowToUser(r: any): AppUser {
     email: r.email,
     emailVerified: Boolean(r.email_verified),
     isOwner: Boolean(r.is_owner),
+    isPartner: Boolean(r.is_partner),
+    partnerId: r.partner_id ?? null,
+    companyName: r.company_name ?? "",
     createdAt: r.created_at,
   };
 }
@@ -164,17 +176,27 @@ export async function updateEmail(userId: string, newEmail: string): Promise<voi
   ]);
 }
 
-export async function createUser(email: string, password: string): Promise<AppUser> {
+export async function createUser(email: string, password: string, partnerId?: string | null): Promise<AppUser> {
   await ensureTables();
   const pool = getPool();
   const id = randomUUID();
   const owner = isOwnerEmail(email);
   const { rows } = await pool.query(
-    `INSERT INTO app_users (id, email, password_hash, is_owner)
-     VALUES ($1,$2,$3,$4) RETURNING *`,
-    [id, normalizeEmail(email), hashPassword(password), owner]
+    `INSERT INTO app_users (id, email, password_hash, is_owner, partner_id)
+     VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+    [id, normalizeEmail(email), hashPassword(password), owner, partnerId || null]
   );
   return rowToUser(rows[0]);
+}
+
+export async function setUserPartner(userId: string, partnerId: string | null): Promise<void> {
+  await ensureTables();
+  await getPool().query(`UPDATE app_users SET partner_id = $1 WHERE id = $2`, [partnerId, userId]);
+}
+
+export async function updatePartnerProfile(userId: string, companyName: string): Promise<void> {
+  await ensureTables();
+  await getPool().query(`UPDATE app_users SET company_name = $1 WHERE id = $2`, [companyName.trim(), userId]);
 }
 
 export type TokenPurpose = "verify" | "reset";

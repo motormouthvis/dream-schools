@@ -15,6 +15,10 @@ export interface CustomerRow {
   email: string;
   emailVerified: boolean;
   isOwner: boolean;
+  isPartner: boolean;
+  partnerId: string | null;
+  partnerName: string | null;
+  companyName: string;
   createdAt: string;
   deletedAt: string | null;
   authorizedDomain: string | null;
@@ -31,17 +35,30 @@ export async function requireOwner(request: Request): Promise<AppUser | null> {
   return user && user.isOwner ? user : null;
 }
 
-export async function listCustomers(): Promise<CustomerRow[]> {
+export async function requireCustomerListAccess(request: Request): Promise<AppUser | null> {
+  const user = await currentUser(request);
+  return user && (user.isOwner || user.isPartner) ? user : null;
+}
+
+export async function listCustomers(viewer?: AppUser | null): Promise<CustomerRow[]> {
   if (!hasDatabase()) return [];
   const pool = getPool();
+  const params: unknown[] = [];
+  const where = viewer && !viewer.isOwner && viewer.isPartner ? `WHERE u.partner_id = $1` : "";
+  if (where) params.push(viewer!.id);
   const { rows } = await pool.query(
     `SELECT
         u.id,
         u.email,
         u.email_verified,
         u.is_owner,
+        u.is_partner,
+        u.partner_id,
+        u.company_name,
         u.created_at,
         u.deleted_at,
+        partner.company_name AS partner_company_name,
+        partner.email AS partner_email,
         p.allowed_hosts,
         p.enabled,
         p.default_address,
@@ -49,17 +66,25 @@ export async function listCustomers(): Promise<CustomerRow[]> {
         usg.first_seen,
         usg.last_seen
       FROM app_users u
+      LEFT JOIN app_users partner
+        ON partner.id = u.partner_id
       LEFT JOIN embed_partners p
         ON p.partner_id = u.id AND p.widget_number = 1
       LEFT JOIN embed_usage usg
         ON usg.partner_id = u.id AND usg.widget_number = 1
+      ${where}
       ORDER BY (u.deleted_at IS NOT NULL) ASC, u.created_at DESC`
+    , params
   );
   return rows.map((r: any) => ({
     id: r.id,
     email: r.email,
     emailVerified: Boolean(r.email_verified),
     isOwner: Boolean(r.is_owner),
+    isPartner: Boolean(r.is_partner),
+    partnerId: r.partner_id ?? null,
+    partnerName: r.partner_company_name || r.partner_email || null,
+    companyName: r.company_name ?? "",
     createdAt: r.created_at,
     deletedAt: r.deleted_at ?? null,
     authorizedDomain:
@@ -72,10 +97,21 @@ export async function listCustomers(): Promise<CustomerRow[]> {
   }));
 }
 
+export async function listPartnerAccounts(): Promise<{ id: string; email: string; companyName: string }[]> {
+  if (!hasDatabase()) return [];
+  const { rows } = await getPool().query(
+    `SELECT id, email, company_name
+       FROM app_users
+      WHERE is_partner = TRUE AND deleted_at IS NULL
+      ORDER BY COALESCE(NULLIF(company_name, ''), email)`
+  );
+  return rows.map((r: any) => ({ id: r.id, email: r.email, companyName: r.company_name ?? "" }));
+}
+
 /** Update the account-level fields on a customer (email / owner flag). */
 export async function updateCustomerAccount(
   id: string,
-  fields: { email?: string; isOwner?: boolean }
+  fields: { email?: string; isOwner?: boolean; isPartner?: boolean; partnerId?: string | null; companyName?: string }
 ): Promise<void> {
   const sets: string[] = [];
   const params: unknown[] = [];
@@ -86,6 +122,18 @@ export async function updateCustomerAccount(
   if (typeof fields.isOwner === "boolean") {
     params.push(fields.isOwner);
     sets.push(`is_owner = $${params.length}`);
+  }
+  if (typeof fields.isPartner === "boolean") {
+    params.push(fields.isPartner);
+    sets.push(`is_partner = $${params.length}`);
+  }
+  if ("partnerId" in fields) {
+    params.push(fields.partnerId || null);
+    sets.push(`partner_id = $${params.length}`);
+  }
+  if (typeof fields.companyName === "string") {
+    params.push(fields.companyName.trim());
+    sets.push(`company_name = $${params.length}`);
   }
   if (!sets.length) return;
   params.push(id);

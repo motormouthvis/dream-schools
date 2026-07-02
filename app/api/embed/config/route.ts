@@ -1,6 +1,7 @@
 import { preflight, withCors } from "@/lib/embedCors";
 import { presentationPayload, resolveByHost } from "@/lib/embedConfig";
 import { recordUsageAsync } from "@/lib/embedUsage";
+import { getPool, hasDatabase } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -41,11 +42,28 @@ export async function GET(request: Request) {
   // Fire-and-forget so the widget response stays fast.
   recordUsageAsync(config.partnerId, config.widgetNumber);
 
+  let providerName = "";
+  if (hasDatabase() && !config.partnerId.startsWith("host:")) {
+    try {
+      const { rows } = await getPool().query(
+        `SELECT COALESCE(NULLIF(partner.company_name, ''), NULLIF(u.company_name, '')) AS provider_name
+           FROM app_users u
+           LEFT JOIN app_users partner ON partner.id = u.partner_id
+          WHERE u.id = $1`,
+        [config.partnerId]
+      );
+      providerName = rows[0]?.provider_name || "";
+    } catch (err) {
+      console.error("providerName lookup failed:", err);
+    }
+  }
+
   const payload = {
     enabled: true,
     partnerId: config.partnerId,
     widgetNumber: config.widgetNumber,
     defaultAddress: config.defaultAddress || "",
+    providerName,
     ...presentationPayload(config),
   };
   const res = withCors(request, payload);
