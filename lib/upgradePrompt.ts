@@ -17,7 +17,7 @@ export interface UpgradeDigestSchedule {
   lastDigestSentAt: string | null;
 }
 
-export type UpgradeDigestVariant = "soft_nudge" | "strong_sales" | "partner_summary" | "admin_summary";
+export type UpgradeDigestVariant = string;
 
 export interface UpgradeRequestRow {
   id: number;
@@ -146,7 +146,7 @@ function cleanInt(v: unknown, fallback: number, min: number, max: number): numbe
 const LEARN_MORE_URL = "https://www.dreamneighborhood.com";
 const SIGNUP_URL = "https://app.dreamneighborhood.com";
 
-const DEFAULT_TEMPLATES: Record<UpgradeDigestVariant, Omit<UpgradeEmailTemplate, "updatedAt">> = {
+const DEFAULT_TEMPLATES: Record<string, Omit<UpgradeEmailTemplate, "updatedAt">> = {
   soft_nudge: {
     variant: "soft_nudge",
     label: "Soft nudge",
@@ -229,13 +229,12 @@ export async function listUpgradeEmailTemplates(): Promise<UpgradeEmailTemplate[
 
 export async function getUpgradeEmailTemplate(variant: UpgradeDigestVariant): Promise<UpgradeEmailTemplate> {
   const templates = await listUpgradeEmailTemplates();
-  return templates.find((t) => t.variant === variant) || { ...DEFAULT_TEMPLATES[variant], updatedAt: null };
+  return templates.find((t) => t.variant === variant) || { ...DEFAULT_TEMPLATES.soft_nudge, updatedAt: null };
 }
 
 export async function saveUpgradeEmailTemplate(input: UpgradeEmailTemplate): Promise<UpgradeEmailTemplate> {
   await ensureTables();
-  if (!DEFAULT_TEMPLATES[input.variant as UpgradeDigestVariant]) throw new Error("Invalid template variant");
-  const label = DEFAULT_TEMPLATES[input.variant as UpgradeDigestVariant].label;
+  const label = input.label || DEFAULT_TEMPLATES[input.variant]?.label || "Custom template";
   const { rows } = await getPool().query(
     `INSERT INTO app_upgrade_email_templates (variant, label, subject, intro, cta_text, cta_url, updated_at)
        VALUES ($1,$2,$3,$4,$5,$6,NOW())

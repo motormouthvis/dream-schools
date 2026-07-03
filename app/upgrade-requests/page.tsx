@@ -27,12 +27,10 @@ interface SentDigestEmail {
   html: string;
 }
 
-const VARIANTS = [
-  ["soft_nudge", "Soft nudge"],
-  ["strong_sales", "Strong upgrade sales pitch"],
-  ["partner_summary", "Partner-facing summary"],
-  ["admin_summary", "Admin follow-up summary"],
-] as const;
+interface TemplateOption {
+  variant: string;
+  label: string;
+}
 
 function fmt(v: string | null): string {
   if (!v) return "—";
@@ -61,7 +59,8 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
   const [requests, setRequests] = useState<UpgradeRequest[]>([]);
   const [sentEmails, setSentEmails] = useState<SentDigestEmail[]>([]);
   const [includeSent, setIncludeSent] = useState(false);
-  const [variant, setVariant] = useState<(typeof VARIANTS)[number][0]>("soft_nudge");
+  const [variant, setVariant] = useState("soft_nudge");
+  const [templates, setTemplates] = useState<TemplateOption[]>([]);
   const [digestIntervalWeeks, setDigestIntervalWeeks] = useState("1");
   const [lastDigestSentAt, setLastDigestSentAt] = useState<string | null>(null);
   const [copyTo, setCopyTo] = useState("");
@@ -82,6 +81,9 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
         return;
       }
       setRequests(j.requests || []);
+      const tplRes = await fetch("/api/owner/upgrade-templates");
+      const tplJson = await tplRes.json().catch(() => ({}));
+      if (tplRes.ok) setTemplates(tplJson.templates || []);
       if (j.schedule) {
         setDigestIntervalWeeks(String(j.schedule.digestIntervalWeeks || 1));
         setLastDigestSentAt(j.schedule.lastDigestSentAt || null);
@@ -196,10 +198,10 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
         <div className="grid gap-3 lg:grid-cols-[1fr_180px_auto_auto] lg:items-end">
           <label className="block">
             <span className="block text-xs font-bold text-slate-600">Template variant for Realtor/customer email</span>
-            <select value={variant} onChange={(e) => setVariant(e.target.value as any)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-              {VARIANTS.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+            <select value={variant} onChange={(e) => setVariant(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+              {(templates.length ? templates : [{ variant: "soft_nudge", label: "Soft nudge" }]).map((t) => (
+                <option key={t.variant} value={t.variant}>
+                  {t.label || t.variant}
                 </option>
               ))}
             </select>

@@ -41,9 +41,6 @@ export async function POST(request: Request) {
     body = {};
   }
   const variant = body.variant || "soft_nudge";
-  if (!["soft_nudge", "strong_sales", "partner_summary", "admin_summary"].includes(variant)) {
-    return NextResponse.json({ error: "Invalid template variant." }, { status: 400 });
-  }
   const result = await sendUpgradeDigestNow(variant);
   return NextResponse.json({ ok: true, ...result });
 }

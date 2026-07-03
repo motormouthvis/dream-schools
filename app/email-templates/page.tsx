@@ -79,6 +79,35 @@ function EmailTemplates() {
     }
   }
 
+  async function addTemplate() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/owner/upgrade-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label: `Custom template ${templates.filter((t) => t.variant.startsWith("custom_")).length + 1}`,
+          subject: "Neighborhood Explorer upgrade opportunity",
+          intro: "A visitor requested full Neighborhood Explorer access from your website.",
+          ctaText: "Learn more",
+          ctaUrl: "https://www.dreamneighborhood.com",
+        }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(j.error || "Could not add template.");
+        return;
+      }
+      await load();
+      setActive(Math.max(0, templates.length));
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const t = templates[active];
   return (
     <>
@@ -87,9 +116,14 @@ function EmailTemplates() {
           <h1 className="text-xl font-extrabold text-ink-900">Email Templates</h1>
           <p className="text-[12px] text-slate-500">Customize upgrade digest emails.</p>
         </div>
-        <button onClick={save} disabled={busy || !t} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60">
-          {busy ? "Saving…" : "Save template"}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={addTemplate} disabled={busy} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60">
+            Add template
+          </button>
+          <button onClick={save} disabled={busy || !t} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60">
+            {busy ? "Saving…" : "Save template"}
+          </button>
+        </div>
       </div>
       {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
       {saved && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">Saved ✓</p>}
@@ -104,7 +138,7 @@ function EmailTemplates() {
                 i === active ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-50"
               }`}
             >
-              {template.label}
+              {template.label || template.variant}
             </button>
           ))}
         </div>
@@ -112,6 +146,9 @@ function EmailTemplates() {
         {t ? (
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <div className="grid gap-3">
+              <Field label="Template name">
+                <input className={inp} value={t.label} onChange={(e) => set("label", e.target.value)} />
+              </Field>
               <Field label="Subject">
                 <input className={inp} value={t.subject} onChange={(e) => set("subject", e.target.value)} />
               </Field>

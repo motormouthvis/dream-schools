@@ -29,13 +29,10 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
-  const variant = String(body.variant || "") as UpgradeDigestVariant;
-  if (!["soft_nudge", "strong_sales", "partner_summary", "admin_summary"].includes(variant)) {
-    return NextResponse.json({ error: "Invalid template variant." }, { status: 400 });
-  }
+  const variant = (String(body.variant || "").trim() || `custom_${Date.now()}`) as UpgradeDigestVariant;
   const template = await saveUpgradeEmailTemplate({
     variant,
-    label: String(body.label || ""),
+    label: String(body.label || (variant.startsWith("custom_") ? "Custom template" : "")),
     subject: String(body.subject || ""),
     intro: String(body.intro || ""),
     ctaText: String(body.ctaText || ""),
