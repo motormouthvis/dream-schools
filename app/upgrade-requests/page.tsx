@@ -313,14 +313,10 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
         </div>
       ) : (
         <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-[13px] leading-relaxed text-slate-600">
-            This is a permanent record of homebuyers who requested the full Neighborhood Explorer on your
-            website. Click the <strong>Requested</strong> column to sort by date.
-          </p>
-          <div className="mt-3 rounded-2xl border border-brand-100 bg-gradient-to-br from-white via-lime-50/60 to-emerald-50 p-4 shadow-sm">
+          <div className="rounded-2xl border border-brand-100 bg-gradient-to-br from-white via-lime-50/60 to-emerald-50 p-4 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 className="text-sm font-extrabold text-ink-900">Email Reminder</h2>
+                <h2 className="text-sm font-extrabold text-ink-900">Email Reminder Settings</h2>
                 <p className="mt-1 max-w-2xl text-[12px] leading-relaxed text-slate-500">
                   Send yourself a polished reminder email with your School Explorer usage, upgrade requests, and Neighborhood Explorer upgrade links.
                 </p>
