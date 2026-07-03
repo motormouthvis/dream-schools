@@ -810,29 +810,35 @@ function reminderHtml(opts: {
            </tr>
          </table>
 
-         <div style="background:#ffffff;border:1px solid #dcebd5;border-radius:20px;padding:16px;margin:0 0 16px">
-           <div style="font-size:15px;font-weight:900;color:#0f172a;margin:0 0 4px">Your clients are using the School Explorer!</div>
-           <div style="font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#12854c;margin:0 0 12px">School Explorer Usage</div>
-           <table role="presentation" style="width:100%;border-collapse:collapse">
-             <tr>
-               <td style="background:#f1f5f9;border-radius:14px;padding:14px 8px;text-align:center;width:33.333%">
-                 <div style="font-size:24px;font-weight:900;color:#0f172a;line-height:1">${totalViews.toLocaleString()}</div>
-                 <div style="font-size:11px;color:#64748b;line-height:1.3;margin-top:5px">Total homebuyer views</div>
-               </td>
-               <td style="width:8px"></td>
-               <td style="background:#f1f5f9;border-radius:14px;padding:14px 8px;text-align:center;width:33.333%">
-                 <div style="font-size:24px;font-weight:900;color:#0f172a;line-height:1">${totalRequests.toLocaleString()}</div>
-                 <div style="font-size:11px;color:#64748b;line-height:1.3;margin-top:5px">Total upgrade requests</div>
-               </td>
-               <td style="width:8px"></td>
-               <td style="background:#ecfdf5;border:1px solid #bbf7d0;border-radius:14px;padding:14px 8px;text-align:center;width:33.333%">
-                 <div style="font-size:24px;font-weight:900;color:#047857;line-height:1">${newRequests.length.toLocaleString()}</div>
-                 <div style="font-size:11px;color:#047857;line-height:1.3;margin-top:5px">New since last reminder</div>
-               </td>
-             </tr>
-           </table>
-           <p style="color:#64748b;font-size:13px;line-height:1.5;margin:12px 0 0">${newRequests.length ? "Your latest requests are summarized at the end of this email." : "No new requests since your last reminder &mdash; here's your running total."}</p>
-         </div>
+         ${
+           totalViews > 0
+             ? `<div style="background:#ffffff;border:1px solid #dcebd5;border-radius:20px;padding:16px;margin:0 0 16px">
+                  <div style="font-size:15px;font-weight:900;color:#0f172a;margin:0 0 4px">Your clients are using the School Explorer!</div>
+                  <div style="font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#12854c;margin:0 0 12px">School Explorer Usage</div>
+                  <table role="presentation" style="width:100%;border-collapse:collapse">
+                    <tr>
+                      <td style="background:#f1f5f9;border-radius:14px;padding:14px 8px;text-align:center;width:33.333%">
+                        <div style="font-size:24px;font-weight:900;color:#0f172a;line-height:1">${totalViews.toLocaleString()}</div>
+                        <div style="font-size:11px;color:#64748b;line-height:1.3;margin-top:5px">Total homebuyer views</div>
+                      </td>
+                      <td style="width:8px"></td>
+                      <td style="background:#f1f5f9;border-radius:14px;padding:14px 8px;text-align:center;width:33.333%">
+                        <div style="font-size:24px;font-weight:900;color:#0f172a;line-height:1">${totalRequests.toLocaleString()}</div>
+                        <div style="font-size:11px;color:#64748b;line-height:1.3;margin-top:5px">Total upgrade requests</div>
+                      </td>
+                      <td style="width:8px"></td>
+                      <td style="background:#ecfdf5;border:1px solid #bbf7d0;border-radius:14px;padding:14px 8px;text-align:center;width:33.333%">
+                        <div style="font-size:24px;font-weight:900;color:#047857;line-height:1">${newRequests.length.toLocaleString()}</div>
+                        <div style="font-size:11px;color:#047857;line-height:1.3;margin-top:5px">New since last reminder</div>
+                      </td>
+                    </tr>
+                  </table>
+                  ${newRequests.length ? `<p style="color:#64748b;font-size:13px;line-height:1.5;margin:12px 0 0">Your latest requests are summarized at the end of this email.</p>` : ""}
+                </div>`
+             : `<div style="background:#ffffff;border:1px solid #dcebd5;border-radius:20px;padding:16px;margin:0 0 16px">
+                  <div style="font-size:15px;font-weight:900;color:#0f172a;margin:0">Your clients are using the free School Explorer!</div>
+                </div>`
+         }
 
          <div style="text-align:center;background:#ffffff;border:1px solid #bbf7d0;border-radius:22px;padding:20px;margin:0 0 16px;box-shadow:0 10px 30px rgba(18,133,76,.10)">
            <div style="font-size:18px;font-weight:900;color:#0f172a;line-height:1.25;margin:0 0 14px">Get the Full neighborhood picture for your homebuyers!</div>
@@ -859,17 +865,12 @@ function reminderHtml(opts: {
            includedRequests.length
              ? `<div style="background:#ffffff;border:1px solid #dcebd5;border-radius:20px;padding:16px;margin:0 0 14px">
                   <p style="color:#0f172a;font-size:14px;margin:0 0 4px"><strong>Request preview</strong></p>
-                  <p style="color:#64748b;font-size:12px;line-height:1.5;margin:0 0 6px">Showing ${previewRequests.length} of ${includedRequests.length.toLocaleString()} request${includedRequests.length === 1 ? "" : "s"} so the upgrade buttons stay easy to find.</p>
+                  <p style="color:#64748b;font-size:12px;line-height:1.5;margin:0 0 6px">Showing ${previewRequests.length} of ${includedRequests.length.toLocaleString()} request${includedRequests.length === 1 ? "" : "s"}.</p>
                   ${requestListHtml(previewRequests)}
                   ${
                     hiddenRequestCount
                       ? `<p style="color:#475569;font-size:13px;line-height:1.5;margin:8px 0 0">+ ${hiddenRequestCount.toLocaleString()} more request${hiddenRequestCount === 1 ? "" : "s"}. <a href="${REQUESTS_URL}" style="color:#12854c;font-weight:800;text-decoration:none">View all requests</a></p>`
                       : ""
-                  }
-                  ${
-                    newRequests.length
-                      ? ""
-                      : `<p style="color:#64748b;font-size:13px;line-height:1.5;margin:8px 0 0">No new requests since your last reminder &mdash; here's your running total.</p>`
                   }
                 </div>`
              : ""
@@ -951,12 +952,16 @@ export async function sendCustomerReminder(
       partner_name: businessName,
     }),
     "",
-    "Your clients are using the School Explorer!",
-    "School Explorer Usage",
-    `${totalViews} Total homebuyer views`,
-    `${totalRequests} Total upgrade requests`,
-    `${newRows.length} New since last reminder`,
-    newRows.length ? "Your latest requests are summarized at the end of this email." : "No new requests since your last reminder — here's your running total.",
+    totalViews > 0
+      ? [
+          "Your clients are using the School Explorer!",
+          "School Explorer Usage",
+          `${totalViews} Total homebuyer views`,
+          `${totalRequests} Total upgrade requests`,
+          `${newRows.length} New since last reminder`,
+          newRows.length ? "Your latest requests are summarized at the end of this email." : "",
+        ].join("\n")
+      : "Your clients are using the free School Explorer!",
     "",
     "Get the Full neighborhood picture for your homebuyers!",
     `Learn More: ${LEARN_MORE_URL}`,
