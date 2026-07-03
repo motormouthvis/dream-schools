@@ -398,6 +398,9 @@
 
   function buildIframeUrl(config, coords, mode) {
     var url = config.apiBase + "/embed?mode=" + encodeURIComponent(mode) + "&accent=" + encodeURIComponent(config.accentColor);
+    function promptValue(value, fallback) {
+      return typeof value === "number" && isFinite(value) ? value : fallback;
+    }
     if (mode === "inline" && config.inlineShowHeader) url += "&header=1";
     if (config.showExternalLinks) url += "&links=1";
     if (config.providerName) url += "&provider=" + encodeURIComponent(config.providerName);
@@ -405,10 +408,10 @@
     if (config.customerId) url += "&customer=" + encodeURIComponent(config.customerId);
     if (config.customerPartnerId) url += "&partner=" + encodeURIComponent(config.customerPartnerId);
     if (config.upgradePrompt) {
-      url += "&uv=" + encodeURIComponent(config.upgradePrompt.viewsToTrigger || 2);
-      url += "&ud=" + encodeURIComponent(config.upgradePrompt.minDaysBetween || 7);
-      url += "&ui=" + encodeURIComponent(config.upgradePrompt.idleSeconds || 8);
-      url += "&ur=" + encodeURIComponent(config.upgradePrompt.requestSuppressDays || 90);
+      url += "&uv=" + encodeURIComponent(promptValue(config.upgradePrompt.viewsToTrigger, 2));
+      url += "&ud=" + encodeURIComponent(promptValue(config.upgradePrompt.minDaysBetween, 7));
+      url += "&ui=" + encodeURIComponent(promptValue(config.upgradePrompt.idleSeconds, 8));
+      url += "&ur=" + encodeURIComponent(promptValue(config.upgradePrompt.requestSuppressDays, 90));
     }
     if (coords) {
       if (coords.address) url += "&address=" + encodeURIComponent(coords.address);

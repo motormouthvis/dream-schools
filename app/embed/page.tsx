@@ -49,6 +49,11 @@ function readParams(): EmbedParams {
     const n = parseFloat(v ?? "");
     return Number.isFinite(n) ? n : null;
   };
+  const intParam = (key: string, fallback: number, min: number) => {
+    const raw = p.get(key);
+    const n = Number.parseInt(raw ?? "", 10);
+    return Number.isFinite(n) ? Math.max(min, n) : fallback;
+  };
   return {
     address: (p.get("address") || "").trim(),
     lat: num(p.get("lat")),
@@ -61,10 +66,10 @@ function readParams(): EmbedParams {
     business: (p.get("business") || "").trim(),
     customer: (p.get("customer") || "").trim(),
     partner: (p.get("partner") || "").trim(),
-    upgradeViews: Math.max(1, Number.parseInt(p.get("uv") || "2", 10) || 2),
-    upgradeDays: Math.max(1, Number.parseInt(p.get("ud") || "7", 10) || 7),
-    upgradeIdle: Math.max(3, Number.parseInt(p.get("ui") || "8", 10) || 8),
-    upgradeRequestSuppressDays: Math.max(1, Number.parseInt(p.get("ur") || "90", 10) || 90),
+    upgradeViews: intParam("uv", 2, 1),
+    upgradeDays: intParam("ud", 7, 0),
+    upgradeIdle: intParam("ui", 8, 3),
+    upgradeRequestSuppressDays: intParam("ur", 90, 0),
   };
 }
 
