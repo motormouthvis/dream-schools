@@ -189,7 +189,7 @@ const DEFAULT_TEMPLATES: Record<string, Omit<UpgradeEmailTemplate, "updatedAt">>
     label: "Realtor reminder (self)",
     subject: "Your homebuyers want the full neighborhood picture",
     intro:
-      "Your website visitors are asking for the full Neighborhood Explorer — home prices, commute, walkability, safety, dining and 38+ hyperlocal insights. Give them the complete picture on YOUR site (instead of losing them to Zillow or realtor.com) and become the hero for your clients.",
+      "Your website visitors are asking for the full Neighborhood Explorer — home prices, commute, walkability, safety, dining and 38+ hyperlocal insights. Give them the complete picture on YOUR site (instead of losing them to Zillow or Realtor.com™) and become the hero for your clients.",
     ctaText: "See the full Neighborhood Explorer",
     ctaUrl: "https://www.dreamneighborhood.com",
   },
@@ -766,11 +766,11 @@ function reminderHtml(opts: {
     signup_url: "https://app.dreamneighborhood.com",
     partner_name: businessName,
   };
-  const ctaUrl = fillTemplate(template.ctaUrl || LEARN_MORE, vars);
-  const ctaText = fillTemplate(template.ctaText || "Learn more", vars);
+  const SIGNUP = "https://app.dreamneighborhood.com";
   return emailShell(
     `<h1 style="font-size:20px;margin:0 0 8px">${htmlEscape(template.subject)}</h1>
      <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 14px">${htmlEscape(fillTemplate(template.intro, vars))}</p>
+     <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#64748b;margin:0 0 6px">School Explorer Usage</div>
      <table style="width:100%;border-collapse:collapse;margin:0 0 14px">
        <tr>
          <td style="background:#f1f5f9;border-radius:10px;padding:12px;text-align:center">
@@ -795,14 +795,21 @@ function reminderHtml(opts: {
          : `<p style="color:#64748b;font-size:13px">No new requests since your last reminder — here's your running total.</p>`
      }
      <ul style="color:#334155;font-size:13px;line-height:1.6;padding-left:18px;margin:8px 0 14px">
-       <li>Keep buyers on your site instead of Zillow / realtor.com</li>
+       <li>Keep buyers on your site instead of Zillow or Realtor.com&trade;</li>
        <li>38+ hyperlocal insights: prices, commute, walkability, safety, dining</li>
        <li>More time on page, better SEO, fewer showings, happier clients</li>
      </ul>
-     <p style="margin:0 0 14px">
-       <a href="${htmlEscape(ctaUrl)}" style="display:inline-block;background:#12854c;color:#fff;font-weight:700;text-decoration:none;padding:12px 18px;border-radius:10px;font-size:14px">${htmlEscape(ctaText)}</a>
-     </p>
-     <p style="color:#64748b;font-size:13px">Learn more: <a href="${LEARN_MORE}">${LEARN_MORE}</a></p>`
+     <table role="presentation" style="margin:4px 0 6px"><tr>
+       <td style="padding-right:8px">
+         <a href="${LEARN_MORE}" style="display:inline-block;background:#ffffff;border:2px solid #12854c;color:#12854c;font-weight:700;text-decoration:none;padding:10px 20px;border-radius:10px;font-size:14px">Learn More</a>
+       </td>
+       <td>
+         <a href="${SIGNUP}" style="display:inline-block;background:#12854c;color:#ffffff;font-weight:700;text-decoration:none;padding:12px 22px;border-radius:10px;font-size:14px">Sign up</a>
+       </td>
+     </tr></table>
+     <p style="margin:10px 0 0">
+       <a href="https://app.dreamneighborhoodschools.com/upgrade-requests" style="display:inline-block;background:#f1f5f9;color:#334155;font-weight:600;text-decoration:none;padding:8px 14px;border-radius:8px;font-size:12px">Change how often you receive these emails</a>
+     </p>`
   );
 }
 

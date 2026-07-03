@@ -98,8 +98,13 @@ function cityState(matched: string, fallbackState: string): string {
 
 const PIN_SVG = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z" />
-    <circle cx="12" cy="10" r="3" />
+    <path d="M12 3 2.5 8.5" />
+    <path d="M12 3 21.5 8.5" />
+    <path d="M5 9.5V20h14V9.5" />
+    <path d="M3 20h18" />
+    <rect x="10" y="14.5" width="4" height="5.5" />
+    <path d="M12 3V1.2" />
+    <path d="M11 2h2" />
   </svg>
 );
 

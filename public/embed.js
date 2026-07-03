@@ -482,7 +482,7 @@
     "#dse-root .dse-hidden{display:none!important}" +
     "@media (max-width:767px){#dse-root .dse-panel{width:100%;height:100vh;max-width:100%;max-height:100vh;border-radius:0}#dse-root .dse-iframe{flex:1;height:auto}#dse-root .dse-loading{flex:1;height:auto}#dse-root .dse-bubble{bottom:calc(16px + var(--dse-bo,0px));width:54px;height:54px}#dse-root .dse-bubble--right{right:16px}#dse-root .dse-bubble--left{left:16px}#dse-root .dse-tooltip{bottom:calc(80px + var(--dse-bo,0px))}#dse-root .dse-tooltip--right{right:16px}#dse-root .dse-tooltip--left{left:16px}}";
 
-  var ICON_PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
+  var ICON_PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2.5 8.5"/><path d="M12 3 21.5 8.5"/><path d="M5 9.5V20h14V9.5"/><path d="M3 20h18"/><rect x="10" y="14.5" width="4" height="5.5"/><path d="M12 3V1.2"/><path d="M11 2h2"/></svg>';
   var ICON_CLOSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 
   function inlinePresent() {
