@@ -317,62 +317,95 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
             This is a permanent record of homebuyers who requested the full Neighborhood Explorer on your
             website. Click the <strong>Requested</strong> column to sort by date.
           </p>
-          <div className="mt-3 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <label className="block text-xs font-bold text-slate-600">Email me a reminder every (days)</label>
-              <input
-                type="number"
-                min={1}
-                max={90}
-                value={reminderDays}
-                onChange={(e) => setReminderDays(e.target.value)}
-                className="mt-1 w-32 rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              />
-              <p className="mt-1 text-[11px] text-slate-400">
-                Between 1 and 90 days. Automatic reminders summarize new requests, your total views, and total
-                requests. {reminderLastSentAt && <>Last sent: <strong>{fmt(reminderLastSentAt)}</strong>.</>}
-              </p>
-            </div>
-            <div className="min-w-[220px]">
-              <div className="text-xs font-bold text-slate-600">When I click “Send me one now”</div>
-              <div className="mt-2 grid gap-2 text-sm text-slate-700">
-                <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
-                  <input
-                    type="radio"
-                    name="reminder-send-scope"
-                    value="all"
-                    checked={reminderSendScope === "all"}
-                    onChange={() => setReminderSendScope("all")}
-                    className="mt-0.5 h-4 w-4 accent-brand-600"
-                  />
-                  <span>
-                    <span className="block font-bold text-ink-900">All requests</span>
-                    <span className="block text-[11px] text-slate-500">Default. Includes the full request list in the email.</span>
-                  </span>
-                </label>
-                <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
-                  <input
-                    type="radio"
-                    name="reminder-send-scope"
-                    value="new"
-                    checked={reminderSendScope === "new"}
-                    onChange={() => setReminderSendScope("new")}
-                    className="mt-0.5 h-4 w-4 accent-brand-600"
-                  />
-                  <span>
-                    <span className="block font-bold text-ink-900">New requests only</span>
-                    <span className="block text-[11px] text-slate-500">Only includes requests since the last reminder.</span>
-                  </span>
-                </label>
+          <div className="mt-3 rounded-2xl border border-brand-100 bg-gradient-to-br from-white via-lime-50/60 to-emerald-50 p-4 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-extrabold text-ink-900">Email Reminder</h2>
+                <p className="mt-1 max-w-2xl text-[12px] leading-relaxed text-slate-500">
+                  Send yourself a polished reminder email with your School Explorer usage, upgrade requests, and Neighborhood Explorer upgrade links.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href="https://www.dreamneighborhoodschools.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg border border-brand-200 bg-white px-3 py-2 text-xs font-extrabold text-brand-700 shadow-sm hover:bg-brand-50"
+                >
+                  Learn More
+                </a>
+                <a
+                  href="https://app.dreamneighborhoodschools.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg bg-brand-600 px-3 py-2 text-xs font-extrabold text-white shadow-sm hover:bg-brand-700"
+                >
+                  Upgrade Now
+                </a>
               </div>
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => saveReminder(false)} disabled={busy} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60">
-                Save schedule
-              </button>
-              <button onClick={() => saveReminder(true)} disabled={busy} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60">
-                Send me one now
-              </button>
+
+            <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(180px,240px)_minmax(260px,1fr)_auto] xl:items-end">
+              <div>
+                <label className="block text-xs font-bold text-slate-600">Email me a reminder every</label>
+                <div className="mt-1 flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={90}
+                    value={reminderDays}
+                    onChange={(e) => setReminderDays(e.target.value)}
+                    className="w-24 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                  />
+                  <span className="text-sm font-semibold text-slate-500">days</span>
+                </div>
+                <p className="mt-1 text-[11px] text-slate-400">
+                  1 to 90 days. {reminderLastSentAt && <>Last sent: <strong>{fmt(reminderLastSentAt)}</strong>.</>}
+                </p>
+              </div>
+
+              <div>
+                <div className="text-xs font-bold text-slate-600">When I click “Send me one now”</div>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <label className="flex items-start gap-2 rounded-xl border border-brand-100 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm">
+                    <input
+                      type="radio"
+                      name="reminder-send-scope"
+                      value="all"
+                      checked={reminderSendScope === "all"}
+                      onChange={() => setReminderSendScope("all")}
+                      className="mt-0.5 h-4 w-4 accent-brand-600"
+                    />
+                    <span>
+                      <span className="block font-bold text-ink-900">All requests</span>
+                      <span className="block text-[11px] text-slate-500">Default. Includes the full request list preview.</span>
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2 rounded-xl border border-brand-100 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm">
+                    <input
+                      type="radio"
+                      name="reminder-send-scope"
+                      value="new"
+                      checked={reminderSendScope === "new"}
+                      onChange={() => setReminderSendScope("new")}
+                      className="mt-0.5 h-4 w-4 accent-brand-600"
+                    />
+                    <span>
+                      <span className="block font-bold text-ink-900">New requests only</span>
+                      <span className="block text-[11px] text-slate-500">Only requests since the last reminder.</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 xl:justify-end">
+                <button onClick={() => saveReminder(false)} disabled={busy} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60">
+                  Save schedule
+                </button>
+                <button onClick={() => saveReminder(true)} disabled={busy} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60">
+                  Send me one now
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -408,7 +441,7 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
                   <span className="text-[9px]">{sortDir === "asc" ? "▲" : "▼"}</span>
                 </button>
               </th>
-              <th className="px-3 py-2 font-semibold">Realtor/customer</th>
+              <th className="px-3 py-2 font-semibold">Realtor / Customer</th>
               {isOwner && <th className="px-3 py-2 font-semibold">Partner</th>}
               <th className="px-3 py-2 font-semibold">Address</th>
               <th className="px-3 py-2 font-semibold">Source</th>

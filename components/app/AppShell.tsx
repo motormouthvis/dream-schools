@@ -110,7 +110,7 @@ export function AppShell({
                   <div className="truncate text-[13px] font-semibold leading-tight">{displayName}</div>
                   {showEmail && <div className="truncate text-[10px] text-white/50">{me.email}</div>}
                   <div className="text-[10px] uppercase tracking-wide text-white/45">
-                    {me.isOwner ? "Admin" : me.isPartner ? "Partner" : "Account"}
+                    {me.isOwner ? "Admin" : me.isPartner ? "Partner" : "Standard Account"}
                   </div>
                 </div>
               </>
