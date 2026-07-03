@@ -122,7 +122,7 @@ export function AppShell({
         <nav className="mt-5 space-y-1">
           {link("home", "Home", "/dashboard")}
           {(me.isOwner || me.isPartner) && link("owner", "Customer List", "/owner")}
-          {link("upgradeRequests", "Requests to Upgrade to Full Neighborhood Explorer", "/upgrade-requests")}
+          {link("upgradeRequests", "Upgrade Requests from Your Homebuyers", "/upgrade-requests")}
           {link("edit", "Configure Explorer", "/edit")}
           {link("account", "Account Settings", "/account")}
           {link("help", "Help", "/help")}

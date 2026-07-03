@@ -251,9 +251,9 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-extrabold text-ink-900">Requests to Upgrade to Full Neighborhood Explorer</h1>
+          <h1 className="text-xl font-extrabold text-ink-900">Homebuyer Requests to Upgrade to the Full Neighborhood Explorer</h1>
           <p className="text-[12px] text-slate-500">
-            Homebuyers who asked their Realtor to upgrade from the School Explorer for the full Neighborhood Explorer.
+            Homebuyers who asked you to upgrade from the School Explorer for the full Neighborhood Explorer.
           </p>
         </div>
         <button onClick={load} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
