@@ -8,10 +8,17 @@ export function turnstileEnabled(): boolean {
   return Boolean(process.env.TURNSTILE_SECRET_KEY);
 }
 
+// Hard-require a valid token only when TURNSTILE_ENFORCE=1. Otherwise we still
+// validate any token that IS supplied, but won't lock users out if the widget
+// fails to load/solve (e.g., hostname/config issues) — a safe staged rollout.
+export function turnstileEnforced(): boolean {
+  return process.env.TURNSTILE_ENFORCE === "1";
+}
+
 export async function verifyTurnstile(token: string, ip?: string): Promise<boolean> {
   const secret = process.env.TURNSTILE_SECRET_KEY;
-  if (!secret) return true; // opt-in: not configured → allow
-  if (!token) return false;
+  if (!secret) return true; // not configured → allow
+  if (!token) return !turnstileEnforced(); // no token → allow unless enforcing
   try {
     const form = new URLSearchParams({ secret, response: token });
     if (ip) form.append("remoteip", ip);
