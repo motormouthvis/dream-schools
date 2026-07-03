@@ -42,11 +42,11 @@ export default function AccountPage() {
               <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Date created</div>
               <div className="mt-1 text-sm text-ink-900">{fmtDate(me.createdAt)}</div>
             </div>
+            <BusinessProfile initialBusinessName={me.businessName || ""} />
             {me.isPartner && <PartnerSignupLink partnerId={me.id} />}
             {me.isPartner && (
               <PartnerDesignation initialCompanyName={me.companyName || ""} isPartner={me.isPartner} />
             )}
-            <BusinessProfile initialBusinessName={me.businessName || ""} />
             {(me.isOwner || me.isPartner) && (
               <UpgradePromptSettings isOwner={me.isOwner} isPartner={me.isPartner} />
             )}
@@ -96,7 +96,7 @@ function PartnerDesignation({
   }
 
   return (
-    <Card title="Partner Designation">
+    <Card title="Partner Name">
       <div className="mb-3 rounded-lg bg-brand-50 px-3 py-2 text-[12px] text-brand-800">
         {isPartner
           ? "This account is a Partner. Customers who sign up through your Partner Login link will be associated with your account."
@@ -118,7 +118,7 @@ function PartnerDesignation({
         {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
         {done && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">Partner details saved ✓</p>}
         <button type="submit" disabled={busy} className={btn}>
-          {busy ? "Saving…" : "Save partner details"}
+          {busy ? "Saving…" : "Save partner name"}
         </button>
       </form>
     </Card>

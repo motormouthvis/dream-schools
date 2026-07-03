@@ -3,10 +3,13 @@ import { requireOwner } from "@/lib/owner";
 import { currentUser } from "@/lib/auth";
 import {
   listUpgradeRequests,
+  getUpgradeRequestSummary,
   sendUpgradeDigestNow,
   getUpgradeDigestSchedule,
   type UpgradeDigestVariant,
 } from "@/lib/upgradePrompt";
+
+const INCLUDE_SENT_LIMIT = 200;
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +29,21 @@ export async function GET(request: Request) {
   const g = await listGuard(request);
   if (g.error) return g.error;
   const includeSent = new URL(request.url).searchParams.get("include_sent") === "1";
-  const requests = await listUpgradeRequests({ includeSent, viewer: g.user });
+  const requests = await listUpgradeRequests({
+    includeSent,
+    viewer: g.user,
+    limit: includeSent ? INCLUDE_SENT_LIMIT : undefined,
+  });
   const schedule = await getUpgradeDigestSchedule();
-  return NextResponse.json({ requests, schedule, canSend: g.user!.isOwner });
+  const summary = await getUpgradeRequestSummary(g.user);
+  return NextResponse.json({
+    requests,
+    schedule,
+    summary,
+    limit: INCLUDE_SENT_LIMIT,
+    truncated: includeSent && requests.length >= INCLUDE_SENT_LIMIT,
+    canSend: g.user!.isOwner,
+  });
 }
 
 export async function POST(request: Request) {

@@ -381,7 +381,7 @@ function row(r: any): UpgradeRequestRow {
   };
 }
 
-export async function listUpgradeRequests(options: { includeSent?: boolean; viewer?: { id: string; isOwner: boolean; isPartner: boolean } | null } = {}): Promise<UpgradeRequestRow[]> {
+export async function listUpgradeRequests(options: { includeSent?: boolean; limit?: number; viewer?: { id: string; isOwner: boolean; isPartner: boolean } | null } = {}): Promise<UpgradeRequestRow[]> {
   if (!hasDatabase()) return [];
   await ensureTables();
   const params: unknown[] = [Boolean(options.includeSent)];
@@ -395,6 +395,11 @@ export async function listUpgradeRequests(options: { includeSent?: boolean; view
       scope = ` AND r.customer_id = $${params.length}`;
     }
   }
+  let limitClause = "";
+  if (options.limit && Number.isFinite(options.limit)) {
+    params.push(Math.floor(options.limit));
+    limitClause = ` LIMIT $${params.length}`;
+  }
   const { rows } = await getPool().query(
     `SELECT
         r.*,
@@ -407,10 +412,32 @@ export async function listUpgradeRequests(options: { includeSent?: boolean; view
        LEFT JOIN app_users partner ON partner.id = r.partner_id
       WHERE ($1::boolean = TRUE OR r.summary_sent_at IS NULL)
       ${scope}
-      ORDER BY r.requested_at DESC`,
+      ORDER BY r.requested_at DESC${limitClause}`,
     params
   );
   return rows.map(row);
+}
+
+export async function getUpgradeRequestSummary(
+  viewer?: { id: string; isOwner: boolean; isPartner: boolean } | null
+): Promise<{ total: number; pending: number; sent: number }> {
+  if (!hasDatabase()) return { total: 0, pending: 0, sent: 0 };
+  await ensureTables();
+  const params: unknown[] = [];
+  let scope = "";
+  if (viewer && !viewer.isOwner) {
+    params.push(viewer.id);
+    scope = viewer.isPartner ? ` WHERE r.partner_id = $1` : ` WHERE r.customer_id = $1`;
+  }
+  const { rows } = await getPool().query(
+    `SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE r.summary_sent_at IS NULL)::int AS pending,
+        COUNT(*) FILTER (WHERE r.summary_sent_at IS NOT NULL)::int AS sent
+       FROM app_upgrade_requests r${scope}`,
+    params
+  );
+  return { total: rows[0].total, pending: rows[0].pending, sent: rows[0].sent };
 }
 
 function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {

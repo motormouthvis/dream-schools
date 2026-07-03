@@ -39,6 +39,15 @@ function fmt(v: string | null): string {
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
 }
 
+function SummaryStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="mt-0.5 text-2xl font-extrabold text-ink-900">{value.toLocaleString()}</div>
+    </div>
+  );
+}
+
 export default function UpgradeRequestsPage() {
   return (
     <AppShell active="upgradeRequests">
@@ -59,6 +68,9 @@ function NotAuthorized() {
 function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
   const [requests, setRequests] = useState<UpgradeRequest[]>([]);
   const [sentEmails, setSentEmails] = useState<SentDigestEmail[]>([]);
+  const [summary, setSummary] = useState<{ total: number; pending: number; sent: number } | null>(null);
+  const [truncated, setTruncated] = useState(false);
+  const [limit, setLimit] = useState(200);
   const [includeSent, setIncludeSent] = useState(false);
   const [variant, setVariant] = useState("soft_nudge");
   const [templates, setTemplates] = useState<TemplateOption[]>([]);
@@ -82,6 +94,9 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
         return;
       }
       setRequests(j.requests || []);
+      setSummary(j.summary || null);
+      setTruncated(Boolean(j.truncated));
+      setLimit(j.limit || 200);
       const tplRes = await fetch("/api/owner/upgrade-templates");
       const tplJson = await tplRes.json().catch(() => ({}));
       if (tplRes.ok) setTemplates(tplJson.templates || []);
@@ -187,7 +202,7 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
         <div>
           <h1 className="text-xl font-extrabold text-ink-900">Requests to Upgrade to Full Neighborhood Explorer</h1>
           <p className="text-[12px] text-slate-500">
-            Homebuyers who asked their Realtor for the full Neighborhood Explorer.
+            Homebuyers who asked their Realtor to upgrade from the School Explorer for the full Neighborhood Explorer.
           </p>
         </div>
         <button onClick={load} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
@@ -222,7 +237,7 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
           )}
           <label className="flex items-center gap-2 text-sm text-slate-600">
             <input type="checkbox" checked={includeSent} onChange={(e) => setIncludeSent(e.target.checked)} className="h-4 w-4 accent-brand-600" />
-            Include sent
+            Include previously sent requests
           </label>
           {isOwner && (
             <>
@@ -251,6 +266,20 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
 
       {message && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>}
       {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+
+      {summary && (
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          <SummaryStat label="Total requests" value={summary.total} />
+          <SummaryStat label="Pending (not yet emailed)" value={summary.pending} />
+          <SummaryStat label="Previously sent" value={summary.sent} />
+        </div>
+      )}
+
+      {includeSent && truncated && (
+        <p className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-[12px] text-slate-600">
+          Showing the most recent {limit} requests. Use the summary above for totals.
+        </p>
+      )}
 
       <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="min-w-full text-left text-sm">
