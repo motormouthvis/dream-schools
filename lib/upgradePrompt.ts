@@ -146,6 +146,8 @@ function cleanInt(v: unknown, fallback: number, min: number, max: number): numbe
 
 const LEARN_MORE_URL = "https://www.dreamneighborhood.com";
 const SIGNUP_URL = "https://app.dreamneighborhood.com";
+const REQUESTS_URL = "https://app.dreamneighborhoodschools.com/upgrade-requests";
+const REMINDER_REQUEST_PREVIEW_LIMIT = 5;
 const CUSTOMER_REMINDER_INTRO =
   "Your website visitors are asking for the full Neighborhood Explorer — home prices, commute, walkability, safety, dining and 38+ hyperlocal insights.";
 const OLD_CUSTOMER_REMINDER_INTRO =
@@ -762,6 +764,8 @@ function reminderHtml(opts: {
   totalRequests: number;
 }): string {
   const { template, businessName, newRequests, includedRequests, totalViews, totalRequests } = opts;
+  const previewRequests = includedRequests.slice(0, REMINDER_REQUEST_PREVIEW_LIMIT);
+  const hiddenRequestCount = Math.max(0, includedRequests.length - previewRequests.length);
   const vars = {
     request_count: String(newRequests.length),
     learn_more_url: LEARN_MORE_URL,
@@ -777,36 +781,36 @@ function reminderHtml(opts: {
     `<div style="display:none;max-height:0;overflow:hidden;color:#f8fafc">
        Your homebuyers want the full neighborhood picture. Upgrade interest and School Explorer usage are inside.
      </div>
-     <div style="background:#fbfdf8;border:1px solid #dcebd5;border-radius:24px;overflow:hidden">
-       <div style="background:linear-gradient(135deg,#f7fee7 0%,#ecfccb 45%,#dcfce7 100%);padding:24px 24px 22px;color:#0f172a;border-bottom:1px solid #d9f99d">
-         <div style="display:inline-block;background:#ffffff;border:1px solid #bbf7d0;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px;color:#12854c">
+     <div style="background:#f8fbf4;border:1px solid #dcebd5;border-radius:26px;overflow:hidden;box-shadow:0 18px 48px rgba(15,81,50,.10)">
+       <div style="background:linear-gradient(135deg,#fbfff1 0%,#effdd1 48%,#dcfce7 100%);padding:26px 24px 24px;color:#0f172a;border-bottom:1px solid #d9f99d">
+         <div style="display:inline-block;background:#ffffff;border:1px solid #bbf7d0;border-radius:999px;padding:6px 11px;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;margin-bottom:13px;color:#12854c">
            Dream Neighborhood&trade;
          </div>
          <h1 style="font-size:24px;line-height:1.15;margin:0 0 10px;color:#102a1d">${htmlEscape(subject)}</h1>
          <p style="font-size:14px;line-height:1.65;margin:0;color:#31523d">${htmlEscape(intro)}</p>
        </div>
 
-       <div style="padding:20px 22px 4px">
+       <div style="padding:20px 22px 6px">
          <p style="color:#0f172a;font-size:14px;line-height:1.6;margin:0 0 12px">
            <strong>Dream Neighborhood&trade; has two product offerings:</strong>
          </p>
          <table role="presentation" style="width:100%;border-collapse:collapse;margin:0 0 16px">
            <tr>
-             <td style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:14px;vertical-align:top">
+             <td style="background:#ffffff;border:1px solid #dcebd5;border-left:5px solid #12854c;border-radius:16px;padding:14px;vertical-align:top">
                <div style="font-size:13px;font-weight:800;color:#12854c;margin-bottom:4px">School Explorer</div>
                <div style="font-size:12px;line-height:1.55;color:#475569">Free forever, no ads, and no credit card required.</div>
              </td>
            </tr>
            <tr><td style="height:10px"></td></tr>
            <tr>
-             <td style="background:#fff7ed;border:1px solid #fed7aa;border-radius:16px;padding:14px;vertical-align:top">
-               <div style="font-size:13px;font-weight:800;color:#9a3412;margin-bottom:4px">Neighborhood Explorer</div>
-               <div style="font-size:12px;line-height:1.55;color:#7c2d12">School information plus much more! 38+ hyperlocal neighborhood insights: prices, commute, walkability, safety, dining, and more. Very cost effective.</div>
+             <td style="background:#ffffff;border:1px solid #dcebd5;border-left:5px solid #84cc16;border-radius:16px;padding:14px;vertical-align:top">
+               <div style="font-size:13px;font-weight:800;color:#3f6212;margin-bottom:4px">Neighborhood Explorer</div>
+               <div style="font-size:12px;line-height:1.55;color:#475569">School information plus much more! 38+ hyperlocal neighborhood insights: prices, commute, walkability, safety, dining, and more. Very cost effective.</div>
              </td>
            </tr>
          </table>
 
-         <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;padding:16px;margin:0 0 16px">
+         <div style="background:#ffffff;border:1px solid #dcebd5;border-radius:20px;padding:16px;margin:0 0 16px">
            <div style="font-size:15px;font-weight:900;color:#0f172a;margin:0 0 4px">Your clients are using the School Explorer!</div>
            <div style="font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#12854c;margin:0 0 12px">School Explorer Usage</div>
            <table role="presentation" style="width:100%;border-collapse:collapse">
@@ -821,29 +825,29 @@ function reminderHtml(opts: {
                  <div style="font-size:11px;color:#64748b;line-height:1.3;margin-top:5px">Total upgrade requests</div>
                </td>
                <td style="width:8px"></td>
-               <td style="background:#ecfdf5;border-radius:14px;padding:14px 8px;text-align:center;width:33.333%">
+               <td style="background:#ecfdf5;border:1px solid #bbf7d0;border-radius:14px;padding:14px 8px;text-align:center;width:33.333%">
                  <div style="font-size:24px;font-weight:900;color:#047857;line-height:1">${newRequests.length.toLocaleString()}</div>
                  <div style="font-size:11px;color:#047857;line-height:1.3;margin-top:5px">New since last reminder</div>
                </td>
              </tr>
            </table>
-           ${
-             includedRequests.length
-               ? `<div style="border-top:1px solid #e2e8f0;margin-top:14px;padding-top:12px">
-                    <p style="color:#0f172a;font-size:14px;margin:0 0 4px"><strong>Requests included in this email:</strong></p>
-                    ${requestListHtml(includedRequests)}
-                    ${
-                      newRequests.length
-                        ? ""
-                        : `<p style="color:#64748b;font-size:13px;line-height:1.5;margin:8px 0 0">No new requests since your last reminder &mdash; here's your running total.</p>`
-                    }
-                  </div>`
-               : `<p style="color:#64748b;font-size:13px;line-height:1.5;margin:12px 0 0">No new requests since your last reminder &mdash; here's your running total.</p>`
-           }
+           <p style="color:#64748b;font-size:13px;line-height:1.5;margin:12px 0 0">${newRequests.length ? "Your latest requests are summarized at the end of this email." : "No new requests since your last reminder &mdash; here's your running total."}</p>
          </div>
 
-         <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:18px;padding:16px;margin:0 0 18px">
-           <div style="font-size:14px;font-weight:900;color:#1e3a8a;margin:0 0 8px">Why this matters for your business</div>
+         <div style="text-align:center;background:#ffffff;border:1px solid #bbf7d0;border-radius:22px;padding:20px;margin:0 0 16px;box-shadow:0 10px 30px rgba(18,133,76,.10)">
+           <div style="font-size:18px;font-weight:900;color:#0f172a;line-height:1.25;margin:0 0 14px">Get the Full neighborhood picture for your homebuyers!</div>
+           <table role="presentation" align="center" style="margin:0 auto;border-collapse:collapse"><tr>
+             <td style="padding-right:8px">
+               <a href="${LEARN_MORE_URL}" style="display:inline-block;background:#ffffff;border:2px solid #12854c;color:#12854c;font-weight:800;text-decoration:none;padding:11px 18px;border-radius:999px;font-size:14px">Learn More</a>
+             </td>
+             <td>
+               <a href="${SIGNUP_URL}" style="display:inline-block;background:#12854c;color:#ffffff;font-weight:800;text-decoration:none;padding:13px 22px;border-radius:999px;font-size:14px;box-shadow:0 8px 18px rgba(18,133,76,.25)">Sign up</a>
+             </td>
+           </tr></table>
+         </div>
+
+         <div style="background:#ffffff;border:1px solid #dcebd5;border-radius:20px;padding:16px;margin:0 0 16px">
+           <div style="font-size:14px;font-weight:900;color:#0f5132;margin:0 0 8px">Why this matters for your business</div>
            <ul style="color:#334155;font-size:13px;line-height:1.65;padding-left:18px;margin:0">
              <li>Keep buyers on your site instead of bouncing to Zillow or Realtor.com&trade;</li>
              <li>38+ hyperlocal insights: prices, commute, walkability, safety, dining</li>
@@ -851,20 +855,28 @@ function reminderHtml(opts: {
            </ul>
          </div>
 
-         <div style="text-align:center;background:#ffffff;border:1px solid #e2e8f0;border-radius:20px;padding:18px;margin:0 0 14px">
-           <div style="font-size:18px;font-weight:900;color:#0f172a;line-height:1.25;margin:0 0 14px">Get the Full neighborhood picture for your homebuyers!</div>
-           <table role="presentation" align="center" style="margin:0 auto;border-collapse:collapse"><tr>
-             <td style="padding-right:8px">
-               <a href="${LEARN_MORE_URL}" style="display:inline-block;background:#ffffff;border:2px solid #12854c;color:#12854c;font-weight:800;text-decoration:none;padding:11px 18px;border-radius:999px;font-size:14px">Learn More</a>
-             </td>
-             <td>
-               <a href="${SIGNUP_URL}" style="display:inline-block;background:#12854c;color:#ffffff;font-weight:800;text-decoration:none;padding:13px 22px;border-radius:999px;font-size:14px">Sign up</a>
-             </td>
-           </tr></table>
-         </div>
+         ${
+           includedRequests.length
+             ? `<div style="background:#ffffff;border:1px solid #dcebd5;border-radius:20px;padding:16px;margin:0 0 14px">
+                  <p style="color:#0f172a;font-size:14px;margin:0 0 4px"><strong>Request preview</strong></p>
+                  <p style="color:#64748b;font-size:12px;line-height:1.5;margin:0 0 6px">Showing ${previewRequests.length} of ${includedRequests.length.toLocaleString()} request${includedRequests.length === 1 ? "" : "s"} so the upgrade buttons stay easy to find.</p>
+                  ${requestListHtml(previewRequests)}
+                  ${
+                    hiddenRequestCount
+                      ? `<p style="color:#475569;font-size:13px;line-height:1.5;margin:8px 0 0">+ ${hiddenRequestCount.toLocaleString()} more request${hiddenRequestCount === 1 ? "" : "s"}. <a href="${REQUESTS_URL}" style="color:#12854c;font-weight:800;text-decoration:none">View all requests</a></p>`
+                      : ""
+                  }
+                  ${
+                    newRequests.length
+                      ? ""
+                      : `<p style="color:#64748b;font-size:13px;line-height:1.5;margin:8px 0 0">No new requests since your last reminder &mdash; here's your running total.</p>`
+                  }
+                </div>`
+             : ""
+         }
 
          <p style="text-align:center;margin:0 0 18px">
-           <a href="https://app.dreamneighborhoodschools.com/upgrade-requests" style="display:inline-block;background:#e2e8f0;color:#334155;font-weight:700;text-decoration:none;padding:9px 14px;border-radius:999px;font-size:12px">Change how often you receive these emails</a>
+           <a href="${REQUESTS_URL}" style="display:inline-block;background:#e6f4df;color:#0f5132;font-weight:800;text-decoration:none;padding:9px 14px;border-radius:999px;font-size:12px">Change how often you receive these emails</a>
          </p>
        </div>
      </div>`
@@ -944,16 +956,23 @@ export async function sendCustomerReminder(
     `${totalViews} Total homebuyer views`,
     `${totalRequests} Total upgrade requests`,
     `${newRows.length} New since last reminder`,
-    allRows.length ? textFromRows(allRows) : "No new requests since your last reminder — here's your running total.",
+    newRows.length ? "Your latest requests are summarized at the end of this email." : "No new requests since your last reminder — here's your running total.",
+    "",
+    "Get the Full neighborhood picture for your homebuyers!",
+    `Learn More: ${LEARN_MORE_URL}`,
+    `Sign up: ${SIGNUP_URL}`,
     "",
     "Keep buyers on your site instead of bouncing to Zillow or Realtor.com(TM)",
     "38+ hyperlocal insights: prices, commute, walkability, safety, dining",
     "More time on page, better SEO, fewer showings, happier clients",
     "",
-    "Get the Full neighborhood picture for your homebuyers!",
-    `Learn More: ${LEARN_MORE_URL}`,
-    `Sign up: ${SIGNUP_URL}`,
-    "Change how often you receive these emails: https://app.dreamneighborhoodschools.com/upgrade-requests",
+    allRows.length
+      ? `Request preview (showing ${Math.min(allRows.length, REMINDER_REQUEST_PREVIEW_LIMIT)} of ${allRows.length}):\n${textFromRows(allRows.slice(0, REMINDER_REQUEST_PREVIEW_LIMIT))}`
+      : "",
+    allRows.length > REMINDER_REQUEST_PREVIEW_LIMIT
+      ? `+ ${allRows.length - REMINDER_REQUEST_PREVIEW_LIMIT} more request(s). View all: ${REQUESTS_URL}`
+      : "",
+    `Change how often you receive these emails: ${REQUESTS_URL}`,
   ].join("\n");
 
   const subject = fillTemplate(template.subject, { request_count: String(newRows.length) });
