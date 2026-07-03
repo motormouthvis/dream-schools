@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runScheduledUpgradeDigest } from "@/lib/upgradePrompt";
+import { runScheduledUpgradeDigest, runDueCustomerReminders } from "@/lib/upgradePrompt";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +12,9 @@ function authorized(request: Request): boolean {
 
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const result = await runScheduledUpgradeDigest();
-  return NextResponse.json({ ok: true, ...result });
+  const digest = await runScheduledUpgradeDigest();
+  const reminders = await runDueCustomerReminders();
+  return NextResponse.json({ ok: true, digest, reminders });
 }
 
 export async function POST(request: Request) {

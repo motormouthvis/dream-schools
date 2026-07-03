@@ -79,6 +79,8 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
   const [lastDigestSentAt, setLastDigestSentAt] = useState<string | null>(null);
   const [copyTo, setCopyTo] = useState("");
   const [preview, setPreview] = useState<SentDigestEmail | null>(null);
+  const [reminderDays, setReminderDays] = useState("7");
+  const [reminderLastSentAt, setReminderLastSentAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -111,6 +113,13 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
         const sentRes = await fetch("/api/owner/upgrade-digests");
         const sentJson = await sentRes.json().catch(() => ({}));
         if (sentRes.ok) setSentEmails(sentJson.emails || []);
+      } else {
+        const remRes = await fetch("/api/app/reminder");
+        const remJson = await remRes.json().catch(() => ({}));
+        if (remRes.ok && remJson.settings) {
+          setReminderDays(String(remJson.settings.intervalDays || 7));
+          setReminderLastSentAt(remJson.settings.lastSentAt || null);
+        }
       }
     } catch {
       setError("Network error.");
@@ -199,6 +208,34 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
     }
   }
 
+  async function saveReminder(send: boolean) {
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/app/reminder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ intervalDays: Number(reminderDays), send }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(j.error || "Could not save reminder.");
+        return;
+      }
+      if (send) {
+        setMessage(j.sent ? "Reminder email sent to you." : "No new requests — reminder not sent.");
+        await load();
+      } else {
+        setMessage("Reminder schedule saved.");
+      }
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const unsentCount = useMemo(() => requests.filter((r) => !r.summarySentAt).length, [requests]);
   const sortedRequests = useMemo(() => {
     const dir = sortDir === "asc" ? 1 : -1;
@@ -270,10 +307,37 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
           </p>
         </div>
       ) : (
-        <p className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-[13px] leading-relaxed text-slate-600">
-          This is a permanent record of homebuyers who requested the full Neighborhood Explorer on your
-          website. Click the <strong>Requested</strong> column to sort by date.
-        </p>
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-[13px] leading-relaxed text-slate-600">
+            This is a permanent record of homebuyers who requested the full Neighborhood Explorer on your
+            website. Click the <strong>Requested</strong> column to sort by date.
+          </p>
+          <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <label className="block text-xs font-bold text-slate-600">Email me a reminder every (days)</label>
+              <input
+                type="number"
+                min={1}
+                max={90}
+                value={reminderDays}
+                onChange={(e) => setReminderDays(e.target.value)}
+                className="mt-1 w-32 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+              <p className="mt-1 text-[11px] text-slate-400">
+                Between 1 and 90 days. Reminders summarize new requests, your total views, and total
+                requests. {reminderLastSentAt && <>Last sent: <strong>{fmt(reminderLastSentAt)}</strong>.</>}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => saveReminder(false)} disabled={busy} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60">
+                Save schedule
+              </button>
+              <button onClick={() => saveReminder(true)} disabled={busy} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60">
+                Send me one now
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {message && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>}
@@ -307,31 +371,39 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
                 </button>
               </th>
               <th className="px-3 py-2 font-semibold">Realtor/customer</th>
-              <th className="px-3 py-2 font-semibold">Partner</th>
+              {isOwner && <th className="px-3 py-2 font-semibold">Partner</th>}
               <th className="px-3 py-2 font-semibold">Address</th>
               <th className="px-3 py-2 font-semibold">Source</th>
-              <th className="px-3 py-2 font-semibold">Sent</th>
+              <th className="px-3 py-2 font-semibold" title={isOwner ? "When this request was included in an admin digest email." : "When this request was included in a reminder email to you."}>
+                {isOwner ? "Sent in digest" : "Emailed to you"}
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading ? (
-              <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-400">Loading…</td></tr>
+              <tr><td colSpan={isOwner ? 6 : 5} className="px-3 py-8 text-center text-slate-400">Loading…</td></tr>
             ) : sortedRequests.length === 0 ? (
-              <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-400">No requests yet.</td></tr>
+              <tr><td colSpan={isOwner ? 6 : 5} className="px-3 py-8 text-center text-slate-400">No requests yet.</td></tr>
             ) : (
-              sortedRequests.map((r) => (
+              sortedRequests.map((r) => {
+                const emailedToYou =
+                  reminderLastSentAt && new Date(r.requestedAt).getTime() <= new Date(reminderLastSentAt).getTime()
+                    ? reminderLastSentAt
+                    : null;
+                return (
                 <tr key={r.id} className="hover:bg-slate-50/60">
                   <td className="px-3 py-2.5 text-slate-600">{fmt(r.requestedAt)}</td>
                   <td className="px-3 py-2.5">
-                    <div className="font-semibold text-ink-900">{r.customerEmail || "—"}</div>
-                    {r.businessName && <div className="text-[11px] text-slate-500">{r.businessName}</div>}
+                    <div className="font-semibold text-ink-900">{r.businessName || r.customerEmail || "—"}</div>
+                    {r.businessName && <div className="text-[11px] text-slate-500">{r.customerEmail}</div>}
                   </td>
-                  <td className="px-3 py-2.5 text-slate-600">{r.partnerCompanyName || r.partnerEmail || "—"}</td>
+                  {isOwner && <td className="px-3 py-2.5 text-slate-600">{r.partnerCompanyName || r.partnerEmail || "—"}</td>}
                   <td className="px-3 py-2.5 text-slate-600">{r.address || "—"}</td>
                   <td className="px-3 py-2.5 text-slate-600">{r.source || "widget"}</td>
-                  <td className="px-3 py-2.5 text-slate-600">{fmt(r.summarySentAt)}</td>
+                  <td className="px-3 py-2.5 text-slate-600">{fmt(isOwner ? r.summarySentAt : emailedToYou)}</td>
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>

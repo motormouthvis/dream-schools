@@ -1,5 +1,6 @@
 import { getPool, hasDatabase } from "@/lib/db";
 import { emailShell, htmlEscape, sendTransactionalEmail } from "@/lib/email";
+import { ensureAuthTables } from "@/lib/auth";
 
 export const DEFAULT_UPGRADE_VIEWS_TO_TRIGGER = 2;
 export const DEFAULT_UPGRADE_MIN_DAYS_BETWEEN = 7;
@@ -183,7 +184,18 @@ const DEFAULT_TEMPLATES: Record<string, Omit<UpgradeEmailTemplate, "updatedAt">>
     ctaText: "Open admin",
     ctaUrl: "https://app.dreamneighborhoodschools.com/upgrade-requests",
   },
+  customer_reminder: {
+    variant: "customer_reminder",
+    label: "Realtor reminder (self)",
+    subject: "Your homebuyers want the full neighborhood picture",
+    intro:
+      "Your website visitors are asking for the full Neighborhood Explorer — home prices, commute, walkability, safety, dining and 38+ hyperlocal insights. Give them the complete picture on YOUR site (instead of losing them to Zillow or realtor.com) and become the hero for your clients.",
+    ctaText: "See the full Neighborhood Explorer",
+    ctaUrl: "https://www.dreamneighborhood.com",
+  },
 };
+
+export const DEFAULT_REMINDER_INTERVAL_DAYS = 7;
 
 function fillTemplate(s: string, vars: Record<string, string>): string {
   return s.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? "");
@@ -703,6 +715,168 @@ export async function sendDigestCopy(id: number, to: string): Promise<void> {
     text: sent.text,
     html: sent.html,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Per-customer (Realtor) self-reminder emails.
+// ---------------------------------------------------------------------------
+
+const LEARN_MORE = "https://www.dreamneighborhood.com";
+
+function cleanReminderDays(v: unknown): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return DEFAULT_REMINDER_INTERVAL_DAYS;
+  return Math.max(1, Math.min(90, Math.floor(n)));
+}
+
+export async function getReminderSettings(
+  userId: string
+): Promise<{ intervalDays: number; lastSentAt: string | null }> {
+  if (!hasDatabase()) return { intervalDays: DEFAULT_REMINDER_INTERVAL_DAYS, lastSentAt: null };
+  await ensureAuthTables();
+  const { rows } = await getPool().query(
+    `SELECT reminder_interval_days, reminder_last_sent_at FROM app_users WHERE id = $1`,
+    [userId]
+  );
+  return {
+    intervalDays: cleanReminderDays(rows[0]?.reminder_interval_days),
+    lastSentAt: rows[0]?.reminder_last_sent_at ?? null,
+  };
+}
+
+export async function setReminderInterval(userId: string, days: number): Promise<number> {
+  await ensureAuthTables();
+  const clean = cleanReminderDays(days);
+  await getPool().query(`UPDATE app_users SET reminder_interval_days = $1 WHERE id = $2`, [clean, userId]);
+  return clean;
+}
+
+function reminderHtml(opts: {
+  template: UpgradeEmailTemplate;
+  businessName: string;
+  newRequests: UpgradeRequestRow[];
+  totalViews: number;
+  totalRequests: number;
+}): string {
+  const { template, businessName, newRequests, totalViews, totalRequests } = opts;
+  const vars = {
+    request_count: String(newRequests.length),
+    learn_more_url: LEARN_MORE,
+    signup_url: "https://app.dreamneighborhood.com",
+    partner_name: businessName,
+  };
+  const ctaUrl = fillTemplate(template.ctaUrl || LEARN_MORE, vars);
+  const ctaText = fillTemplate(template.ctaText || "Learn more", vars);
+  return emailShell(
+    `<h1 style="font-size:20px;margin:0 0 8px">${htmlEscape(template.subject)}</h1>
+     <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 14px">${htmlEscape(fillTemplate(template.intro, vars))}</p>
+     <table style="width:100%;border-collapse:collapse;margin:0 0 14px">
+       <tr>
+         <td style="background:#f1f5f9;border-radius:10px;padding:12px;text-align:center">
+           <div style="font-size:22px;font-weight:800;color:#0f172a">${totalViews.toLocaleString()}</div>
+           <div style="font-size:11px;color:#64748b">Total homebuyer views</div>
+         </td>
+         <td style="width:10px"></td>
+         <td style="background:#f1f5f9;border-radius:10px;padding:12px;text-align:center">
+           <div style="font-size:22px;font-weight:800;color:#0f172a">${totalRequests.toLocaleString()}</div>
+           <div style="font-size:11px;color:#64748b">Total upgrade requests</div>
+         </td>
+         <td style="width:10px"></td>
+         <td style="background:#ecfdf5;border-radius:10px;padding:12px;text-align:center">
+           <div style="font-size:22px;font-weight:800;color:#065f46">${newRequests.length.toLocaleString()}</div>
+           <div style="font-size:11px;color:#047857">New since last reminder</div>
+         </td>
+       </tr>
+     </table>
+     ${
+       newRequests.length
+         ? `<p style="color:#0f172a;font-size:14px;margin:0 0 4px"><strong>New requests:</strong></p>${requestListHtml(newRequests)}`
+         : `<p style="color:#64748b;font-size:13px">No new requests since your last reminder — here's your running total.</p>`
+     }
+     <ul style="color:#334155;font-size:13px;line-height:1.6;padding-left:18px;margin:8px 0 14px">
+       <li>Keep buyers on your site instead of Zillow / realtor.com</li>
+       <li>38+ hyperlocal insights: prices, commute, walkability, safety, dining</li>
+       <li>More time on page, better SEO, fewer showings, happier clients</li>
+     </ul>
+     <p style="margin:0 0 14px">
+       <a href="${htmlEscape(ctaUrl)}" style="display:inline-block;background:#12854c;color:#fff;font-weight:700;text-decoration:none;padding:12px 18px;border-radius:10px;font-size:14px">${htmlEscape(ctaText)}</a>
+     </p>
+     <p style="color:#64748b;font-size:13px">Learn more: <a href="${LEARN_MORE}">${LEARN_MORE}</a></p>`
+  );
+}
+
+export async function sendCustomerReminder(
+  userId: string,
+  opts: { manual?: boolean } = {}
+): Promise<{ sent: boolean; newCount: number }> {
+  if (!hasDatabase() || !userId) return { sent: false, newCount: 0 };
+  await ensureAuthTables();
+  await ensureTables();
+  const pool = getPool();
+  const u = await pool.query(
+    `SELECT email, business_name, company_name, reminder_last_sent_at FROM app_users WHERE id = $1 AND deleted_at IS NULL`,
+    [userId]
+  );
+  const user = u.rows[0];
+  if (!user?.email) return { sent: false, newCount: 0 };
+  const since = user.reminder_last_sent_at || new Date(0).toISOString();
+
+  const newRows = (
+    await pool.query(
+      `SELECT r.*, cu.email AS customer_email, cu.business_name
+         FROM app_upgrade_requests r
+         LEFT JOIN app_users cu ON cu.id = r.customer_id
+        WHERE r.customer_id = $1 AND r.requested_at > $2
+        ORDER BY r.requested_at ASC`,
+      [userId, since]
+    )
+  ).rows.map(row);
+
+  if (!newRows.length && !opts.manual) return { sent: false, newCount: 0 };
+
+  const totalViews = Number(
+    (await pool.query(`SELECT COALESCE(SUM(views),0)::bigint AS n FROM embed_usage WHERE partner_id = $1`, [userId]))
+      .rows[0].n
+  ) || 0;
+  const totalRequests = Number(
+    (await pool.query(`SELECT COUNT(*)::int AS n FROM app_upgrade_requests WHERE customer_id = $1`, [userId])).rows[0].n
+  );
+
+  const template = await getUpgradeEmailTemplate("customer_reminder");
+  const businessName = user.business_name || user.company_name || "";
+  const html = reminderHtml({ template, businessName, newRequests: newRows, totalViews, totalRequests });
+  const text = `You have ${totalRequests} total upgrade request(s) and ${totalViews} homebuyer views. ${newRows.length} new since your last reminder.\nLearn more: ${LEARN_MORE}`;
+
+  await sendTransactionalEmail({ to: user.email, subject: fillTemplate(template.subject, { request_count: String(newRows.length) }), text, html });
+  await archiveEmail({ recipient: user.email, subject: template.subject, variant: "customer_reminder", audience: "reminder", requestIds: newRows.map((r) => r.id), html, text });
+  await pool.query(`UPDATE app_users SET reminder_last_sent_at = NOW() WHERE id = $1`, [userId]);
+  return { sent: true, newCount: newRows.length };
+}
+
+export async function runDueCustomerReminders(now = new Date()): Promise<{ processed: number }> {
+  if (!hasDatabase()) return { processed: 0 };
+  await ensureAuthTables();
+  await ensureTables();
+  const pool = getPool();
+  // Realtor/customer accounts with at least one request, whose reminder interval
+  // has elapsed since their last reminder (or since account creation).
+  const { rows } = await pool.query(
+    `SELECT u.id,
+            COALESCE(u.reminder_interval_days, $1) AS interval_days,
+            COALESCE(u.reminder_last_sent_at, u.created_at) AS anchor
+       FROM app_users u
+      WHERE u.deleted_at IS NULL AND u.is_owner = FALSE
+        AND EXISTS (SELECT 1 FROM app_upgrade_requests r WHERE r.customer_id = u.id)`,
+    [DEFAULT_REMINDER_INTERVAL_DAYS]
+  );
+  let processed = 0;
+  for (const r of rows) {
+    const due = now.getTime() - new Date(r.anchor).getTime() >= Number(r.interval_days) * 86400000;
+    if (!due) continue;
+    const res = await sendCustomerReminder(r.id);
+    if (res.sent) processed += 1;
+  }
+  return { processed };
 }
 
 export async function runScheduledUpgradeDigest(): Promise<{ due: boolean; sentTo: string[]; requestCount: number }> {

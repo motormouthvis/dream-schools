@@ -29,6 +29,8 @@ export interface AppUser {
   upgradeViewsToTrigger: number | null;
   upgradeMinDaysBetween: number | null;
   upgradeIdleSeconds: number | null;
+  reminderIntervalDays: number | null;
+  reminderLastSentAt: string | null;
   createdAt: string;
 }
 
@@ -51,6 +53,8 @@ async function ensureTables(): Promise<void> {
            upgrade_views_to_trigger INTEGER,
            upgrade_min_days_between INTEGER,
            upgrade_idle_seconds INTEGER,
+           reminder_interval_days INTEGER,
+           reminder_last_sent_at TIMESTAMPTZ,
            created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
            deleted_at     TIMESTAMPTZ
          )`
@@ -65,7 +69,9 @@ async function ensureTables(): Promise<void> {
              ADD COLUMN IF NOT EXISTS business_name TEXT NOT NULL DEFAULT '',
              ADD COLUMN IF NOT EXISTS upgrade_views_to_trigger INTEGER,
              ADD COLUMN IF NOT EXISTS upgrade_min_days_between INTEGER,
-             ADD COLUMN IF NOT EXISTS upgrade_idle_seconds INTEGER`
+             ADD COLUMN IF NOT EXISTS upgrade_idle_seconds INTEGER,
+             ADD COLUMN IF NOT EXISTS reminder_interval_days INTEGER,
+             ADD COLUMN IF NOT EXISTS reminder_last_sent_at TIMESTAMPTZ`
         )
       )
       .then(() =>
@@ -156,6 +162,8 @@ function rowToUser(r: any): AppUser {
     upgradeViewsToTrigger: r.upgrade_views_to_trigger == null ? null : Number(r.upgrade_views_to_trigger),
     upgradeMinDaysBetween: r.upgrade_min_days_between == null ? null : Number(r.upgrade_min_days_between),
     upgradeIdleSeconds: r.upgrade_idle_seconds == null ? null : Number(r.upgrade_idle_seconds),
+    reminderIntervalDays: r.reminder_interval_days == null ? null : Number(r.reminder_interval_days),
+    reminderLastSentAt: r.reminder_last_sent_at ?? null,
     createdAt: r.created_at,
   };
 }
