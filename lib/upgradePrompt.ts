@@ -146,6 +146,10 @@ function cleanInt(v: unknown, fallback: number, min: number, max: number): numbe
 
 const LEARN_MORE_URL = "https://www.dreamneighborhood.com";
 const SIGNUP_URL = "https://app.dreamneighborhood.com";
+const CUSTOMER_REMINDER_INTRO =
+  "Your website visitors are asking for the full Neighborhood Explorer — home prices, commute, walkability, safety, dining and 38+ hyperlocal insights.";
+const OLD_CUSTOMER_REMINDER_INTRO =
+  "Your website visitors are asking for the full Neighborhood Explorer — home prices, commute, walkability, safety, dining and 38+ hyperlocal insights. Give them the complete picture on YOUR site (instead of losing them to Zillow or Realtor.com™) and become the hero for your clients.";
 
 const DEFAULT_TEMPLATES: Record<string, Omit<UpgradeEmailTemplate, "updatedAt">> = {
   soft_nudge: {
@@ -188,8 +192,7 @@ const DEFAULT_TEMPLATES: Record<string, Omit<UpgradeEmailTemplate, "updatedAt">>
     variant: "customer_reminder",
     label: "Realtor reminder (self)",
     subject: "Your homebuyers want the full neighborhood picture",
-    intro:
-      "Your website visitors are asking for the full Neighborhood Explorer — home prices, commute, walkability, safety, dining and 38+ hyperlocal insights. Give them the complete picture on YOUR site (instead of losing them to Zillow or Realtor.com™) and become the hero for your clients.",
+    intro: CUSTOMER_REMINDER_INTRO,
     ctaText: "Sign up",
     ctaUrl: SIGNUP_URL,
   },
@@ -754,10 +757,11 @@ function reminderHtml(opts: {
   template: UpgradeEmailTemplate;
   businessName: string;
   newRequests: UpgradeRequestRow[];
+  includedRequests: UpgradeRequestRow[];
   totalViews: number;
   totalRequests: number;
 }): string {
-  const { template, businessName, newRequests, totalViews, totalRequests } = opts;
+  const { template, businessName, newRequests, includedRequests, totalViews, totalRequests } = opts;
   const vars = {
     request_count: String(newRequests.length),
     learn_more_url: LEARN_MORE_URL,
@@ -765,18 +769,21 @@ function reminderHtml(opts: {
     partner_name: businessName,
   };
   const subject = fillTemplate(template.subject, vars);
-  const intro = fillTemplate(template.intro, vars);
+  const intro = fillTemplate(
+    !template.intro || template.intro === OLD_CUSTOMER_REMINDER_INTRO ? CUSTOMER_REMINDER_INTRO : template.intro,
+    vars
+  );
   return emailShell(
     `<div style="display:none;max-height:0;overflow:hidden;color:#f8fafc">
        Your homebuyers want the full neighborhood picture. Upgrade interest and School Explorer usage are inside.
      </div>
-     <div style="background:#f8fafc;border:1px solid #dbe7df;border-radius:24px;overflow:hidden">
-       <div style="background:#0f5132;padding:24px 24px 22px;color:#ffffff">
-         <div style="display:inline-block;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:6px 10px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px">
+     <div style="background:#fbfdf8;border:1px solid #dcebd5;border-radius:24px;overflow:hidden">
+       <div style="background:linear-gradient(135deg,#f7fee7 0%,#ecfccb 45%,#dcfce7 100%);padding:24px 24px 22px;color:#0f172a;border-bottom:1px solid #d9f99d">
+         <div style="display:inline-block;background:#ffffff;border:1px solid #bbf7d0;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px;color:#12854c">
            Dream Neighborhood&trade;
          </div>
-         <h1 style="font-size:24px;line-height:1.15;margin:0 0 10px;color:#ffffff">${htmlEscape(subject)}</h1>
-         <p style="font-size:14px;line-height:1.65;margin:0;color:#dcfce7">${htmlEscape(intro)}</p>
+         <h1 style="font-size:24px;line-height:1.15;margin:0 0 10px;color:#102a1d">${htmlEscape(subject)}</h1>
+         <p style="font-size:14px;line-height:1.65;margin:0;color:#31523d">${htmlEscape(intro)}</p>
        </div>
 
        <div style="padding:20px 22px 4px">
@@ -786,20 +793,21 @@ function reminderHtml(opts: {
          <table role="presentation" style="width:100%;border-collapse:collapse;margin:0 0 16px">
            <tr>
              <td style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:14px;vertical-align:top">
-               <div style="font-size:13px;font-weight:800;color:#12854c;margin-bottom:4px">Dream Neighborhood School Explorer</div>
+               <div style="font-size:13px;font-weight:800;color:#12854c;margin-bottom:4px">School Explorer</div>
                <div style="font-size:12px;line-height:1.55;color:#475569">Free forever, no ads, and no credit card required.</div>
              </td>
            </tr>
            <tr><td style="height:10px"></td></tr>
            <tr>
              <td style="background:#fff7ed;border:1px solid #fed7aa;border-radius:16px;padding:14px;vertical-align:top">
-               <div style="font-size:13px;font-weight:800;color:#9a3412;margin-bottom:4px">Cost-Effective Neighborhood Explorer</div>
-               <div style="font-size:12px;line-height:1.55;color:#7c2d12">School information plus 38+ hyperlocal neighborhood insights: prices, commute, walkability, safety, dining, and more.</div>
+               <div style="font-size:13px;font-weight:800;color:#9a3412;margin-bottom:4px">Neighborhood Explorer</div>
+               <div style="font-size:12px;line-height:1.55;color:#7c2d12">School information plus much more! 38+ hyperlocal neighborhood insights: prices, commute, walkability, safety, dining, and more. Very cost effective.</div>
              </td>
            </tr>
          </table>
 
          <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;padding:16px;margin:0 0 16px">
+           <div style="font-size:15px;font-weight:900;color:#0f172a;margin:0 0 4px">Your clients are using the School Explorer!</div>
            <div style="font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#12854c;margin:0 0 12px">School Explorer Usage</div>
            <table role="presentation" style="width:100%;border-collapse:collapse">
              <tr>
@@ -820,10 +828,15 @@ function reminderHtml(opts: {
              </tr>
            </table>
            ${
-             newRequests.length
+             includedRequests.length
                ? `<div style="border-top:1px solid #e2e8f0;margin-top:14px;padding-top:12px">
-                    <p style="color:#0f172a;font-size:14px;margin:0 0 4px"><strong>New requests since your last reminder:</strong></p>
-                    ${requestListHtml(newRequests)}
+                    <p style="color:#0f172a;font-size:14px;margin:0 0 4px"><strong>Requests included in this email:</strong></p>
+                    ${requestListHtml(includedRequests)}
+                    ${
+                      newRequests.length
+                        ? ""
+                        : `<p style="color:#64748b;font-size:13px;line-height:1.5;margin:8px 0 0">No new requests since your last reminder &mdash; here's your running total.</p>`
+                    }
                   </div>`
                : `<p style="color:#64748b;font-size:13px;line-height:1.5;margin:12px 0 0">No new requests since your last reminder &mdash; here's your running total.</p>`
            }
@@ -832,14 +845,14 @@ function reminderHtml(opts: {
          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:18px;padding:16px;margin:0 0 18px">
            <div style="font-size:14px;font-weight:900;color:#1e3a8a;margin:0 0 8px">Why this matters for your business</div>
            <ul style="color:#334155;font-size:13px;line-height:1.65;padding-left:18px;margin:0">
-             <li>Keep buyers on your site instead of Zillow or Realtor.com&trade;</li>
+             <li>Keep buyers on your site instead of bouncing to Zillow or Realtor.com&trade;</li>
              <li>38+ hyperlocal insights: prices, commute, walkability, safety, dining</li>
              <li>More time on page, better SEO, fewer showings, happier clients</li>
            </ul>
          </div>
 
          <div style="text-align:center;background:#ffffff;border:1px solid #e2e8f0;border-radius:20px;padding:18px;margin:0 0 14px">
-           <div style="font-size:18px;font-weight:900;color:#0f172a;line-height:1.25;margin:0 0 14px">Get the Full picture for your homebuyers!</div>
+           <div style="font-size:18px;font-weight:900;color:#0f172a;line-height:1.25;margin:0 0 14px">Get the Full neighborhood picture for your homebuyers!</div>
            <table role="presentation" align="center" style="margin:0 auto;border-collapse:collapse"><tr>
              <td style="padding-right:8px">
                <a href="${LEARN_MORE_URL}" style="display:inline-block;background:#ffffff;border:2px solid #12854c;color:#12854c;font-weight:800;text-decoration:none;padding:11px 18px;border-radius:999px;font-size:14px">Learn More</a>
@@ -860,9 +873,9 @@ function reminderHtml(opts: {
 
 export async function sendCustomerReminder(
   userId: string,
-  opts: { manual?: boolean } = {}
-): Promise<{ sent: boolean; newCount: number }> {
-  if (!hasDatabase() || !userId) return { sent: false, newCount: 0 };
+  opts: { manual?: boolean; includeAll?: boolean } = {}
+): Promise<{ sent: boolean; newCount: number; includedCount: number }> {
+  if (!hasDatabase() || !userId) return { sent: false, newCount: 0, includedCount: 0 };
   await ensureAuthTables();
   await ensureTables();
   const pool = getPool();
@@ -871,7 +884,7 @@ export async function sendCustomerReminder(
     [userId]
   );
   const user = u.rows[0];
-  if (!user?.email) return { sent: false, newCount: 0 };
+  if (!user?.email) return { sent: false, newCount: 0, includedCount: 0 };
   const since = user.reminder_last_sent_at || new Date(0).toISOString();
 
   const newRows = (
@@ -885,7 +898,20 @@ export async function sendCustomerReminder(
     )
   ).rows.map(row);
 
-  if (!newRows.length && !opts.manual) return { sent: false, newCount: 0 };
+  if (!newRows.length && !opts.manual) return { sent: false, newCount: 0, includedCount: 0 };
+
+  const allRows = opts.manual && opts.includeAll
+    ? (
+        await pool.query(
+          `SELECT r.*, cu.email AS customer_email, cu.business_name
+             FROM app_upgrade_requests r
+             LEFT JOIN app_users cu ON cu.id = r.customer_id
+            WHERE r.customer_id = $1
+            ORDER BY r.requested_at ASC`,
+          [userId]
+        )
+      ).rows.map(row)
+    : newRows;
 
   const totalViews = Number(
     (await pool.query(`SELECT COALESCE(SUM(views),0)::bigint AS n FROM embed_usage WHERE partner_id = $1`, [userId]))
@@ -897,32 +923,34 @@ export async function sendCustomerReminder(
 
   const template = await getUpgradeEmailTemplate("customer_reminder");
   const businessName = user.business_name || user.company_name || "";
-  const html = reminderHtml({ template, businessName, newRequests: newRows, totalViews, totalRequests });
+  const html = reminderHtml({ template, businessName, newRequests: newRows, includedRequests: allRows, totalViews, totalRequests });
+  const intro = !template.intro || template.intro === OLD_CUSTOMER_REMINDER_INTRO ? CUSTOMER_REMINDER_INTRO : template.intro;
   const text = [
     fillTemplate(template.subject, { request_count: String(newRows.length) }),
     "",
     "Dream Neighborhood has two product offerings:",
-    "- Dream Neighborhood School Explorer: free forever, no ads, no credit card required.",
-    "- Cost-Effective Neighborhood Explorer: school information plus 38+ hyperlocal neighborhood insights.",
+    "- School Explorer: free forever, no ads, no credit card required.",
+    "- Neighborhood Explorer: school information plus much more! 38+ hyperlocal neighborhood insights: prices, commute, walkability, safety, dining, and more. Very cost effective.",
     "",
-    fillTemplate(template.intro, {
+    fillTemplate(intro, {
       request_count: String(newRows.length),
       learn_more_url: LEARN_MORE_URL,
       signup_url: SIGNUP_URL,
       partner_name: businessName,
     }),
     "",
+    "Your clients are using the School Explorer!",
     "School Explorer Usage",
     `${totalViews} Total homebuyer views`,
     `${totalRequests} Total upgrade requests`,
     `${newRows.length} New since last reminder`,
-    newRows.length ? textFromRows(newRows) : "No new requests since your last reminder — here's your running total.",
+    allRows.length ? textFromRows(allRows) : "No new requests since your last reminder — here's your running total.",
     "",
-    "Keep buyers on your site instead of Zillow or Realtor.com(TM)",
+    "Keep buyers on your site instead of bouncing to Zillow or Realtor.com(TM)",
     "38+ hyperlocal insights: prices, commute, walkability, safety, dining",
     "More time on page, better SEO, fewer showings, happier clients",
     "",
-    "Get the Full picture for your homebuyers!",
+    "Get the Full neighborhood picture for your homebuyers!",
     `Learn More: ${LEARN_MORE_URL}`,
     `Sign up: ${SIGNUP_URL}`,
     "Change how often you receive these emails: https://app.dreamneighborhoodschools.com/upgrade-requests",
@@ -930,9 +958,9 @@ export async function sendCustomerReminder(
 
   const subject = fillTemplate(template.subject, { request_count: String(newRows.length) });
   await sendTransactionalEmail({ to: user.email, subject, text, html });
-  await archiveEmail({ recipient: user.email, subject, variant: "customer_reminder", audience: "reminder", requestIds: newRows.map((r) => r.id), html, text });
+  await archiveEmail({ recipient: user.email, subject, variant: "customer_reminder", audience: "reminder", requestIds: allRows.map((r) => r.id), html, text });
   await pool.query(`UPDATE app_users SET reminder_last_sent_at = NOW() WHERE id = $1`, [userId]);
-  return { sent: true, newCount: newRows.length };
+  return { sent: true, newCount: newRows.length, includedCount: allRows.length };
 }
 
 export async function runDueCustomerReminders(now = new Date()): Promise<{ processed: number }> {

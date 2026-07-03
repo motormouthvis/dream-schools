@@ -80,6 +80,7 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
   const [copyTo, setCopyTo] = useState("");
   const [preview, setPreview] = useState<SentDigestEmail | null>(null);
   const [reminderDays, setReminderDays] = useState("7");
+  const [reminderSendScope, setReminderSendScope] = useState<"all" | "new">("all");
   const [reminderLastSentAt, setReminderLastSentAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -216,7 +217,7 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
       const res = await fetch("/api/app/reminder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ intervalDays: Number(reminderDays), send }),
+        body: JSON.stringify({ intervalDays: Number(reminderDays), send, includeAll: reminderSendScope === "all" }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -224,7 +225,11 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
         return;
       }
       if (send) {
-        setMessage(j.sent ? "Reminder email sent to you." : "No new requests — reminder not sent.");
+        setMessage(
+          j.sent
+            ? `Reminder email sent to you with ${reminderSendScope === "all" ? "all requests" : "new requests only"}.`
+            : "No new requests — reminder not sent."
+        );
         await load();
       } else {
         setMessage("Reminder schedule saved.");
@@ -312,7 +317,7 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
             This is a permanent record of homebuyers who requested the full Neighborhood Explorer on your
             website. Click the <strong>Requested</strong> column to sort by date.
           </p>
-          <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="mt-3 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <label className="block text-xs font-bold text-slate-600">Email me a reminder every (days)</label>
               <input
@@ -324,9 +329,42 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
                 className="mt-1 w-32 rounded-lg border border-slate-300 px-3 py-2 text-sm"
               />
               <p className="mt-1 text-[11px] text-slate-400">
-                Between 1 and 90 days. Reminders summarize new requests, your total views, and total
+                Between 1 and 90 days. Automatic reminders summarize new requests, your total views, and total
                 requests. {reminderLastSentAt && <>Last sent: <strong>{fmt(reminderLastSentAt)}</strong>.</>}
               </p>
+            </div>
+            <div className="min-w-[220px]">
+              <div className="text-xs font-bold text-slate-600">When I click “Send me one now”</div>
+              <div className="mt-2 grid gap-2 text-sm text-slate-700">
+                <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                  <input
+                    type="radio"
+                    name="reminder-send-scope"
+                    value="all"
+                    checked={reminderSendScope === "all"}
+                    onChange={() => setReminderSendScope("all")}
+                    className="mt-0.5 h-4 w-4 accent-brand-600"
+                  />
+                  <span>
+                    <span className="block font-bold text-ink-900">All requests</span>
+                    <span className="block text-[11px] text-slate-500">Default. Includes the full request list in the email.</span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                  <input
+                    type="radio"
+                    name="reminder-send-scope"
+                    value="new"
+                    checked={reminderSendScope === "new"}
+                    onChange={() => setReminderSendScope("new")}
+                    className="mt-0.5 h-4 w-4 accent-brand-600"
+                  />
+                  <span>
+                    <span className="block font-bold text-ink-900">New requests only</span>
+                    <span className="block text-[11px] text-slate-500">Only includes requests since the last reminder.</span>
+                  </span>
+                </label>
+              </div>
             </div>
             <div className="flex gap-2">
               <button onClick={() => saveReminder(false)} disabled={busy} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60">
