@@ -72,6 +72,7 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
   const [truncated, setTruncated] = useState(false);
   const [limit, setLimit] = useState(200);
   const [includeSent, setIncludeSent] = useState(false);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [variant, setVariant] = useState("soft_nudge");
   const [templates, setTemplates] = useState<TemplateOption[]>([]);
   const [digestIntervalWeeks, setDigestIntervalWeeks] = useState("1");
@@ -87,7 +88,9 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/owner/upgrade-requests?include_sent=${includeSent ? "1" : "0"}`);
+      // Customers/partners see their full permanent list; admins toggle it.
+      const wantAll = isOwner ? includeSent : true;
+      const res = await fetch(`/api/owner/upgrade-requests?include_sent=${wantAll ? "1" : "0"}`);
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(j.error || "Could not load requests.");
@@ -97,16 +100,18 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
       setSummary(j.summary || null);
       setTruncated(Boolean(j.truncated));
       setLimit(j.limit || 200);
-      const tplRes = await fetch("/api/owner/upgrade-templates");
-      const tplJson = await tplRes.json().catch(() => ({}));
-      if (tplRes.ok) setTemplates(tplJson.templates || []);
-      if (j.schedule) {
-        setDigestIntervalWeeks(String(j.schedule.digestIntervalWeeks || 1));
-        setLastDigestSentAt(j.schedule.lastDigestSentAt || null);
+      if (isOwner) {
+        const tplRes = await fetch("/api/owner/upgrade-templates");
+        const tplJson = await tplRes.json().catch(() => ({}));
+        if (tplRes.ok) setTemplates(tplJson.templates || []);
+        if (j.schedule) {
+          setDigestIntervalWeeks(String(j.schedule.digestIntervalWeeks || 1));
+          setLastDigestSentAt(j.schedule.lastDigestSentAt || null);
+        }
+        const sentRes = await fetch("/api/owner/upgrade-digests");
+        const sentJson = await sentRes.json().catch(() => ({}));
+        if (sentRes.ok) setSentEmails(sentJson.emails || []);
       }
-      const sentRes = await fetch("/api/owner/upgrade-digests");
-      const sentJson = await sentRes.json().catch(() => ({}));
-      if (sentRes.ok) setSentEmails(sentJson.emails || []);
     } catch {
       setError("Network error.");
     } finally {
@@ -195,6 +200,10 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
   }
 
   const unsentCount = useMemo(() => requests.filter((r) => !r.summarySentAt).length, [requests]);
+  const sortedRequests = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...requests].sort((a, b) => (new Date(a.requestedAt).getTime() - new Date(b.requestedAt).getTime()) * dir);
+  }, [requests, sortDir]);
 
   return (
     <>
@@ -210,19 +219,19 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
         </button>
       </div>
 
-      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-        <div className="grid gap-3 lg:grid-cols-[1fr_180px_auto_auto] lg:items-end">
-          <label className="block">
-            <span className="block text-xs font-bold text-slate-600">Template variant for Realtor/customer email</span>
-            <select value={variant} onChange={(e) => setVariant(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-              {(templates.length ? templates : [{ variant: "soft_nudge", label: "Soft nudge" }]).map((t) => (
-                <option key={t.variant} value={t.variant}>
-                  {t.label || t.variant}
-                </option>
-              ))}
-            </select>
-          </label>
-          {isOwner && (
+      {isOwner ? (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+          <div className="grid gap-3 lg:grid-cols-[1fr_180px_auto_auto] lg:items-end">
+            <label className="block">
+              <span className="block text-xs font-bold text-slate-600">Template variant for Realtor/customer email</span>
+              <select value={variant} onChange={(e) => setVariant(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                {(templates.length ? templates : [{ variant: "soft_nudge", label: "Soft nudge" }]).map((t) => (
+                  <option key={t.variant} value={t.variant}>
+                    {t.label || t.variant}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="block">
               <span className="block text-xs font-bold text-slate-600">Auto-send every X weeks</span>
               <input
@@ -234,13 +243,11 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
-          )}
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            <input type="checkbox" checked={includeSent} onChange={(e) => setIncludeSent(e.target.checked)} className="h-4 w-4 accent-brand-600" />
-            Include previously sent requests
-          </label>
-          {isOwner && (
-            <>
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input type="checkbox" checked={includeSent} onChange={(e) => setIncludeSent(e.target.checked)} className="h-4 w-4 accent-brand-600" />
+              Include previously sent requests
+            </label>
+            <div className="flex gap-2">
               <button
                 onClick={saveSchedule}
                 disabled={busy}
@@ -255,27 +262,32 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
               >
                 {busy ? "Sending…" : `Send digest now (${unsentCount})`}
               </button>
-            </>
-          )}
+            </div>
+          </div>
+          <p className="mt-2 text-[12px] text-slate-500">
+            Sends to the Realtor/customer email, assigned Partner email (if any), and Admin/Product Owner email(s). Sent requests are marked so they are not included again.
+            {lastDigestSentAt && <> Last automatic/manual digest: <strong>{fmt(lastDigestSentAt)}</strong>.</>}
+          </p>
         </div>
-        <p className="mt-2 text-[12px] text-slate-500">
-          {isOwner ? "Sends to the Realtor/customer email, assigned Partner email (if any), and Admin/Product Owner email(s). Sent requests are marked so they are not included again." : "Shows requests related to your account."}
-          {lastDigestSentAt && <> Last automatic/manual digest: <strong>{fmt(lastDigestSentAt)}</strong>.</>}
+      ) : (
+        <p className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-[13px] leading-relaxed text-slate-600">
+          This is a permanent record of homebuyers who requested the full Neighborhood Explorer on your
+          website. Click the <strong>Requested</strong> column to sort by date.
         </p>
-      </div>
+      )}
 
       {message && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>}
       {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
 
       {summary && (
-        <div className="mt-4 grid grid-cols-3 gap-3">
+        <div className={`mt-4 grid gap-3 ${isOwner ? "grid-cols-3" : "grid-cols-1 sm:max-w-xs"}`}>
           <SummaryStat label="Total requests" value={summary.total} />
-          <SummaryStat label="Pending (not yet emailed)" value={summary.pending} />
-          <SummaryStat label="Previously sent" value={summary.sent} />
+          {isOwner && <SummaryStat label="Pending (not yet emailed)" value={summary.pending} />}
+          {isOwner && <SummaryStat label="Previously sent" value={summary.sent} />}
         </div>
       )}
 
-      {includeSent && truncated && (
+      {truncated && (
         <p className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-[12px] text-slate-600">
           Showing the most recent {limit} requests. Use the summary above for totals.
         </p>
@@ -285,7 +297,15 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-3 py-2 font-semibold">Requested</th>
+              <th className="px-3 py-2 font-semibold">
+                <button
+                  onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                  className="inline-flex items-center gap-1 uppercase tracking-wide hover:text-slate-700"
+                >
+                  Requested
+                  <span className="text-[9px]">{sortDir === "asc" ? "▲" : "▼"}</span>
+                </button>
+              </th>
               <th className="px-3 py-2 font-semibold">Realtor/customer</th>
               <th className="px-3 py-2 font-semibold">Partner</th>
               <th className="px-3 py-2 font-semibold">Address</th>
@@ -296,10 +316,10 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-400">Loading…</td></tr>
-            ) : requests.length === 0 ? (
-              <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-400">No pending requests.</td></tr>
+            ) : sortedRequests.length === 0 ? (
+              <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-400">No requests yet.</td></tr>
             ) : (
-              requests.map((r) => (
+              sortedRequests.map((r) => (
                 <tr key={r.id} className="hover:bg-slate-50/60">
                   <td className="px-3 py-2.5 text-slate-600">{fmt(r.requestedAt)}</td>
                   <td className="px-3 py-2.5">
