@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasDatabase } from "@/lib/db";
 import { getUserByEmail, verifyPassword, createSession, sessionCookie } from "@/lib/auth";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +9,7 @@ export async function POST(request: Request) {
   if (!hasDatabase()) {
     return NextResponse.json({ error: "Accounts require a database." }, { status: 503 });
   }
-  let body: { email?: string; password?: string };
+  let body: { email?: string; password?: string; turnstileToken?: string };
   try {
     body = await request.json();
   } catch {
@@ -16,6 +17,10 @@ export async function POST(request: Request) {
   }
   const email = String(body.email || "").trim().toLowerCase();
   const password = String(body.password || "");
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "";
+  if (!(await verifyTurnstile(String(body.turnstileToken || ""), ip))) {
+    return NextResponse.json({ error: "Verification failed. Please try again." }, { status: 400 });
+  }
   try {
     const user = await getUserByEmail(email);
     if (!user || !verifyPassword(password, user.passwordHash)) {

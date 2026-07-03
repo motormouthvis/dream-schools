@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SchoolhouseMark } from "@/components/Logo";
+import { Turnstile } from "@/components/app/Turnstile";
 
 type Mode = "signup" | "login" | "reset";
 
@@ -11,6 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [partner, setPartner] = useState("");
+  const [captcha, setCaptcha] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<null | "verify" | "reset">(null);
@@ -37,7 +39,7 @@ export default function LoginPage() {
         await fetch("/api/auth/request-reset", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email, turnstileToken: captcha }),
         });
         // Always show success (we don't reveal whether the email exists).
         setSent("reset");
@@ -47,7 +49,7 @@ export default function LoginPage() {
       const res = await fetch(path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, partner }),
+        body: JSON.stringify({ email, password, partner, turnstileToken: captcha }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -175,6 +177,8 @@ export default function LoginPage() {
             )}
           </>
         )}
+
+        <Turnstile onToken={setCaptcha} />
 
         {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
 
