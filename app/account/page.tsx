@@ -274,7 +274,7 @@ function UpgradePromptSettings({ isOwner, isPartner }: { isOwner: boolean; isPar
   return (
     <Card title={isOwner ? "Upgrade Prompt Defaults" : "Upgrade Prompt Settings"}>
       <p className="mb-3 text-[12px] leading-relaxed text-slate-500">
-        Controls when the Neighborhood Explorer Upgrade prompt appears. It only appears during an idle break, never while a visitor is actively clicking or scrolling. If they request the Upgrade, it is suppressed for 90 days.
+        Controls when the Neighborhood Explorer Upgrade prompt appears. It only appears during an idle break, never while a visitor is actively clicking or scrolling. If they request the Upgrade, it is suppressed for 90 days. Set minimum days to 0 for testing/repeated requests.
       </p>
       {!loaded ? (
         <p className="text-sm text-slate-400">Loading…</p>
@@ -282,7 +282,7 @@ function UpgradePromptSettings({ isOwner, isPartner }: { isOwner: boolean; isPar
         <form onSubmit={save} className="space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <NumberField label="Views to trigger" value={views} onChange={setViews} min={1} />
-            <NumberField label="Minimum days between prompts" value={days} onChange={setDays} min={1} />
+            <NumberField label="Minimum days between prompts" value={days} onChange={setDays} min={0} />
             <NumberField label="Idle seconds before showing" value={idle} onChange={setIdle} min={3} />
           </div>
           {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}

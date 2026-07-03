@@ -86,7 +86,10 @@ export async function GET(request: Request) {
     viewsToTrigger: partnerOverride.viewsToTrigger ?? globalUpgrade.viewsToTrigger,
     minDaysBetween: partnerOverride.minDaysBetween ?? globalUpgrade.minDaysBetween,
     idleSeconds: partnerOverride.idleSeconds ?? globalUpgrade.idleSeconds,
-    requestSuppressDays: REQUEST_SUPPRESS_DAYS,
+    requestSuppressDays:
+      (partnerOverride.minDaysBetween ?? globalUpgrade.minDaysBetween) === 0
+        ? 0
+        : REQUEST_SUPPRESS_DAYS,
   };
 
   const payload = {
