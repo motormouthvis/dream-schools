@@ -724,8 +724,9 @@ export async function sendDigestCopy(id: number, to: string): Promise<void> {
 const LEARN_MORE = "https://www.dreamneighborhood.com";
 
 function cleanReminderDays(v: unknown): number {
+  if (v === null || v === undefined || v === "") return DEFAULT_REMINDER_INTERVAL_DAYS;
   const n = Number(v);
-  if (!Number.isFinite(n)) return DEFAULT_REMINDER_INTERVAL_DAYS;
+  if (!Number.isFinite(n) || n < 1) return DEFAULT_REMINDER_INTERVAL_DAYS;
   return Math.max(1, Math.min(90, Math.floor(n)));
 }
 
