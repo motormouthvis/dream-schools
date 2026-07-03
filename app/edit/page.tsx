@@ -120,26 +120,87 @@ export default function EditPage() {
             <p className="mt-6 text-slate-400">Loading…</p>
           ) : (
             <div className="mt-4 space-y-5">
-              <IntroBlock />
+              {/* 1) Integration explainer with side-by-side popup/embed descriptions
+                     and collapsed screenshot dropdowns. */}
+              <Section title="Integrating School Explorer to Your Website">
+                <p className="text-[12px] leading-relaxed text-slate-500">
+                  Two ways to add the School Explorer to your site. Use one or both.
+                </p>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                    <h3 className="text-sm font-extrabold text-brand-700">Popup</h3>
+                    <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
+                      A small button floats in the corner of every page and{" "}
+                      <strong>auto-detects the listing address</strong>. Zero website redesign — just one
+                      line of code.
+                    </p>
+                    <Collapsible summary="View screenshot of the popup on a listing page">
+                      <PopupShot accent={form.accentColor} side={form.position} />
+                    </Collapsible>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                    <h3 className="text-sm font-extrabold text-ink-900">Embed</h3>
+                    <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
+                      The explorer renders <strong>inline, exactly where you place it</strong> on a page —
+                      full control of placement and size.
+                    </p>
+                    <Collapsible summary="View screenshot of the embed on a listing page">
+                      <EmbedShot accent={form.accentColor} />
+                    </Collapsible>
+                  </div>
+                </div>
+              </Section>
 
-              {/* Realistic screenshot-style previews — standalone, equal height */}
-              <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2">
-                <PreviewCard
-                  label="Popup"
-                  title="Screenshot of Popup Floating Button on Listing Page"
-                  caption="A button floats in the corner of every listing page and auto-detects the address — zero redesign."
-                >
-                  <PopupShot accent={form.accentColor} side={form.position} />
-                </PreviewCard>
-                <PreviewCard
-                  label="Embed"
-                  title="Screenshot of Embedded Explorer on Listing Page"
-                  caption="The explorer renders inside your page exactly where you place the div — full control of placement."
-                >
-                  <EmbedShot accent={form.accentColor} />
-                </PreviewCard>
-              </div>
+              {/* 2) General Settings next. */}
+              <Section title="General Settings">
+                <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-sm font-extrabold text-ink-900">Enable Explorer</div>
+                    <div className="text-[12px] text-slate-500">
+                      {form.enabled ? "Popup and embed are eligible to show once a domain is set." : "Disabled — no popup or embed will appear."}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => set("enabled", !form.enabled)}
+                    className={`relative h-8 w-16 rounded-full transition ${form.enabled ? "bg-brand-600" : "bg-slate-300"}`}
+                    aria-pressed={form.enabled}
+                  >
+                    <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition ${form.enabled ? "left-9" : "left-1"}`} />
+                  </button>
+                </div>
+                <p className="rounded-lg bg-amber-50 px-3 py-2 text-[12px] font-semibold text-amber-800">
+                  Explorer will not appear until you set an authorized domain.{" "}
+                  <a href="/help" className="font-semibold underline hover:text-amber-900">Need platform-specific steps? Open Help.</a>
+                </p>
+                <fieldset disabled={!form.enabled} className={!form.enabled ? "pointer-events-none opacity-45 grayscale" : ""}>
+                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                    <Field label="Authorized domain" hint="Base domain — works on all pages & subdomains.">
+                      <input className={inp} value={form.authorizedDomain} onChange={(e) => set("authorizedDomain", e.target.value)} placeholder="youragency.com" />
+                    </Field>
+                    <Field label="Default address (fallback)" hint="Shown when no address is detected on the page.">
+                      <AddressAutocomplete
+                        className={inp}
+                        value={form.defaultAddress}
+                        onChange={(v) => set("defaultAddress", v)}
+                        placeholder="1500 N 23rd St, Fort Pierce, FL"
+                      />
+                    </Field>
+                    <Field label="Accent color">
+                      <div className="flex items-center gap-2">
+                        <input type="color" value={form.accentColor} onChange={(e) => set("accentColor", e.target.value)} className="h-9 w-12 rounded border border-slate-300" />
+                        <input className={inp} value={form.accentColor} onChange={(e) => set("accentColor", e.target.value)} />
+                      </div>
+                    </Field>
+                    <div className="rounded-xl border border-slate-200 bg-white p-3">
+                      <div className="mb-2 text-xs font-bold text-slate-600">Extras</div>
+                      <Check checked={form.showExternalLinks} onChange={(v) => set("showExternalLinks", v)} label="Show Niche & GreatSchools links on school detail" />
+                    </div>
+                  </div>
+                </fieldset>
+              </Section>
 
+              {/* 3) Two-column popup/embed options. */}
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 <TechColumn title="Popup" subtitle="A floating school button for every listing page.">
                   <OptionBlock title="Popup options">
@@ -168,6 +229,10 @@ export default function EditPage() {
 
                 <TechColumn title="Embed" subtitle="An inline explorer placed exactly where you want it.">
                   <OptionBlock title="Embed options">
+                    <p className="text-[12px] leading-relaxed text-slate-500">
+                      A <code className="rounded bg-white px-1">&lt;div&gt;</code> marks where the explorer
+                      renders inline. Put it in the exact page section you want.
+                    </p>
                     <Field label="Min height (px)" hint="0 = auto-fit to content.">
                       <input type="number" min={0} className={inp} value={form.inlineMinHeight} onChange={(e) => set("inlineMinHeight", Number(e.target.value) || 0)} />
                     </Field>
@@ -176,59 +241,9 @@ export default function EditPage() {
                   </OptionBlock>
                   <OptionBlock title="Embed code">
                     <CodeBlock code={INLINE_SNIPPET} />
-                    <p className="mt-2 text-[11px] text-slate-500">The <code>&lt;div&gt;</code> marks where the explorer appears. Put it in the exact page section you want.</p>
                   </OptionBlock>
                 </TechColumn>
               </div>
-
-              <Section title="General Settings">
-                <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="text-sm font-extrabold text-ink-900">Enable Explorer</div>
-                    <div className="text-[12px] text-slate-500">
-                      {form.enabled ? "Popup and embed are eligible to show once a domain is set." : "Disabled — no popup or embed will appear."}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => set("enabled", !form.enabled)}
-                    className={`relative h-8 w-16 rounded-full transition ${form.enabled ? "bg-brand-600" : "bg-slate-300"}`}
-                    aria-pressed={form.enabled}
-                  >
-                    <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition ${form.enabled ? "left-9" : "left-1"}`} />
-                  </button>
-                </div>
-                {!form.enabled && (
-                  <p className="rounded-lg bg-amber-50 px-3 py-2 text-[12px] font-semibold text-amber-800">
-                    Disabled. Turn on Enable Explorer to edit the settings below.
-                  </p>
-                )}
-                <fieldset disabled={!form.enabled} className={!form.enabled ? "pointer-events-none opacity-45 grayscale" : ""}>
-                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                    <Field label="Authorized domain" hint="Base domain — works on all pages & subdomains. Popup/embed are off until set.">
-                      <input className={inp} value={form.authorizedDomain} onChange={(e) => set("authorizedDomain", e.target.value)} placeholder="youragency.com" />
-                    </Field>
-                    <Field label="Default address (fallback)" hint="Shown when no address is detected on the page.">
-                      <AddressAutocomplete
-                        className={inp}
-                        value={form.defaultAddress}
-                        onChange={(v) => set("defaultAddress", v)}
-                        placeholder="1500 N 23rd St, Fort Pierce, FL"
-                      />
-                    </Field>
-                    <Field label="Accent color">
-                      <div className="flex items-center gap-2">
-                        <input type="color" value={form.accentColor} onChange={(e) => set("accentColor", e.target.value)} className="h-9 w-12 rounded border border-slate-300" />
-                        <input className={inp} value={form.accentColor} onChange={(e) => set("accentColor", e.target.value)} />
-                      </div>
-                    </Field>
-                    <div className="rounded-xl border border-slate-200 bg-white p-3">
-                      <div className="mb-2 text-xs font-bold text-slate-600">Extras</div>
-                      <Check checked={form.showExternalLinks} onChange={(v) => set("showExternalLinks", v)} label="Show Niche & GreatSchools links on school detail" />
-                    </div>
-                  </div>
-                </fieldset>
-              </Section>
             </div>
           )}
         </>
@@ -241,23 +256,19 @@ const POPUP_SNIPPET = `<script src="https://www.dreamneighborhoodschools.com/emb
 const INLINE_SNIPPET = `<div id="dream-schools-explorer"></div>
 <script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
 
-function IntroBlock() {
+function Collapsible({ summary, children }: { summary: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="rounded-3xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-lime-50 p-5 shadow-sm">
-      <h2 className="mb-2 flex items-center gap-2 text-base font-extrabold text-ink-900">
-        <span className="h-3 w-1.5 rounded bg-brand-500" />
-        Popup vs. Embed
-      </h2>
-      <p className="text-sm leading-relaxed text-slate-600">
-        Use the <strong>popup</strong> when you want zero website redesign: a small button floats on listing
-        pages and auto-detects the address. Use the <strong>embed</strong> when you want exact placement:
-        a <code className="rounded bg-white px-1">&lt;div&gt;</code> marks where the explorer renders inline.
-      </p>
-      <p className="mt-2 text-[12px] text-slate-500">
-        Both remain <strong>off</strong> until you set an authorized domain in General Settings.
-        Need platform-specific steps?{" "}
-        <a href="/help" className="font-semibold text-brand-700 hover:text-brand-800">Open Help</a>.
-      </p>
+    <div className="mt-3">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-[12px] font-semibold text-slate-600 transition hover:bg-slate-50"
+      >
+        {summary}
+        <span className="text-slate-400">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && <div className="mt-3">{children}</div>}
     </div>
   );
 }
@@ -319,34 +330,6 @@ function OptionBlock({ title, children }: { title: string; children: React.React
     <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
       <h3 className="mb-3 text-sm font-bold text-ink-900">{title}</h3>
       <div className="space-y-3">{children}</div>
-    </div>
-  );
-}
-
-function PreviewCard({
-  label,
-  title,
-  caption,
-  children,
-}: {
-  label: string;
-  title: string;
-  caption: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex h-full flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-600/15">
-          {label}
-        </span>
-        <span className="text-sm font-bold text-ink-900">{title}</span>
-        <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400">
-          Example
-        </span>
-      </div>
-      {children}
-      <p className="mt-3 text-[12px] leading-relaxed text-slate-500">{caption}</p>
     </div>
   );
 }

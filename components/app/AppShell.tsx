@@ -20,7 +20,7 @@ export function AppShell({
   active,
   children,
 }: {
-  active: "home" | "edit" | "help" | "owner" | "account" | "contact" | "upgradeRequests" | "emailTemplates";
+  active: "home" | "edit" | "help" | "owner" | "account" | "contact" | "upgradeRequests";
   children: (me: Me) => React.ReactNode;
 }) {
   const [me, setMe] = useState<Me | null>(null);

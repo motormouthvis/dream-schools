@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppShell } from "@/components/app/AppShell";
 
 interface Template {
   variant: string;
@@ -13,24 +12,9 @@ interface Template {
   updatedAt: string | null;
 }
 
-export default function EmailTemplatesPage() {
-  return (
-    <AppShell active="emailTemplates">
-      {(me) => (me.isOwner ? <EmailTemplates /> : <NotAuthorized />)}
-    </AppShell>
-  );
-}
-
-function NotAuthorized() {
-  return (
-    <>
-      <h1 className="text-xl font-extrabold text-ink-900">Not authorized</h1>
-      <p className="mt-2 text-sm text-slate-600">This area is for admins only.</p>
-    </>
-  );
-}
-
-function EmailTemplates() {
+// Shared editor for the upgrade digest email templates. Used both on the
+// standalone page and inside the Upgrade Requests section.
+export function EmailTemplateManager() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [active, setActive] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -109,26 +93,27 @@ function EmailTemplates() {
   }
 
   const t = templates[active];
+
   return (
-    <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-extrabold text-ink-900">Email Templates</h1>
-          <p className="text-[12px] text-slate-500">Customize upgrade digest emails.</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={addTemplate} disabled={busy} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60">
-            Add template
-          </button>
-          <button onClick={save} disabled={busy || !t} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60">
-            {busy ? "Saving…" : "Save template"}
-          </button>
-        </div>
+    <div>
+      <div className="rounded-lg bg-brand-50 px-3 py-2 text-[12px] leading-relaxed text-brand-800">
+        These are the emails sent to Realtors, Partners, and Admins in the upgrade digest. Pick a
+        template on the left to edit its wording, or add your own. When you click <strong>Send digest
+        now</strong> above, the selected template is used for the Realtor/customer email.
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+        <button onClick={addTemplate} disabled={busy} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60">
+          Add template
+        </button>
+        <button onClick={save} disabled={busy || !t} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60">
+          {busy ? "Saving…" : "Save template"}
+        </button>
       </div>
       {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
       {saved && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">Saved ✓</p>}
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[260px_1fr]">
+      <div className="mt-3 grid gap-4 lg:grid-cols-[240px_1fr]">
         <div className="rounded-xl border border-slate-200 bg-white p-2">
           {templates.map((template, i) => (
             <button
@@ -156,15 +141,15 @@ function EmailTemplates() {
                 <textarea rows={6} className={`${inp} resize-y`} value={t.intro} onChange={(e) => set("intro", e.target.value)} />
               </Field>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="CTA text">
+                <Field label="Button text">
                   <input className={inp} value={t.ctaText} onChange={(e) => set("ctaText", e.target.value)} />
                 </Field>
-                <Field label="CTA URL">
+                <Field label="Button link (URL)">
                   <input className={inp} value={t.ctaUrl} onChange={(e) => set("ctaUrl", e.target.value)} />
                 </Field>
               </div>
               <div className="rounded-lg bg-slate-50 px-3 py-2 text-[12px] text-slate-500">
-                Placeholders supported: <code>{"{{request_count}}"}</code>, <code>{"{{partner_name}}"}</code>, <code>{"{{learn_more_url}}"}</code>, <code>{"{{signup_url}}"}</code>, <code>{"{{partner_signup_url}}"}</code>.
+                Placeholders you can use: <code>{"{{request_count}}"}</code>, <code>{"{{partner_name}}"}</code>, <code>{"{{learn_more_url}}"}</code>, <code>{"{{signup_url}}"}</code>, <code>{"{{partner_signup_url}}"}</code>.
               </div>
             </div>
           </div>
@@ -172,7 +157,7 @@ function EmailTemplates() {
           <p className="text-slate-400">Loading…</p>
         )}
       </div>
-    </>
+    </div>
   );
 }
 

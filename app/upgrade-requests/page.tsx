@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app/AppShell";
+import { EmailTemplateManager } from "@/components/app/EmailTemplateManager";
 
 interface UpgradeRequest {
   id: number;
@@ -184,9 +185,9 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-extrabold text-ink-900">Weekly Upgrade Requests</h1>
+          <h1 className="text-xl font-extrabold text-ink-900">Requests to Upgrade to Full Neighborhood Explorer</h1>
           <p className="text-[12px] text-slate-500">
-            Visitors who asked their Realtor for full Neighborhood Explorer access.
+            Homebuyers who asked their Realtor for the full Neighborhood Explorer.
           </p>
         </div>
         <button onClick={load} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
@@ -332,6 +333,16 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="mt-8 rounded-xl border border-slate-200 bg-white p-4">
+        <h2 className="text-lg font-extrabold text-ink-900">Email templates</h2>
+        <p className="mt-0.5 text-[12px] text-slate-500">
+          Edit the wording of the digest emails, or add your own template.
+        </p>
+        <div className="mt-3">
+          <EmailTemplateManager />
+        </div>
       </div>
       </>
       )}
