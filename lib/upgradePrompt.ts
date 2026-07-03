@@ -58,6 +58,21 @@ export interface SentDigestEmail {
   sentAt: string;
 }
 
+export interface UpgradeOfferEmail {
+  id: number;
+  customerId: string;
+  customerEmail: string;
+  customerName: string;
+  partnerId: string | null;
+  partnerCompanyName: string | null;
+  sentByEmail: string;
+  offerText: string;
+  discountCode: string;
+  requestIds: number[];
+  requestCount: number;
+  sentAt: string;
+}
+
 let tableReady: Promise<void> | null = null;
 
 async function ensureTables(): Promise<void> {
@@ -125,8 +140,39 @@ async function ensureTables(): Promise<void> {
       )
       .then(() =>
         pool.query(
+          `CREATE TABLE IF NOT EXISTS app_upgrade_offer_emails (
+             id BIGSERIAL PRIMARY KEY,
+             customer_id TEXT NOT NULL,
+             partner_id TEXT,
+             sent_by TEXT NOT NULL,
+             recipient TEXT NOT NULL,
+             customer_name TEXT NOT NULL DEFAULT '',
+             offer_text TEXT NOT NULL DEFAULT '',
+             discount_code TEXT NOT NULL DEFAULT '',
+             request_ids BIGINT[] NOT NULL DEFAULT '{}',
+             request_count INTEGER NOT NULL DEFAULT 0,
+             html TEXT NOT NULL,
+             text TEXT NOT NULL,
+             sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+           )`
+        )
+      )
+      .then(() =>
+        pool.query(
           `CREATE INDEX IF NOT EXISTS app_upgrade_requests_customer_idx
              ON app_upgrade_requests(customer_id, requested_at)`
+        )
+      )
+      .then(() =>
+        pool.query(
+          `CREATE INDEX IF NOT EXISTS app_upgrade_offer_emails_customer_idx
+             ON app_upgrade_offer_emails(customer_id, sent_at DESC)`
+        )
+      )
+      .then(() =>
+        pool.query(
+          `CREATE INDEX IF NOT EXISTS app_upgrade_offer_emails_partner_idx
+             ON app_upgrade_offer_emails(partner_id, sent_at DESC)`
         )
       )
       .then(() => undefined)
@@ -720,6 +766,176 @@ export async function sendDigestCopy(id: number, to: string): Promise<void> {
     text: sent.text,
     html: sent.html,
   });
+}
+
+type UpgradeManagerViewer = {
+  id: string;
+  email: string;
+  isOwner: boolean;
+  isPartner: boolean;
+};
+
+function assertCanManageUpgradeOffers(viewer: UpgradeManagerViewer): void {
+  if (!viewer.isOwner && !viewer.isPartner) {
+    throw new Error("Admin or partner access required.");
+  }
+}
+
+function offerEmailHtml(opts: {
+  customerName: string;
+  requests: UpgradeRequestRow[];
+  offerText: string;
+  discountCode: string;
+}): string {
+  const { customerName, requests, offerText, discountCode } = opts;
+  return emailShell(
+    `<div style="background:#f8fbf4;border:1px solid #dcebd5;border-radius:24px;overflow:hidden">
+       <div style="background:linear-gradient(135deg,#fbfff1 0%,#effdd1 48%,#dcfce7 100%);padding:24px;border-bottom:1px solid #d9f99d">
+         <div style="display:inline-block;background:#ffffff;border:1px solid #bbf7d0;border-radius:999px;padding:6px 11px;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px;color:#12854c">Dream Neighborhood&trade;</div>
+         <h1 style="font-size:22px;line-height:1.2;margin:0 0 8px;color:#102a1d">Your homebuyers want the full neighborhood picture</h1>
+         <p style="font-size:14px;line-height:1.6;margin:0;color:#31523d">Visitors on your website requested access to the full Neighborhood Explorer.</p>
+       </div>
+       <div style="padding:20px 22px">
+         ${customerName ? `<p style="font-size:14px;color:#334155;line-height:1.6;margin:0 0 12px">Hi ${htmlEscape(customerName)},</p>` : ""}
+         <p style="font-size:14px;color:#334155;line-height:1.6;margin:0 0 14px">${htmlEscape(offerText || "Upgrade to Neighborhood Explorer to keep buyers on your site with 38+ hyperlocal insights: prices, commute, walkability, safety, dining, and more.")}</p>
+         ${
+           discountCode
+             ? `<div style="background:#ffffff;border:1px solid #bbf7d0;border-radius:16px;padding:14px;margin:0 0 16px">
+                  <div style="font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#12854c;margin-bottom:4px">Discount code</div>
+                  <div style="font-size:20px;font-weight:900;color:#0f172a">${htmlEscape(discountCode)}</div>
+                </div>`
+             : ""
+         }
+         <div style="text-align:center;background:#ffffff;border:1px solid #bbf7d0;border-radius:20px;padding:18px;margin:0 0 16px">
+           <div style="font-size:17px;font-weight:900;color:#0f172a;line-height:1.25;margin:0 0 12px">Give buyers the full neighborhood picture.</div>
+           <a href="${SIGNUP_URL}" style="display:inline-block;background:#12854c;color:#ffffff;font-weight:800;text-decoration:none;padding:13px 22px;border-radius:999px;font-size:14px">Upgrade Now</a>
+         </div>
+         <div style="background:#ffffff;border:1px solid #dcebd5;border-radius:18px;padding:16px">
+           <p style="color:#0f172a;font-size:14px;margin:0 0 4px"><strong>Homebuyer upgrade requests (${requests.length.toLocaleString()}):</strong></p>
+           ${requestListHtml(requests)}
+         </div>
+       </div>
+     </div>`
+  );
+}
+
+function offerEmailText(opts: {
+  customerName: string;
+  requests: UpgradeRequestRow[];
+  offerText: string;
+  discountCode: string;
+}): string {
+  const { customerName, requests, offerText, discountCode } = opts;
+  return [
+    "Your homebuyers want the full neighborhood picture",
+    "",
+    customerName ? `Hi ${customerName},` : "",
+    offerText || "Upgrade to Neighborhood Explorer to keep buyers on your site with 38+ hyperlocal insights: prices, commute, walkability, safety, dining, and more.",
+    discountCode ? `Discount code: ${discountCode}` : "",
+    "",
+    `Homebuyer upgrade requests (${requests.length}):`,
+    textFromRows(requests),
+    "",
+    `Upgrade Now: ${SIGNUP_URL}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export async function sendUpgradeOfferEmail(input: {
+  viewer: UpgradeManagerViewer;
+  customerId: string;
+  offerText: string;
+  discountCode?: string;
+}): Promise<{ sent: boolean; recipient: string; requestCount: number }> {
+  if (!hasDatabase()) return { sent: false, recipient: "", requestCount: 0 };
+  assertCanManageUpgradeOffers(input.viewer);
+  await ensureTables();
+  await ensureAuthTables();
+  const params: unknown[] = [input.customerId];
+  let scope = "";
+  if (!input.viewer.isOwner) {
+    params.push(input.viewer.id);
+    scope = ` AND r.partner_id = $${params.length}`;
+  }
+  const { rows } = await getPool().query(
+    `SELECT
+        r.*,
+        customer.email AS customer_email,
+        customer.business_name,
+        partner.email AS partner_email,
+        partner.company_name AS partner_company_name
+       FROM app_upgrade_requests r
+       LEFT JOIN app_users customer ON customer.id = r.customer_id
+       LEFT JOIN app_users partner ON partner.id = r.partner_id
+      WHERE r.customer_id = $1${scope}
+      ORDER BY r.requested_at ASC`,
+    params
+  );
+  const requests = rows.map(row);
+  const first = requests[0];
+  if (!first?.customerEmail) throw new Error("No scoped upgrade requests found for this customer.");
+  const customerName = first.businessName || first.customerEmail;
+  const offerText = input.offerText.trim();
+  const discountCode = (input.discountCode || "").trim();
+  const subject = "Special offer: Upgrade to Neighborhood Explorer";
+  const html = offerEmailHtml({ customerName, requests, offerText, discountCode });
+  const text = offerEmailText({ customerName, requests, offerText, discountCode });
+  await sendTransactionalEmail({ to: first.customerEmail, subject, text, html });
+  await getPool().query(
+    `INSERT INTO app_upgrade_offer_emails
+       (customer_id, partner_id, sent_by, recipient, customer_name, offer_text, discount_code, request_ids, request_count, html, text)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+    [
+      first.customerId,
+      first.partnerId,
+      input.viewer.email,
+      first.customerEmail,
+      customerName,
+      offerText,
+      discountCode,
+      requests.map((r) => r.id),
+      requests.length,
+      html,
+      text,
+    ]
+  );
+  return { sent: true, recipient: first.customerEmail, requestCount: requests.length };
+}
+
+export async function listUpgradeOfferEmails(viewer: UpgradeManagerViewer): Promise<UpgradeOfferEmail[]> {
+  if (!hasDatabase()) return [];
+  assertCanManageUpgradeOffers(viewer);
+  await ensureTables();
+  const params: unknown[] = [];
+  let scope = "";
+  if (!viewer.isOwner) {
+    params.push(viewer.id);
+    scope = ` WHERE e.partner_id = $1`;
+  }
+  const { rows } = await getPool().query(
+    `SELECT e.*, partner.company_name AS partner_company_name
+       FROM app_upgrade_offer_emails e
+       LEFT JOIN app_users partner ON partner.id = e.partner_id
+       ${scope}
+      ORDER BY e.sent_at DESC
+      LIMIT 200`,
+    params
+  );
+  return rows.map((r: any) => ({
+    id: Number(r.id),
+    customerId: r.customer_id,
+    customerEmail: r.recipient,
+    customerName: r.customer_name || r.recipient,
+    partnerId: r.partner_id || null,
+    partnerCompanyName: r.partner_company_name || null,
+    sentByEmail: r.sent_by,
+    offerText: r.offer_text || "",
+    discountCode: r.discount_code || "",
+    requestIds: r.request_ids || [],
+    requestCount: Number(r.request_count || 0),
+    sentAt: r.sent_at,
+  }));
 }
 
 // ---------------------------------------------------------------------------

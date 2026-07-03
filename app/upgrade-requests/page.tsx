@@ -6,8 +6,10 @@ import { EmailTemplateManager } from "@/components/app/EmailTemplateManager";
 
 interface UpgradeRequest {
   id: number;
+  customerId: string;
   customerEmail: string;
   businessName: string;
+  partnerId: string | null;
   partnerEmail: string | null;
   partnerCompanyName: string | null;
   providerName: string;
@@ -28,10 +30,25 @@ interface SentDigestEmail {
   html: string;
 }
 
+interface UpgradeOfferEmail {
+  id: number;
+  customerId: string;
+  customerEmail: string;
+  customerName: string;
+  partnerCompanyName: string | null;
+  sentByEmail: string;
+  offerText: string;
+  discountCode: string;
+  requestCount: number;
+  sentAt: string;
+}
+
 interface TemplateOption {
   variant: string;
   label: string;
 }
+
+type SortKey = "date" | "customer" | "partner";
 
 function fmt(v: string | null): string {
   if (!v) return "—";
@@ -51,7 +68,7 @@ function SummaryStat({ label, value }: { label: string; value: number }) {
 export default function UpgradeRequestsPage() {
   return (
     <AppShell active="upgradeRequests">
-      {(me) => <UpgradeRequests isOwner={me.isOwner} />}
+      {(me) => <UpgradeRequests isOwner={me.isOwner} isPartner={me.isPartner} />}
     </AppShell>
   );
 }
@@ -65,13 +82,16 @@ function NotAuthorized() {
   );
 }
 
-function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
+function UpgradeRequests({ isOwner, isPartner }: { isOwner: boolean; isPartner: boolean }) {
+  const isManager = isOwner || isPartner;
   const [requests, setRequests] = useState<UpgradeRequest[]>([]);
   const [sentEmails, setSentEmails] = useState<SentDigestEmail[]>([]);
+  const [offerEmails, setOfferEmails] = useState<UpgradeOfferEmail[]>([]);
   const [summary, setSummary] = useState<{ total: number; pending: number; sent: number } | null>(null);
   const [truncated, setTruncated] = useState(false);
   const [limit, setLimit] = useState(200);
-  const [includeSent, setIncludeSent] = useState(false);
+  const [includeSent, setIncludeSent] = useState(true);
+  const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [variant, setVariant] = useState("soft_nudge");
   const [templates, setTemplates] = useState<TemplateOption[]>([]);
@@ -82,6 +102,11 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
   const [reminderDays, setReminderDays] = useState("7");
   const [reminderSendScope, setReminderSendScope] = useState<"all" | "new">("all");
   const [reminderLastSentAt, setReminderLastSentAt] = useState<string | null>(null);
+  const [customerFilter, setCustomerFilter] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [discountCode, setDiscountCode] = useState("");
+  const [offerText, setOfferText] = useState("Upgrade to Neighborhood Explorer and give your buyers the full neighborhood picture with 38+ hyperlocal insights.");
+  const [offerHistoryFilter, setOfferHistoryFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -91,8 +116,8 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
     setLoading(true);
     setError(null);
     try {
-      // Customers/partners see their full permanent list; admins toggle it.
-      const wantAll = isOwner ? includeSent : true;
+      // Managers can include all requests; standard customers always see their permanent list.
+      const wantAll = isManager ? includeSent : true;
       const res = await fetch(`/api/owner/upgrade-requests?include_sent=${wantAll ? "1" : "0"}`);
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -114,7 +139,13 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
         const sentRes = await fetch("/api/owner/upgrade-digests");
         const sentJson = await sentRes.json().catch(() => ({}));
         if (sentRes.ok) setSentEmails(sentJson.emails || []);
-      } else {
+      }
+      if (isManager) {
+        const offersRes = await fetch("/api/owner/upgrade-offers");
+        const offersJson = await offersRes.json().catch(() => ({}));
+        if (offersRes.ok) setOfferEmails(offersJson.emails || []);
+      }
+      if (!isManager) {
         const remRes = await fetch("/api/app/reminder");
         const remJson = await remRes.json().catch(() => ({}));
         if (remRes.ok && remJson.settings) {
@@ -242,10 +273,100 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
   }
 
   const unsentCount = useMemo(() => requests.filter((r) => !r.summarySentAt).length, [requests]);
+  const filteredRequests = useMemo(() => {
+    const q = customerFilter.trim().toLowerCase();
+    if (!q) return requests;
+    return requests.filter((r) => {
+      const customer = `${r.businessName || ""} ${r.customerEmail || ""}`.toLowerCase();
+      return customer.includes(q);
+    });
+  }, [customerFilter, requests]);
   const sortedRequests = useMemo(() => {
     const dir = sortDir === "asc" ? 1 : -1;
-    return [...requests].sort((a, b) => (new Date(a.requestedAt).getTime() - new Date(b.requestedAt).getTime()) * dir);
-  }, [requests, sortDir]);
+    return [...filteredRequests].sort((a, b) => {
+      if (sortKey === "customer") {
+        const av = (a.businessName || a.customerEmail || "").toLowerCase();
+        const bv = (b.businessName || b.customerEmail || "").toLowerCase();
+        return av.localeCompare(bv) * dir;
+      }
+      if (sortKey === "partner") {
+        const av = (a.partnerCompanyName || a.partnerEmail || "").toLowerCase();
+        const bv = (b.partnerCompanyName || b.partnerEmail || "").toLowerCase();
+        return av.localeCompare(bv) * dir;
+      }
+      return (new Date(a.requestedAt).getTime() - new Date(b.requestedAt).getTime()) * dir;
+    });
+  }, [filteredRequests, sortDir, sortKey]);
+  const customers = useMemo(() => {
+    const m = new Map<string, { id: string; name: string; email: string; count: number }>();
+    for (const r of requests) {
+      if (!r.customerId) continue;
+      const existing = m.get(r.customerId);
+      if (existing) existing.count += 1;
+      else m.set(r.customerId, { id: r.customerId, name: r.businessName || r.customerEmail || "Unknown customer", email: r.customerEmail || "", count: 1 });
+    }
+    return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [requests]);
+  const filteredCustomers = useMemo(() => {
+    const q = customerFilter.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter((c) => `${c.name} ${c.email}`.toLowerCase().includes(q));
+  }, [customerFilter, customers]);
+  const selectedCustomer = customers.find((c) => c.id === selectedCustomerId) || filteredCustomers[0] || null;
+  const filteredOfferEmails = useMemo(() => {
+    const q = offerHistoryFilter.trim().toLowerCase();
+    if (!q) return offerEmails;
+    return offerEmails.filter((e) => `${e.customerName} ${e.customerEmail}`.toLowerCase().includes(q));
+  }, [offerEmails, offerHistoryFilter]);
+
+  function sortButton(key: SortKey, label: string) {
+    const active = sortKey === key;
+    return (
+      <button
+        onClick={() => {
+          if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+          else {
+            setSortKey(key);
+            setSortDir(key === "date" ? "desc" : "asc");
+          }
+        }}
+        className="inline-flex items-center gap-1 uppercase tracking-wide hover:text-slate-700"
+      >
+        {label}
+        {active && <span className="text-[9px]">{sortDir === "asc" ? "▲" : "▼"}</span>}
+      </button>
+    );
+  }
+
+  async function sendOffer() {
+    const customerId = selectedCustomer?.id || "";
+    if (!customerId) {
+      setError("Filter or select a customer first.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/owner/upgrade-offers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId, discountCode, offerText }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(j.error || "Could not send offer email.");
+        return;
+      }
+      setMessage(`Offer email sent to ${j.recipient} with ${j.requestCount || 0} request${j.requestCount === 1 ? "" : "s"}.`);
+      setDiscountCode("");
+      await load();
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <>
@@ -261,7 +382,7 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
         </button>
       </div>
 
-      {isOwner ? (
+      {isOwner && (
         <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
           <div className="grid gap-3 lg:grid-cols-[1fr_180px_auto_auto] lg:items-end">
             <label className="block">
@@ -310,6 +431,83 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
             Sends to the Realtor/customer email, assigned Partner email (if any), and Admin/Product Owner email(s). Sent requests are marked so they are not included again.
             {lastDigestSentAt && <> Last automatic/manual digest: <strong>{fmt(lastDigestSentAt)}</strong>.</>}
           </p>
+        </div>
+      )}
+
+      {isManager ? (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+          <div className="grid gap-4 xl:grid-cols-[minmax(240px,320px)_1fr]">
+            <div>
+              <h2 className="text-sm font-extrabold text-ink-900">Find a Standard Account</h2>
+              <p className="mt-1 text-[12px] leading-relaxed text-slate-500">
+                Filter by customer name or email, then send that customer an offer email with all of their upgrade requests.
+              </p>
+              <input
+                value={customerFilter}
+                onChange={(e) => {
+                  setCustomerFilter(e.target.value);
+                  setSelectedCustomerId("");
+                }}
+                placeholder="Filter by customer name or email"
+                className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+              <select
+                value={selectedCustomer?.id || ""}
+                onChange={(e) => setSelectedCustomerId(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                {filteredCustomers.length === 0 ? (
+                  <option value="">No matching customers</option>
+                ) : (
+                  filteredCustomers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} — {c.email} ({c.count})
+                    </option>
+                  ))
+                )}
+              </select>
+              {selectedCustomer && (
+                <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
+                  Sending to <strong>{selectedCustomer.name}</strong>
+                  {selectedCustomer.email && <> &lt;{selectedCustomer.email}&gt;</>} with {selectedCustomer.count} request{selectedCustomer.count === 1 ? "" : "s"}.
+                </p>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-brand-100 bg-gradient-to-br from-white via-lime-50/60 to-emerald-50 p-4 shadow-sm">
+              <h2 className="text-sm font-extrabold text-ink-900">Send Upgrade Offer Email</h2>
+              <p className="mt-1 text-[12px] leading-relaxed text-slate-500">
+                Add an offer message and optional Stripe discount code. A sent-email history record is saved automatically.
+              </p>
+              <div className="mt-3 grid gap-3 lg:grid-cols-[220px_1fr_auto] lg:items-end">
+                <label className="block">
+                  <span className="block text-xs font-bold text-slate-600">Stripe discount code</span>
+                  <input
+                    value={discountCode}
+                    onChange={(e) => setDiscountCode(e.target.value)}
+                    placeholder="Optional"
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="block">
+                  <span className="block text-xs font-bold text-slate-600">Offer text</span>
+                  <textarea
+                    value={offerText}
+                    onChange={(e) => setOfferText(e.target.value)}
+                    rows={3}
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                  />
+                </label>
+                <button
+                  onClick={sendOffer}
+                  disabled={busy || !selectedCustomer || !offerText.trim()}
+                  className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60"
+                >
+                  {busy ? "Sending…" : "Send offer"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
@@ -411,10 +609,10 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
       {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
 
       {summary && (
-        <div className={`mt-4 grid gap-3 ${isOwner ? "grid-cols-3" : "grid-cols-1 sm:max-w-xs"}`}>
+        <div className={`mt-4 grid gap-3 ${isManager ? "grid-cols-3" : "grid-cols-1 sm:max-w-xs"}`}>
           <SummaryStat label="Total requests" value={summary.total} />
-          {isOwner && <SummaryStat label="Pending (not yet emailed)" value={summary.pending} />}
-          {isOwner && <SummaryStat label="Previously sent" value={summary.sent} />}
+          {isManager && <SummaryStat label="Pending (not yet emailed)" value={summary.pending} />}
+          {isManager && <SummaryStat label="Previously sent" value={summary.sent} />}
         </div>
       )}
 
@@ -430,27 +628,33 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
             <tr>
               <th className="px-3 py-2 font-semibold">
                 <button
-                  onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                  onClick={() => {
+                    if (sortKey === "date") setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+                    else {
+                      setSortKey("date");
+                      setSortDir("desc");
+                    }
+                  }}
                   className="inline-flex items-center gap-1 uppercase tracking-wide hover:text-slate-700"
                 >
                   Requested
-                  <span className="text-[9px]">{sortDir === "asc" ? "▲" : "▼"}</span>
+                  {sortKey === "date" && <span className="text-[9px]">{sortDir === "asc" ? "▲" : "▼"}</span>}
                 </button>
               </th>
-              <th className="px-3 py-2 font-semibold">Realtor / Customer</th>
-              {isOwner && <th className="px-3 py-2 font-semibold">Partner</th>}
+              <th className="px-3 py-2 font-semibold">{isManager ? sortButton("customer", "Realtor / Customer") : "Realtor / Customer"}</th>
+              {isManager && <th className="px-3 py-2 font-semibold">{sortButton("partner", "Partner")}</th>}
               <th className="px-3 py-2 font-semibold">Address</th>
               <th className="px-3 py-2 font-semibold">Source</th>
-              <th className="px-3 py-2 font-semibold" title={isOwner ? "When this request was included in an admin digest email." : "When this request was included in a reminder email to you."}>
-                {isOwner ? "Sent in digest" : "Emailed to you"}
+              <th className="px-3 py-2 font-semibold" title={isManager ? "When this request was included in an admin digest email." : "When this request was included in a reminder email to you."}>
+                {isManager ? "Sent in digest" : "Emailed to you"}
               </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading ? (
-              <tr><td colSpan={isOwner ? 6 : 5} className="px-3 py-8 text-center text-slate-400">Loading…</td></tr>
+              <tr><td colSpan={isManager ? 6 : 5} className="px-3 py-8 text-center text-slate-400">Loading…</td></tr>
             ) : sortedRequests.length === 0 ? (
-              <tr><td colSpan={isOwner ? 6 : 5} className="px-3 py-8 text-center text-slate-400">No requests yet.</td></tr>
+              <tr><td colSpan={isManager ? 6 : 5} className="px-3 py-8 text-center text-slate-400">No requests yet.</td></tr>
             ) : (
               sortedRequests.map((r) => {
                 const emailedToYou =
@@ -464,10 +668,10 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
                     <div className="font-semibold text-ink-900">{r.businessName || r.customerEmail || "—"}</div>
                     {r.businessName && <div className="text-[11px] text-slate-500">{r.customerEmail}</div>}
                   </td>
-                  {isOwner && <td className="px-3 py-2.5 text-slate-600">{r.partnerCompanyName || r.partnerEmail || "—"}</td>}
+                  {isManager && <td className="px-3 py-2.5 text-slate-600">{r.partnerCompanyName || r.partnerEmail || "—"}</td>}
                   <td className="px-3 py-2.5 text-slate-600">{r.address || "—"}</td>
                   <td className="px-3 py-2.5 text-slate-600">{r.source || "widget"}</td>
-                  <td className="px-3 py-2.5 text-slate-600">{fmt(isOwner ? r.summarySentAt : emailedToYou)}</td>
+                  <td className="px-3 py-2.5 text-slate-600">{fmt(isManager ? r.summarySentAt : emailedToYou)}</td>
                 </tr>
                 );
               })
@@ -475,6 +679,60 @@ function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
           </tbody>
         </table>
       </div>
+
+      {isManager && (
+        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-extrabold text-ink-900">Offer Email History</h2>
+              <p className="text-[12px] text-slate-500">A record of targeted upgrade-offer emails sent to Standard Accounts.</p>
+            </div>
+            <input
+              value={offerHistoryFilter}
+              onChange={(e) => setOfferHistoryFilter(e.target.value)}
+              placeholder="Filter history by customer"
+              className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200">
+            <table className="min-w-full text-left text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-3 py-2 font-semibold">Sent</th>
+                  <th className="px-3 py-2 font-semibold">Customer</th>
+                  {isOwner && <th className="px-3 py-2 font-semibold">Partner</th>}
+                  <th className="px-3 py-2 font-semibold">Discount</th>
+                  <th className="px-3 py-2 font-semibold">Requests</th>
+                  <th className="px-3 py-2 font-semibold">Sent by</th>
+                  <th className="px-3 py-2 font-semibold">Offer text</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredOfferEmails.length === 0 ? (
+                  <tr><td colSpan={isOwner ? 7 : 6} className="px-3 py-6 text-center text-slate-400">No offer emails yet.</td></tr>
+                ) : (
+                  filteredOfferEmails.map((email) => (
+                    <tr key={email.id}>
+                      <td className="px-3 py-2.5 text-slate-600">{fmt(email.sentAt)}</td>
+                      <td className="px-3 py-2.5">
+                        <div className="font-semibold text-ink-900">{email.customerName || email.customerEmail}</div>
+                        <div className="text-[11px] text-slate-500">{email.customerEmail}</div>
+                      </td>
+                      {isOwner && <td className="px-3 py-2.5 text-slate-600">{email.partnerCompanyName || "—"}</td>}
+                      <td className="px-3 py-2.5 font-mono text-slate-700">{email.discountCode || "—"}</td>
+                      <td className="px-3 py-2.5 text-slate-600">{email.requestCount}</td>
+                      <td className="px-3 py-2.5 text-slate-600">{email.sentByEmail}</td>
+                      <td className="max-w-md px-3 py-2.5 text-slate-600">
+                        <div className="line-clamp-2">{email.offerText || "—"}</div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {isOwner && (
       <>
