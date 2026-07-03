@@ -382,9 +382,20 @@ function row(r: any): UpgradeRequestRow {
   };
 }
 
-export async function listUpgradeRequests(options: { includeSent?: boolean } = {}): Promise<UpgradeRequestRow[]> {
+export async function listUpgradeRequests(options: { includeSent?: boolean; viewer?: { id: string; isOwner: boolean; isPartner: boolean } | null } = {}): Promise<UpgradeRequestRow[]> {
   if (!hasDatabase()) return [];
   await ensureTables();
+  const params: unknown[] = [Boolean(options.includeSent)];
+  let scope = "";
+  if (options.viewer && !options.viewer.isOwner) {
+    if (options.viewer.isPartner) {
+      params.push(options.viewer.id);
+      scope = ` AND r.partner_id = $${params.length}`;
+    } else {
+      params.push(options.viewer.id);
+      scope = ` AND r.customer_id = $${params.length}`;
+    }
+  }
   const { rows } = await getPool().query(
     `SELECT
         r.*,
@@ -396,8 +407,9 @@ export async function listUpgradeRequests(options: { includeSent?: boolean } = {
        LEFT JOIN app_users customer ON customer.id = r.customer_id
        LEFT JOIN app_users partner ON partner.id = r.partner_id
       WHERE ($1::boolean = TRUE OR r.summary_sent_at IS NULL)
+      ${scope}
       ORDER BY r.requested_at DESC`,
-    [Boolean(options.includeSent)]
+    params
   );
   return rows.map(row);
 }

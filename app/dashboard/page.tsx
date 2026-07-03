@@ -34,31 +34,23 @@ function fmtDateTime(v: string | null | undefined): string {
 }
 
 export default function DashboardPage() {
-  const [config, setConfig] = useState<any>(null);
-  const [usage, setUsage] = useState<{ views: number; firstSeen: string | null; lastSeen: string | null } | null>(null);
+  const [summary, setSummary] = useState<any>(null);
 
   useEffect(() => {
-    fetch("/api/app/config")
+    fetch("/api/app/summary")
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
-        if (j) {
-          setConfig(j.config);
-          setUsage(j.usage ?? null);
-        }
-      })
+      .then((j) => j && setSummary(j))
       .catch(() => {});
   }, []);
 
-  const domain = config?.allowedHosts?.[0];
-  const active = Boolean(domain && config?.enabled);
-  const firstInstalled = fmtDateTime(usage?.firstSeen);
-  const lastActive = fmtDateTime(usage?.lastSeen);
+  const domain = summary?.domain;
+  const active = Boolean(summary?.active);
 
   return (
     <AppShell active="home">
       {(me) => (
         <>
-          {/* Hero banner — matches the marketing site */}
+          {/* Hero + status metrics */}
           <div className="relative overflow-hidden rounded-3xl ring-1 ring-inset ring-brand-600/10">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -87,6 +79,8 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
+
+          <HeroMetrics role={summary?.role || (me.isOwner ? "admin" : me.isPartner ? "partner" : "customer")} createdAt={summary?.createdAt || me.createdAt} metrics={summary?.metrics || {}} domain={domain} active={active} />
 
           {/* Two halves: School Explorer (this product) + Neighborhood Explorer upgrade */}
           <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -134,54 +128,56 @@ export default function DashboardPage() {
             <NeighborhoodExplorerCard />
           </div>
 
-          {/* Benefits grid */}
+          {/* Benefits marquee */}
           <div className="mt-5 text-sm font-bold text-slate-700">Why agents love it</div>
-          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {BENEFITS.map(([icon, title, desc]) => (
-              <div key={title} className="rounded-xl border border-slate-200 bg-white p-3">
-                <div className="text-lg">{icon}</div>
-                <div className="mt-1 text-[13px] font-bold text-ink-900">{title}</div>
-                <div className="text-[11px] leading-relaxed text-slate-500">{desc}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Status */}
-          <div className="mt-5">
-            <div
-              className={`overflow-hidden rounded-3xl p-5 shadow-sm ring-1 ring-inset ${
-                active
-                  ? "border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-lime-50 ring-brand-600/15"
-                  : "border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-lime-50 ring-amber-500/25"
-              }`}
-            >
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className={`text-base font-extrabold ${active ? "text-brand-900" : "text-amber-900"}`}>
-                    {active
-                      ? `Popup or Embedded School Explorer Active on ${domain}`
-                      : "Add your website to activate the popup or embed"}
-                  </div>
-                  <div className="mt-0.5 text-[12px] text-slate-600">
-                    {active
-                      ? "Free forever · installed."
-                      : "Both the popup and the embed stay off until you set an authorized domain."}
-                  </div>
-                </div>
-              </div>
-              {active && (
-                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <Stat label="Account created" value={fmtDateTime(me.createdAt) || "—"} />
-                  <Stat label="First installed" value={firstInstalled || "Not detected yet"} />
-                  <Stat label="Last accessed" value={lastActive || "Not detected yet"} />
-                  <Stat label="Views" value={(usage?.views ?? 0).toLocaleString()} />
-                </div>
-              )}
+          <div className="promo-marquee mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white py-3">
+            <style>{`@keyframes home-benefits{from{transform:translateX(0)}to{transform:translateX(-50%)}}.home-benefits-track{display:inline-flex;white-space:nowrap;animation:home-benefits 42s linear infinite}.home-benefits-track:hover{animation-play-state:paused}`}</style>
+            <div className="home-benefits-track">
+              {[...BENEFITS, ...BENEFITS].map(([icon, title, desc], i) => (
+                <span key={`${title}-${i}`} className="mx-2 inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-800 ring-1 ring-inset ring-brand-600/15">
+                  <span>{icon}</span>
+                  <strong>{title}</strong>
+                  <span className="text-slate-500">{desc}</span>
+                </span>
+              ))}
             </div>
           </div>
         </>
       )}
     </AppShell>
+  );
+}
+
+function HeroMetrics({ role, createdAt, metrics, domain, active }: { role: string; createdAt?: string; metrics: any; domain?: string; active: boolean }) {
+  const items =
+    role === "admin"
+      ? [
+          ["Customer since", fmtDateTime(createdAt) || "—"],
+          ["Total customers", String(metrics.customers ?? 0)],
+          ["Total partners", String(metrics.partners ?? 0)],
+          ["Total views", Number(metrics.views ?? 0).toLocaleString()],
+          ["Upgrade requests", Number(metrics.requests ?? 0).toLocaleString()],
+        ]
+      : role === "partner"
+      ? [
+          ["Customer since", fmtDateTime(createdAt) || "—"],
+          ["Number of customers", String(metrics.customers ?? 0)],
+          ["Total views by all customers", Number(metrics.views ?? 0).toLocaleString()],
+          ["Upgrade requests", Number(metrics.requests ?? 0).toLocaleString()],
+        ]
+      : [
+          ["Customer since", fmtDateTime(createdAt) || "—"],
+          ["Total views by homebuyers", Number(metrics.views ?? 0).toLocaleString()],
+          ["Requests for full Neighborhood Data", Number(metrics.requests ?? 0).toLocaleString()],
+          ...(domain ? [["Active on", active ? domain : `${domain} (off)`]] : []),
+        ];
+
+  return (
+    <div className="-mt-6 relative z-10 mx-auto grid w-[calc(100%-2rem)] gap-3 rounded-3xl border border-brand-200 bg-white/90 p-4 shadow-lg backdrop-blur sm:grid-cols-2 lg:grid-cols-5">
+      {items.map(([label, value]) => (
+        <Stat key={label} label={label} value={value} />
+      ))}
+    </div>
   );
 }
 

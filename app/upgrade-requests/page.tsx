@@ -43,7 +43,7 @@ function fmt(v: string | null): string {
 export default function UpgradeRequestsPage() {
   return (
     <AppShell active="upgradeRequests">
-      {(me) => (me.isOwner ? <UpgradeRequests /> : <NotAuthorized />)}
+      {(me) => <UpgradeRequests isOwner={me.isOwner} />}
     </AppShell>
   );
 }
@@ -57,7 +57,7 @@ function NotAuthorized() {
   );
 }
 
-function UpgradeRequests() {
+function UpgradeRequests({ isOwner }: { isOwner: boolean }) {
   const [requests, setRequests] = useState<UpgradeRequest[]>([]);
   const [sentEmails, setSentEmails] = useState<SentDigestEmail[]>([]);
   const [includeSent, setIncludeSent] = useState(false);
@@ -204,38 +204,44 @@ function UpgradeRequests() {
               ))}
             </select>
           </label>
-          <label className="block">
-            <span className="block text-xs font-bold text-slate-600">Auto-send every X weeks</span>
-            <input
-              type="number"
-              min={1}
-              max={52}
-              value={digestIntervalWeeks}
-              onChange={(e) => setDigestIntervalWeeks(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            />
-          </label>
+          {isOwner && (
+            <label className="block">
+              <span className="block text-xs font-bold text-slate-600">Auto-send every X weeks</span>
+              <input
+                type="number"
+                min={1}
+                max={52}
+                value={digestIntervalWeeks}
+                onChange={(e) => setDigestIntervalWeeks(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </label>
+          )}
           <label className="flex items-center gap-2 text-sm text-slate-600">
             <input type="checkbox" checked={includeSent} onChange={(e) => setIncludeSent(e.target.checked)} className="h-4 w-4 accent-brand-600" />
             Include sent
           </label>
-          <button
-            onClick={saveSchedule}
-            disabled={busy}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60"
-          >
-            Save schedule
-          </button>
-          <button
-            onClick={sendNow}
-            disabled={busy || unsentCount === 0}
-            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60"
-          >
-            {busy ? "Sending…" : `Send digest now (${unsentCount})`}
-          </button>
+          {isOwner && (
+            <>
+              <button
+                onClick={saveSchedule}
+                disabled={busy}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60"
+              >
+                Save schedule
+              </button>
+              <button
+                onClick={sendNow}
+                disabled={busy || unsentCount === 0}
+                className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60"
+              >
+                {busy ? "Sending…" : `Send digest now (${unsentCount})`}
+              </button>
+            </>
+          )}
         </div>
         <p className="mt-2 text-[12px] text-slate-500">
-          Sends to the Realtor/customer email, assigned Partner email (if any), and Admin/Product Owner email(s). Sent requests are marked so they are not included again.
+          {isOwner ? "Sends to the Realtor/customer email, assigned Partner email (if any), and Admin/Product Owner email(s). Sent requests are marked so they are not included again." : "Shows requests related to your account."}
           {lastDigestSentAt && <> Last automatic/manual digest: <strong>{fmt(lastDigestSentAt)}</strong>.</>}
         </p>
       </div>
@@ -279,6 +285,8 @@ function UpgradeRequests() {
         </table>
       </div>
 
+      {isOwner && (
+      <>
       <div className="mt-6 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-extrabold text-ink-900">Sent Email Archive</h2>
@@ -323,6 +331,8 @@ function UpgradeRequests() {
           </tbody>
         </table>
       </div>
+      </>
+      )}
 
       {preview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setPreview(null)}>
