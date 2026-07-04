@@ -35,12 +35,12 @@ export default function AccountPage() {
 
           <div className="mt-4 grid max-w-5xl grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email</div>
-              <div className="mt-1 break-all text-sm text-ink-900">{me.email}</div>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Date created</div>
               <div className="mt-1 text-sm text-ink-900">{fmtDate(me.createdAt)}</div>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email</div>
+              <div className="mt-1 break-all text-sm text-ink-900">{me.email}</div>
             </div>
             <BusinessProfile initialBusinessName={me.businessName || ""} />
             {me.isPartner && <PartnerSignupLink partnerId={me.id} />}
@@ -52,6 +52,7 @@ export default function AccountPage() {
             )}
             <ChangeEmail currentEmail={me.email} />
             <ChangePassword email={me.email} />
+            <AccountHistory />
           </div>
         </>
       )}
@@ -401,6 +402,31 @@ function ChangePassword({ email }: { email: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+
+  async function forgotPassword() {
+    setError(null);
+    setResetSent(false);
+    setResetBusy(true);
+    try {
+      const res = await fetch("/api/auth/request-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(json.error || "Could not send a reset link.");
+        return;
+      }
+      setResetSent(true);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setResetBusy(false);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -479,12 +505,117 @@ function ChangePassword({ email }: { email: string }) {
         />
         {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
         {done && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">Password updated ✓</p>}
-        <button type="submit" disabled={busy} className={btn}>
-          {busy ? "Saving…" : "Update password"}
-        </button>
+        {resetSent && (
+          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+            If an account exists for {email}, a reset link is on its way. Check your inbox.
+          </p>
+        )}
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="submit" disabled={busy} className={btn}>
+            {busy ? "Saving…" : "Update password"}
+          </button>
+          <button
+            type="button"
+            onClick={forgotPassword}
+            disabled={resetBusy}
+            className="text-sm font-semibold text-brand-700 hover:text-brand-800 disabled:opacity-60"
+          >
+            {resetBusy ? "Sending…" : "Forgot password?"}
+          </button>
+        </div>
       </form>
     </Card>
   );
+}
+
+function AccountHistory() {
+  const [events, setEvents] = useState<{ event: string; detail: string | null; createdAt: string }[] | null>(null);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/app/history");
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(json.error || "Could not load history.");
+        return;
+      }
+      setEvents(json.events || []);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next && events === null) load();
+  }
+
+  return (
+    <Card
+      title="Account History"
+      action={
+        <button
+          type="button"
+          onClick={toggle}
+          className="text-[11px] font-semibold text-brand-700 hover:text-brand-800"
+        >
+          {open ? "Hide" : "Show"}
+        </button>
+      }
+    >
+      {!open ? (
+        <p className="text-[12px] text-slate-500">Account creation, email/password changes, and configuration updates.</p>
+      ) : busy ? (
+        <p className="text-sm text-slate-400">Loading…</p>
+      ) : error ? (
+        <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>
+      ) : !events || events.length === 0 ? (
+        <p className="text-sm text-slate-400">No history yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {[...events]
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .map((e, i) => (
+              <li key={i} className="flex items-start justify-between gap-3 border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+                <div>
+                  <div className="text-sm font-semibold text-ink-900">{EVENT_LABELS[e.event] || e.event}</div>
+                  {e.detail && <div className="text-[11px] text-slate-500">{e.detail}</div>}
+                </div>
+                <div className="shrink-0 text-[11px] text-slate-400">{fmtDateTime(e.createdAt)}</div>
+              </li>
+            ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+const EVENT_LABELS: Record<string, string> = {
+  account_created: "Account created",
+  email_verified: "Email verified",
+  email_changed: "Email changed",
+  password_changed: "Password changed",
+  password_reset: "Password reset",
+  domain_changed: "Authorized domain changed",
+  default_address_changed: "Default address changed",
+  explorer_enabled_changed: "Explorer enabled/disabled",
+  account_deleted: "Account disabled",
+  account_restored: "Account restored",
+  partner_assignment_changed: "Partner assignment changed",
+  partner_status_changed: "Partner status changed",
+};
+
+function fmtDateTime(v: string): string {
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
 }
 
 function Card({
