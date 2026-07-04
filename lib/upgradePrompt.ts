@@ -191,7 +191,7 @@ function cleanInt(v: unknown, fallback: number, min: number, max: number): numbe
 }
 
 const LEARN_MORE_URL = "https://www.dreamneighborhood.com";
-const SIGNUP_URL = "https://app.dreamneighborhood.com";
+const SIGNUP_URL = "https://app.dreamneighborhood.com/accounts/signup/";
 const REQUESTS_URL = "https://app.dreamneighborhoodschools.com/upgrade-requests";
 const REMINDER_REQUEST_PREVIEW_LIMIT = 5;
 const CUSTOMER_REMINDER_INTRO =

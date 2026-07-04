@@ -545,7 +545,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
                   Learn More
                 </a>
                 <a
-                  href="https://app.dreamneighborhood.com"
+                  href="https://app.dreamneighborhood.com/accounts/signup/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="rounded-lg bg-brand-600 px-3 py-2 text-xs font-extrabold text-white shadow-sm hover:bg-brand-700"

@@ -66,7 +66,7 @@ export function NeighborhoodExplorerCard() {
           Learn more
         </a>
         <a
-          href="https://app.dreamneighborhood.com"
+          href="https://app.dreamneighborhood.com/accounts/signup/"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700"
