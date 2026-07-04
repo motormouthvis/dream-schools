@@ -26,5 +26,33 @@ A living backlog. Check items off as they ship; add new ones at the bottom.
 - [ ] "Show all schools in district" view (beyond the nearest 30).
 - [ ] Scheduled data auto-updates (Heroku Scheduler).
 
+## Monetization / plan awareness
+- [ ] **Integrate with the dreamneighborhood.com Stripe account** to check whether a
+      Realtor already has an active (paid) Neighborhood Explorer subscription there.
+      Use it to tailor upgrade prompts/emails (skip or soften the pitch for
+      customers who already pay).
+- [ ] **"Your Current Plan" badge** on the Home page School Explorer block (e.g.
+      "Free — School Explorer" vs "Neighborhood Explorer — Active"), driven by the
+      Stripe lookup above.
+
+## Embed / popup
+- [ ] **Minimalist embed + popup variant** that shows only school rating, distance,
+      and address, then links out to `www.dreamneighborhoodschools.com/<school>` for
+      full details (lightweight option for space-constrained listing pages).
+- [ ] **Per-page usage analytics:** capture each unique page URL where the embed or
+      popup is detected/used, so the customer sees not just total views but how many
+      distinct listing/neighborhood pages each type appears on (breakdown by embed vs
+      popup).
+
+## Emails
+- [ ] **Install reminder in reminder emails:** if a Realtor hasn't installed the
+      embed/popup on their site yet (no detected usage / no authorized domain),
+      include a friendly "finish setup — add it to your website" section with
+      install instructions instead of usage stats.
+
+## UI polish
+- [ ] Remove the red text styling on the school detail page when a school is
+      "Not rated" — it reads as an error/alert when it's just missing data.
+
 ## Tech / ops
 - [ ] Optional: Mapbox token for best-in-class address autocomplete (env-gated).
