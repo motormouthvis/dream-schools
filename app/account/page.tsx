@@ -189,7 +189,7 @@ function BusinessProfile({ initialBusinessName }: { initialBusinessName: string 
   }
 
   return (
-    <Card title="Business / Agent Name">
+    <Card title="Realtor Name">
       <form onSubmit={save} className="space-y-3">
         <div>
           <label className="block text-xs font-bold text-slate-600">
