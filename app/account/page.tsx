@@ -53,6 +53,7 @@ export default function AccountPage() {
             <ChangeEmail currentEmail={me.email} />
             <ChangePassword email={me.email} />
             <AccountHistory />
+            {!me.isOwner && <DeleteAccount />}
           </div>
         </>
       )}
@@ -616,6 +617,66 @@ const EVENT_LABELS: Record<string, string> = {
 function fmtDateTime(v: string): string {
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
+}
+
+function DeleteAccount() {
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/app/delete-account", { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(json.error || "Could not delete your account.");
+        return;
+      }
+      window.location.href = "/login";
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-rose-200 bg-rose-50/40 p-4 lg:col-span-2">
+      <div className="mb-2 flex items-center gap-2">
+        <span className="h-3 w-1.5 rounded bg-rose-500" />
+        <h2 className="text-sm font-bold text-rose-900">Delete My Account</h2>
+      </div>
+      <p className="text-[12px] leading-relaxed text-rose-800/80">
+        This disables your account and signs you out. You will no longer be able to sign in, and any
+        popup/embed on your website will stop working. Your data is retained — contact us if you ever
+        want it re-enabled.
+      </p>
+      <form onSubmit={submit} className="mt-3 space-y-3">
+        <div>
+          <label className="block text-xs font-bold text-rose-900">
+            Type <span className="font-mono">DELETE</span> to confirm
+          </label>
+          <input
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="DELETE"
+            className="mt-1 w-full max-w-xs rounded-lg border border-rose-300 bg-white px-3 py-2 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200"
+          />
+        </div>
+        {error && <p className="rounded-lg bg-rose-100 px-3 py-2 text-xs text-rose-800">{error}</p>}
+        <button
+          type="submit"
+          disabled={busy || confirm.trim().toUpperCase() !== "DELETE"}
+          className="rounded-lg bg-rose-600 px-5 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700 disabled:opacity-50"
+        >
+          {busy ? "Deleting…" : "Delete my account"}
+        </button>
+      </form>
+    </div>
+  );
 }
 
 function Card({

@@ -327,6 +327,23 @@ export async function deleteSession(raw: string): Promise<void> {
   await getPool().query(`DELETE FROM app_sessions WHERE token_hash = $1`, [sha256(raw)]);
 }
 
+// Self-service soft-disable: the account owner disables their own login. The row
+// is retained (deleted_at set) so an admin can re-enable it. All of the account's
+// sessions are also destroyed so they are signed out everywhere.
+export async function disableOwnAccount(userId: string): Promise<boolean> {
+  if (!hasDatabase() || !userId) return false;
+  await ensureTables();
+  const pool = getPool();
+  const res = await pool.query(
+    `UPDATE app_users SET deleted_at = COALESCE(deleted_at, NOW())
+      WHERE id = $1 AND deleted_at IS NULL AND is_owner = FALSE`,
+    [userId]
+  );
+  if ((res.rowCount ?? 0) === 0) return false;
+  await pool.query(`DELETE FROM app_sessions WHERE user_id = $1`, [userId]).catch(() => {});
+  return true;
+}
+
 export async function getUserBySession(raw: string | undefined | null): Promise<AppUser | null> {
   if (!hasDatabase() || !raw) return null;
   await ensureTables();
