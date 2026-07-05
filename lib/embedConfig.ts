@@ -60,7 +60,7 @@ export const DEFAULT_PRESENTATION: EmbedPresentation = {
   suppressIfNeighborhoodExplorer: true,
   inlineMinHeight: 750,
   inlineShowHeader: false,
-  showExternalLinks: false,
+  showExternalLinks: true,
 };
 
 export function normalizePosition(value: unknown): "left" | "right" {

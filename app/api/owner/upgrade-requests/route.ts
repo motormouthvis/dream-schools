@@ -10,7 +10,7 @@ import {
   type UpgradeDigestVariant,
 } from "@/lib/upgradePrompt";
 
-const INCLUDE_SENT_LIMIT = 200;
+const INCLUDE_SENT_LIMIT = 2000;
 const SCOPED_LIMIT = 2000;
 
 export const dynamic = "force-dynamic";

@@ -858,19 +858,20 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
           const offerValid = partnerEmailKind === "reminder" || (offerText.trim() && discountCode.trim());
           return (
             <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-              <h2 className="text-sm font-extrabold text-ink-900">{isOwner ? "Send Email to Selected Realtor/Partner" : "Send Email To Selected Realtor"}</h2>
-              {!target ? (
-                <p className="mt-1 text-[12px] text-slate-500">
-                  Select a {isOwner ? "realtor or partner" : "realtor"} in <strong>{isOwner ? "View/Select" : "View/Select Realtors"}</strong> above to send them an email.
-                </p>
-              ) : (
-                <>
-                  <p className="mt-1 text-[12px] text-slate-500">
+              <h2 className="text-sm font-extrabold text-ink-900">{isOwner ? "Send Email to Selected Realtor/Partner Encouraging them to Upgrade" : "Send Email To Selected Realtor Encouraging them to Upgrade"}</h2>
+              <p className="mt-1 text-[12px] text-slate-500">
+                {target ? (
+                  <>
                     Sending to <strong>{target.label}</strong>{targetIsPartner ? " (Partner)" : ""}.{" "}
-                    {targetIsPartner
-                      ? "They receive a partner reminder to help their realtors upgrade their clients."
-                      : "They receive the same beautiful upgrade email they can send themselves."}
-                  </p>
+                    They will receive an email reminder or special offer.
+                  </>
+                ) : (
+                  <>
+                    Select a {isOwner ? "realtor or partner" : "realtor"} in <strong>{isOwner ? "View/Select" : "View/Select Realtors"}</strong> above to send them an email.
+                  </>
+                )}
+              </p>
+              <fieldset disabled={!target} className={!target ? "pointer-events-none opacity-50" : ""}>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
                     <label className="flex items-start gap-2 rounded-xl border border-brand-100 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm">
                       <input type="radio" name="partner-email-kind" checked={partnerEmailKind === "reminder"} onChange={() => setPartnerEmailKind("reminder")} className="mt-0.5 h-4 w-4 accent-brand-600" />
@@ -928,14 +929,13 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
                     >
                       {busy ? "Sending…" : partnerEmailKind === "offer" ? "Send special offer" : "Send reminder"}
                     </button>
-                    {target.email && (
+                    {target?.email && (
                       <span className="text-[12px] text-slate-500">
                         Will be sent to: <strong className="text-slate-700">{target.email}</strong>
                       </span>
                     )}
                   </div>
-                </>
-              )}
+              </fieldset>
             </div>
           );
         })()

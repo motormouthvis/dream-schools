@@ -30,7 +30,7 @@ const BLANK: Form = {
   suppressIfNeighborhoodExplorer: true,
   inlineMinHeight: 0,
   inlineShowHeader: false,
-  showExternalLinks: false,
+  showExternalLinks: true,
   enabled: true,
 };
 
@@ -169,10 +169,12 @@ export default function EditPage() {
                     <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition ${form.enabled ? "left-9" : "left-1"}`} />
                   </button>
                 </div>
-                <p className="rounded-lg bg-amber-50 px-3 py-2 text-[12px] font-semibold text-amber-800">
-                  Explorer will not appear until you set an authorized domain.{" "}
-                  <a href="/help" className="font-semibold underline hover:text-amber-900">Need platform-specific steps? Open Help.</a>
-                </p>
+                {!form.authorizedDomain.trim() && (
+                  <p className="rounded-lg bg-amber-50 px-3 py-2 text-[12px] font-semibold text-amber-800">
+                    Explorer will not appear until you set an authorized domain.{" "}
+                    <a href="/help" className="font-semibold underline hover:text-amber-900">Need platform-specific steps? Open Help.</a>
+                  </p>
+                )}
                 <fieldset disabled={!form.enabled} className={!form.enabled ? "pointer-events-none opacity-45 grayscale" : ""}>
                   <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                     <Field label="Authorized domain" hint="Base domain — works on all pages & subdomains.">
