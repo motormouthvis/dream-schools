@@ -1087,7 +1087,12 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
 
       {realtorTab === "list" && (
       <>
-      <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      {!loading && totalRows > 0 && (
+        <div className="mt-4 flex justify-end">
+          <PageSizeButtons value={pageSize} onChange={setPageSize} />
+        </div>
+      )}
+      <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
             <tr>
@@ -1158,20 +1163,6 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 text-[12px] text-slate-500">
-              <span className="font-semibold">Show:</span>
-              {[10, 20, 50, 100, 0].map((size) => (
-                <button
-                  key={size}
-                  onClick={() => setPageSize(size)}
-                  className={`rounded-md px-2 py-1 text-xs font-bold transition ${
-                    pageSize === size ? "bg-brand-600 text-white" : "border border-slate-300 text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  {size === 0 ? "All" : size}
-                </button>
-              ))}
-            </div>
             {pageSize !== 0 && pageCount > 1 && (
               <div className="flex items-center gap-1">
                 <button

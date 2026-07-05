@@ -43,7 +43,7 @@ interface PartnerOption {
   companyName: string;
 }
 
-type SortKey = "email" | "createdAt" | "views" | "upgradeRequests" | "firstSeen" | "lastSeen" | "partnerName";
+type SortKey = "customer" | "createdAt" | "views" | "upgradeRequests" | "firstSeen" | "lastSeen" | "partnerName" | "domain" | "status" | "upgraded";
 type SortDir = "asc" | "desc";
 
 function fmtDate(v: string | null): string {
@@ -93,6 +93,7 @@ function OwnerAdmin() {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("createdAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [pageSize, setPageSize] = useState(10);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [historyFor, setHistoryFor] = useState<Customer | null>(null);
   const [reasonAction, setReasonAction] = useState<null | { type: "disable"; customer: Customer }>(null);
@@ -127,7 +128,7 @@ function OwnerAdmin() {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortKey(key);
-      setSortDir(key === "email" ? "asc" : "desc");
+      setSortDir(key === "customer" || key === "domain" || key === "partnerName" ? "asc" : "desc");
     }
   }
 
@@ -158,9 +159,21 @@ function OwnerAdmin() {
       let av: string | number = 0;
       let bv: string | number = 0;
       switch (sortKey) {
-        case "email":
-          av = a.email.toLowerCase();
-          bv = b.email.toLowerCase();
+        case "customer":
+          av = (a.businessName || a.companyName || a.email).toLowerCase();
+          bv = (b.businessName || b.companyName || b.email).toLowerCase();
+          break;
+        case "domain":
+          av = (a.authorizedDomain || "").toLowerCase();
+          bv = (b.authorizedDomain || "").toLowerCase();
+          break;
+        case "status":
+          av = a.deletedAt ? 2 : a.enabled ? 0 : 1;
+          bv = b.deletedAt ? 2 : b.enabled ? 0 : 1;
+          break;
+        case "upgraded":
+          av = a.upgraded ? 1 : 0;
+          bv = b.upgraded ? 1 : 0;
           break;
         case "views":
           av = a.views;
@@ -247,6 +260,7 @@ function OwnerAdmin() {
           className="w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
         />
         <span className="text-[12px] text-slate-400">{rows.length} shown</span>
+        <div className="ml-auto"><PageSizeButtons value={pageSize} onChange={setPageSize} /></div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {["Active", "Disabled"].map((chip) => (
@@ -282,14 +296,14 @@ function OwnerAdmin() {
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
             <tr>
-              <Th label="Customer" k="email" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+              <Th label="Customer Name" k="customer" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <Th label="Signed up" k="createdAt" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-              <th className="px-3 py-2 font-semibold">Domain</th>
+              <Th label="Domain" k="domain" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <Th label="Customer of This Partner" k="partnerName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-              <th className="px-3 py-2 font-semibold" title="Enabled means an authorized domain is set and the Explorer toggle is on. Actual usage is shown by Views / Last active.">Status</th>
+              <Th label="Status" k="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <Th label="Views" k="views" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
               <Th label="Upgrade requests" k="upgradeRequests" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
-              <th className="px-3 py-2 text-center font-semibold" title="Whether this customer has upgraded to the paid Neighborhood Explorer. Populated from Stripe once integrated.">Upgraded</th>
+              <Th label="Upgraded" k="upgraded" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="center" />
               <Th label="Code detected" k="firstSeen" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <Th label="Last active" k="lastSeen" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <th className="px-3 py-2 text-right font-semibold">Actions</th>
@@ -309,10 +323,18 @@ function OwnerAdmin() {
                 </td>
               </tr>
             ) : (
-              rows.map((c) => (
+              (pageSize === 0 ? rows : rows.slice(0, pageSize)).map((c) => (
                 <tr key={c.id} className="hover:bg-slate-50/60">
                   <td className="px-3 py-2.5">
-                    <div className="font-semibold text-ink-900">{c.email}</div>
+                    {(() => {
+                      const name = c.businessName || c.companyName || "";
+                      return (
+                        <>
+                          <div className="font-semibold text-ink-900">{name || c.email}</div>
+                          {name && <div className="text-[11px] text-slate-500">{c.email}</div>}
+                        </>
+                      );
+                    })()}
                     <div className="mt-0.5 flex flex-wrap gap-1">
                       {c.deletedAt && <Badge tone="slate">Disabled</Badge>}
                       {!c.deletedAt && c.isOwner && <Badge tone="brand">Admin</Badge>}
@@ -324,9 +346,6 @@ function OwnerAdmin() {
                         <Badge tone="amber">Unverified</Badge>
                       )}
                     </div>
-                    {c.isPartner && c.companyName && (
-                      <div className="mt-0.5 text-[11px] font-semibold text-brand-700">{c.companyName}</div>
-                    )}
                   </td>
                   <td className="px-3 py-2.5 text-slate-600">{fmtDate(c.createdAt)}</td>
                   <td className="px-3 py-2.5 text-slate-600">
@@ -402,6 +421,12 @@ function OwnerAdmin() {
           </tbody>
         </table>
       </div>
+
+      {!loading && pageSize !== 0 && rows.length > pageSize && (
+        <p className="mt-2 text-[12px] text-slate-500">
+          Showing first {pageSize} of {rows.length.toLocaleString()}. Increase "Show" above to see more.
+        </p>
+      )}
 
       {editing && (
         <EditModal
@@ -896,6 +921,23 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
+function PageSizeButtons({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <div className="flex items-center gap-1 text-[12px] text-slate-500">
+      <span className="font-semibold">Show:</span>
+      {[10, 20, 50, 100, 0].map((s) => (
+        <button
+          key={s}
+          onClick={() => onChange(s)}
+          className={`rounded-md px-2 py-1 text-xs font-bold transition ${value === s ? "bg-brand-600 text-white" : "border border-slate-300 text-slate-600 hover:bg-slate-50"}`}
+        >
+          {s === 0 ? "All" : s}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Th({
   label,
   k,
@@ -909,11 +951,11 @@ function Th({
   sortKey: SortKey;
   sortDir: SortDir;
   onSort: (k: SortKey) => void;
-  align?: "left" | "right";
+  align?: "left" | "right" | "center";
 }) {
   const active = sortKey === k;
   return (
-    <th className={`px-3 py-2 font-semibold ${align === "right" ? "text-right" : ""}`}>
+    <th className={`px-3 py-2 font-semibold ${align === "right" ? "text-right" : align === "center" ? "text-center" : ""}`}>
       <button
         onClick={() => onSort(k)}
         className={`inline-flex items-center gap-1 uppercase tracking-wide ${
