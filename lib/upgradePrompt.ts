@@ -60,6 +60,7 @@ export interface SentDigestEmail {
 
 export interface UpgradeOfferEmail {
   id: number;
+  kind: "offer" | "reminder";
   customerId: string;
   customerEmail: string;
   customerName: string;
@@ -70,6 +71,7 @@ export interface UpgradeOfferEmail {
   discountCode: string;
   requestIds: number[];
   requestCount: number;
+  html: string;
   sentAt: string;
 }
 
@@ -173,6 +175,12 @@ async function ensureTables(): Promise<void> {
         pool.query(
           `CREATE INDEX IF NOT EXISTS app_upgrade_offer_emails_partner_idx
              ON app_upgrade_offer_emails(partner_id, sent_at DESC)`
+        )
+      )
+      .then(() =>
+        pool.query(
+          `ALTER TABLE app_upgrade_offer_emails
+             ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'offer'`
         )
       )
       .then(() => undefined)
@@ -1009,6 +1017,43 @@ export async function sendUpgradeOfferEmail(input: {
   return { sent: true, recipient: first.customerEmail, requestCount: requests.length };
 }
 
+// Record a manager/partner-sent email (reminder or offer) into the unified
+// sent-email history table.
+async function recordSentEmail(input: {
+  kind: "offer" | "reminder";
+  customerId: string;
+  partnerId: string | null;
+  sentBy: string;
+  recipient: string;
+  customerName: string;
+  offerText: string;
+  discountCode: string;
+  requestIds: number[];
+  requestCount: number;
+  html: string;
+  text: string;
+}): Promise<void> {
+  await getPool().query(
+    `INSERT INTO app_upgrade_offer_emails
+       (kind, customer_id, partner_id, sent_by, recipient, customer_name, offer_text, discount_code, request_ids, request_count, html, text)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+    [
+      input.kind,
+      input.customerId,
+      input.partnerId,
+      input.sentBy,
+      input.recipient,
+      input.customerName,
+      input.offerText,
+      input.discountCode,
+      input.requestIds,
+      input.requestCount,
+      input.html,
+      input.text,
+    ]
+  );
+}
+
 export async function listUpgradeOfferEmails(viewer: UpgradeManagerViewer): Promise<UpgradeOfferEmail[]> {
   if (!hasDatabase()) return [];
   assertCanManageUpgradeOffers(viewer);
@@ -1030,6 +1075,7 @@ export async function listUpgradeOfferEmails(viewer: UpgradeManagerViewer): Prom
   );
   return rows.map((r: any) => ({
     id: Number(r.id),
+    kind: r.kind === "reminder" ? "reminder" : "offer",
     customerId: r.customer_id,
     customerEmail: r.recipient,
     customerName: r.customer_name || r.recipient,
@@ -1038,6 +1084,7 @@ export async function listUpgradeOfferEmails(viewer: UpgradeManagerViewer): Prom
     sentByEmail: r.sent_by,
     offerText: r.offer_text || "",
     discountCode: r.discount_code || "",
+    html: r.html || "",
     requestIds: r.request_ids || [],
     requestCount: Number(r.request_count || 0),
     sentAt: r.sent_at,
@@ -1048,31 +1095,42 @@ export async function listUpgradeOfferEmails(viewer: UpgradeManagerViewer): Prom
 // Per-customer (Realtor) self-reminder emails.
 // ---------------------------------------------------------------------------
 
-function cleanReminderDays(v: unknown): number {
+// Realtors are capped at a 30-day max reminder interval unless they've upgraded
+// to the paid Neighborhood Explorer, in which case they can pick any cadence.
+const REMINDER_MAX_DAYS_DEFAULT = 30;
+const REMINDER_MAX_DAYS_UPGRADED = 365;
+
+function cleanReminderDays(v: unknown, maxDays = REMINDER_MAX_DAYS_DEFAULT): number {
   if (v === null || v === undefined || v === "") return DEFAULT_REMINDER_INTERVAL_DAYS;
   const n = Number(v);
   if (!Number.isFinite(n) || n < 1) return DEFAULT_REMINDER_INTERVAL_DAYS;
-  return Math.max(1, Math.min(90, Math.floor(n)));
+  return Math.max(1, Math.min(maxDays, Math.floor(n)));
 }
 
 export async function getReminderSettings(
   userId: string
-): Promise<{ intervalDays: number; lastSentAt: string | null }> {
-  if (!hasDatabase()) return { intervalDays: DEFAULT_REMINDER_INTERVAL_DAYS, lastSentAt: null };
+): Promise<{ intervalDays: number; lastSentAt: string | null; upgraded: boolean; maxDays: number }> {
+  if (!hasDatabase()) return { intervalDays: DEFAULT_REMINDER_INTERVAL_DAYS, lastSentAt: null, upgraded: false, maxDays: REMINDER_MAX_DAYS_DEFAULT };
   await ensureAuthTables();
   const { rows } = await getPool().query(
-    `SELECT reminder_interval_days, reminder_last_sent_at FROM app_users WHERE id = $1`,
+    `SELECT reminder_interval_days, reminder_last_sent_at, neighborhood_explorer_active FROM app_users WHERE id = $1`,
     [userId]
   );
+  const upgraded = Boolean(rows[0]?.neighborhood_explorer_active);
+  const maxDays = upgraded ? REMINDER_MAX_DAYS_UPGRADED : REMINDER_MAX_DAYS_DEFAULT;
   return {
-    intervalDays: cleanReminderDays(rows[0]?.reminder_interval_days),
+    intervalDays: cleanReminderDays(rows[0]?.reminder_interval_days, maxDays),
     lastSentAt: rows[0]?.reminder_last_sent_at ?? null,
+    upgraded,
+    maxDays,
   };
 }
 
 export async function setReminderInterval(userId: string, days: number): Promise<number> {
   await ensureAuthTables();
-  const clean = cleanReminderDays(days);
+  const { rows } = await getPool().query(`SELECT neighborhood_explorer_active FROM app_users WHERE id = $1`, [userId]);
+  const upgraded = Boolean(rows[0]?.neighborhood_explorer_active);
+  const clean = cleanReminderDays(days, upgraded ? REMINDER_MAX_DAYS_UPGRADED : REMINDER_MAX_DAYS_DEFAULT);
   await getPool().query(`UPDATE app_users SET reminder_interval_days = $1 WHERE id = $2`, [clean, userId]);
   return clean;
 }
@@ -1359,7 +1417,7 @@ export async function sendPartnerRealtorEmail(input: {
   }
   const user = (
     await pool.query(
-      `SELECT id, email, business_name, company_name, reminder_last_sent_at
+      `SELECT id, email, business_name, company_name, partner_id, reminder_last_sent_at
          FROM app_users WHERE id = $1 AND deleted_at IS NULL${uScope}`,
       uParams
     )
@@ -1421,28 +1479,20 @@ export async function sendPartnerRealtorEmail(input: {
   }
 
   await sendTransactionalEmail({ to: user.email, subject, text, html });
-  if (input.kind === "offer") {
-    await pool.query(
-      `INSERT INTO app_upgrade_offer_emails
-         (customer_id, partner_id, sent_by, recipient, customer_name, offer_text, discount_code, request_ids, request_count, html, text)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-      [
-        input.realtorId,
-        input.viewer.isOwner ? null : input.viewer.id,
-        input.viewer.email,
-        user.email,
-        businessName || user.email,
-        specialOffer!.offerText,
-        specialOffer!.discountCode,
-        allRows.map((r) => r.id),
-        allRows.length,
-        html,
-        text,
-      ]
-    );
-  } else {
-    await archiveEmail({ recipient: user.email, subject, variant: "customer_reminder", audience: "partner_reminder", requestIds: allRows.map((r) => r.id), html, text });
-  }
+  await recordSentEmail({
+    kind: input.kind,
+    customerId: input.realtorId,
+    partnerId: user.partner_id || (input.viewer.isOwner ? null : input.viewer.id),
+    sentBy: input.viewer.email,
+    recipient: user.email,
+    customerName: businessName || user.email,
+    offerText: specialOffer?.offerText || "",
+    discountCode: specialOffer?.discountCode || "",
+    requestIds: allRows.map((r) => r.id),
+    requestCount: allRows.length,
+    html,
+    text,
+  });
   return { sent: true, recipient: user.email, requestCount: allRows.length };
 }
 
@@ -1616,16 +1666,20 @@ export async function sendPartnerTargetedEmail(input: {
   }
 
   await sendTransactionalEmail({ to: partner.email, subject, text, html });
-  if (input.kind === "offer") {
-    await pool.query(
-      `INSERT INTO app_upgrade_offer_emails
-         (customer_id, partner_id, sent_by, recipient, customer_name, offer_text, discount_code, request_ids, request_count, html, text)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-      [input.partnerId, input.partnerId, input.viewer.email, partner.email, partnerName, specialOffer!.offerText, specialOffer!.discountCode, [], totalRequests, html, text]
-    );
-  } else {
-    await archiveEmail({ recipient: partner.email, subject, variant: "partner_target", audience: "partner_target", requestIds: [], html, text });
-  }
+  await recordSentEmail({
+    kind: input.kind,
+    customerId: input.partnerId,
+    partnerId: input.partnerId,
+    sentBy: input.viewer.email,
+    recipient: partner.email,
+    customerName: partnerName,
+    offerText: specialOffer?.offerText || "",
+    discountCode: specialOffer?.discountCode || "",
+    requestIds: [],
+    requestCount: totalRequests,
+    html,
+    text,
+  });
   return { sent: true, recipient: partner.email, requestCount: totalRequests };
 }
 

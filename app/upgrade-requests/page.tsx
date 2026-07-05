@@ -33,14 +33,17 @@ interface SentDigestEmail {
 
 interface UpgradeOfferEmail {
   id: number;
+  kind: "offer" | "reminder";
   customerId: string;
   customerEmail: string;
   customerName: string;
+  partnerId: string | null;
   partnerCompanyName: string | null;
   sentByEmail: string;
   offerText: string;
   discountCode: string;
   requestCount: number;
+  html: string;
   sentAt: string;
 }
 
@@ -257,6 +260,8 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
   const [reminderDays, setReminderDays] = useState("7");
   const [reminderSendScope, setReminderSendScope] = useState<"all" | "new">("all");
   const [reminderLastSentAt, setReminderLastSentAt] = useState<string | null>(null);
+  const [reminderMaxDays, setReminderMaxDays] = useState(30);
+  const [reminderUpgraded, setReminderUpgraded] = useState(false);
   const [customerFilter, setCustomerFilter] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [discountCode, setDiscountCode] = useState("");
@@ -266,6 +271,9 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
   const [page, setPage] = useState(1);
   const [offerHistoryOpen, setOfferHistoryOpen] = useState(false);
   const [offerHistoryPageSize, setOfferHistoryPageSize] = useState(10);
+  const [historyKind, setHistoryKind] = useState<"all" | "offer" | "reminder">("all");
+  const [historySortKey, setHistorySortKey] = useState<"sentAt" | "customer" | "kind">("sentAt");
+  const [historySortDir, setHistorySortDir] = useState<"asc" | "desc">("desc");
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archivePageSize, setArchivePageSize] = useState(10);
   const [scopeType, setScopeType] = useState<"all" | "partner" | "customer">("all");
@@ -321,6 +329,8 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
         if (remRes.ok && remJson.settings) {
           setReminderDays(String(remJson.settings.intervalDays || 7));
           setReminderLastSentAt(remJson.settings.lastSentAt || null);
+          setReminderMaxDays(remJson.settings.maxDays || 30);
+          setReminderUpgraded(Boolean(remJson.settings.upgraded));
         }
       }
     } catch {
@@ -521,11 +531,22 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
     return customers.filter((c) => `${c.name} ${c.email}`.toLowerCase().includes(q));
   }, [customerFilter, customers]);
   const selectedCustomer = customers.find((c) => c.id === selectedCustomerId) || filteredCustomers[0] || null;
+  const historyScoped = scopeType !== "all" && Boolean(scopeId);
   const filteredOfferEmails = useMemo(() => {
+    let rows = offerEmails;
+    // Respect the View/Select selection.
+    if (scopeType === "customer" && scopeId) rows = rows.filter((e) => e.customerId === scopeId);
+    else if (scopeType === "partner" && scopeId) rows = rows.filter((e) => e.partnerId === scopeId || e.customerId === scopeId);
+    if (historyKind !== "all") rows = rows.filter((e) => e.kind === historyKind);
     const q = offerHistoryFilter.trim().toLowerCase();
-    if (!q) return offerEmails;
-    return offerEmails.filter((e) => `${e.customerName} ${e.customerEmail}`.toLowerCase().includes(q));
-  }, [offerEmails, offerHistoryFilter]);
+    if (q) rows = rows.filter((e) => `${e.customerName} ${e.customerEmail}`.toLowerCase().includes(q));
+    const dir = historySortDir === "asc" ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      if (historySortKey === "customer") return (a.customerName || a.customerEmail).localeCompare(b.customerName || b.customerEmail) * dir;
+      if (historySortKey === "kind") return a.kind.localeCompare(b.kind) * dir;
+      return (new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime()) * dir;
+    });
+  }, [offerEmails, scopeType, scopeId, historyKind, offerHistoryFilter, historySortKey, historySortDir]);
   const filteredScopeOptions = useMemo(() => {
     // Admin toggles between searching Realtors (customers) and Partners.
     const kindType: "customer" | "partner" = isOwner && adminScopeKind === "partners" ? "partner" : "customer";
@@ -576,6 +597,25 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
   // The current send target derived from the View/Select selection.
   const emailTargetType = scopeType === "partner" ? "partner" : "realtor";
   const hasEmailTarget = (scopeType === "customer" || scopeType === "partner") && Boolean(scopeId);
+
+  function historySortButton(key: "sentAt" | "customer" | "kind", label: string) {
+    const active = historySortKey === key;
+    return (
+      <button
+        onClick={() => {
+          if (historySortKey === key) setHistorySortDir((d) => (d === "asc" ? "desc" : "asc"));
+          else {
+            setHistorySortKey(key);
+            setHistorySortDir(key === "sentAt" ? "desc" : "asc");
+          }
+        }}
+        className="inline-flex items-center gap-1 uppercase tracking-wide hover:text-slate-700"
+      >
+        {label}
+        {active && <span className="text-[9px]">{historySortDir === "asc" ? "▲" : "▼"}</span>}
+      </button>
+    );
+  }
 
   async function previewRealtorEmail() {
     if (!hasEmailTarget) {
@@ -922,12 +962,15 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
               <input
                 type="number"
                 min={1}
-                max={90}
+                max={reminderMaxDays}
                 value={reminderDays}
                 onChange={(e) => setReminderDays(e.target.value)}
                 className="w-16 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm"
               />
               <span className="text-sm font-semibold text-slate-500">days</span>
+              <span className="text-[11px] text-slate-400">
+                {reminderUpgraded ? "(any cadence — you're on Neighborhood Explorer)" : "(max 30 days)"}
+              </span>
             </div>
 
             <div className="inline-flex overflow-hidden rounded-lg border border-brand-200 bg-white text-xs font-bold">
@@ -1157,7 +1200,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <button onClick={() => setOfferHistoryOpen((o) => !o)} className="flex items-center gap-2 text-left">
-              <span className="text-lg font-extrabold text-ink-900">Offer Email History</span>
+              <span className="text-lg font-extrabold text-ink-900">Sent Email Reminder/Offer History</span>
               <span className="text-[12px] font-semibold text-slate-400">({filteredOfferEmails.length})</span>
               <span className="text-[10px] text-slate-400">{offerHistoryOpen ? "▲" : "▼"}</span>
             </button>
@@ -1165,36 +1208,60 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
               <input
                 value={offerHistoryFilter}
                 onChange={(e) => setOfferHistoryFilter(e.target.value)}
-                placeholder="Filter history by customer"
+                placeholder="Filter by recipient"
                 className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm"
               />
             )}
           </div>
           {!offerHistoryOpen ? (
-            <p className="mt-1 text-[12px] text-slate-500">A record of targeted upgrade-offer emails. Click to expand.</p>
+            <p className="mt-1 text-[12px] text-slate-500">A record of reminder and special-offer emails you've sent. Click to expand.</p>
           ) : (
           <>
-          <div className="mt-3 flex justify-end"><PageSizeButtons value={offerHistoryPageSize} onChange={setOfferHistoryPageSize} /></div>
+          {historyScoped && (
+            <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
+              Showing history for the selected {scopeType === "partner" ? "partner" : "realtor"} only. Select <strong>All</strong> in View/Select above to see everything.
+            </p>
+          )}
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="inline-flex overflow-hidden rounded-lg border border-slate-200 text-xs font-bold">
+              {(["all", "reminder", "offer"] as const).map((k) => (
+                <button
+                  key={k}
+                  onClick={() => setHistoryKind(k)}
+                  className={`px-3 py-1.5 transition ${historyKind === k ? "bg-brand-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                >
+                  {k === "all" ? "All" : k === "reminder" ? "Reminder" : "Special Offer"}
+                </button>
+              ))}
+            </div>
+            <PageSizeButtons value={offerHistoryPageSize} onChange={setOfferHistoryPageSize} />
+          </div>
           <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200">
             <table className="min-w-full text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-3 py-2 font-semibold">Sent</th>
-                  <th className="px-3 py-2 font-semibold">Customer</th>
+                  <th className="px-3 py-2 font-semibold">{historySortButton("sentAt", "Sent")}</th>
+                  <th className="px-3 py-2 font-semibold">{historySortButton("kind", "Type")}</th>
+                  <th className="px-3 py-2 font-semibold">{historySortButton("customer", "Recipient")}</th>
                   {isOwner && <th className="px-3 py-2 font-semibold">Partner</th>}
                   <th className="px-3 py-2 font-semibold">Discount</th>
                   <th className="px-3 py-2 font-semibold">Requests</th>
                   <th className="px-3 py-2 font-semibold">Sent by</th>
-                  <th className="px-3 py-2 font-semibold">Offer text</th>
+                  <th className="px-3 py-2 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredOfferEmails.length === 0 ? (
-                  <tr><td colSpan={isOwner ? 7 : 6} className="px-3 py-6 text-center text-slate-400">No offer emails yet.</td></tr>
+                  <tr><td colSpan={isOwner ? 8 : 7} className="px-3 py-6 text-center text-slate-400">No emails yet.</td></tr>
                 ) : (
                   (offerHistoryPageSize === 0 ? filteredOfferEmails : filteredOfferEmails.slice(0, offerHistoryPageSize)).map((email) => (
                     <tr key={email.id}>
                       <td className="px-3 py-2.5 text-slate-600">{fmt(email.sentAt)}</td>
+                      <td className="px-3 py-2.5">
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${email.kind === "offer" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>
+                          {email.kind === "offer" ? "Special Offer" : "Reminder"}
+                        </span>
+                      </td>
                       <td className="px-3 py-2.5">
                         <div className="font-semibold text-ink-900">{email.customerName || email.customerEmail}</div>
                         <div className="text-[11px] text-slate-500">{email.customerEmail}</div>
@@ -1203,8 +1270,8 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
                       <td className="px-3 py-2.5 font-mono text-slate-700">{email.discountCode || "—"}</td>
                       <td className="px-3 py-2.5 text-slate-600">{email.requestCount}</td>
                       <td className="px-3 py-2.5 text-slate-600">{email.sentByEmail}</td>
-                      <td className="max-w-md px-3 py-2.5 text-slate-600">
-                        <div className="line-clamp-2">{email.offerText || "—"}</div>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                        <button onClick={() => setEmailPreview({ subject: `${email.kind === "offer" ? "Special Offer" : "Reminder"} · ${email.customerName || email.customerEmail}`, html: email.html })} className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">View</button>
                       </td>
                     </tr>
                   ))
@@ -1215,75 +1282,6 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
           </>
           )}
         </div>
-      )}
-
-      {isOwner && (
-      <>
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <button onClick={() => setArchiveOpen((o) => !o)} className="flex items-center gap-2 text-left">
-          <span className="text-lg font-extrabold text-ink-900">Sent Email Archive</span>
-          <span className="text-[12px] font-semibold text-slate-400">({sentEmails.length})</span>
-          <span className="text-[10px] text-slate-400">{archiveOpen ? "▲" : "▼"}</span>
-        </button>
-        {archiveOpen && (
-          <input
-            value={copyTo}
-            onChange={(e) => setCopyTo(e.target.value)}
-            placeholder="copy-to email"
-            className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm"
-          />
-        )}
-      </div>
-
-      {!archiveOpen ? (
-        <p className="mt-1 text-[12px] text-slate-500">View sent digests and send yourself a copy. Click to expand.</p>
-      ) : (
-      <>
-      <div className="mt-3 flex justify-end"><PageSizeButtons value={archivePageSize} onChange={setArchivePageSize} /></div>
-      <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="min-w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
-            <tr>
-              <th className="px-3 py-2 font-semibold">Sent</th>
-              <th className="px-3 py-2 font-semibold">Recipient</th>
-              <th className="px-3 py-2 font-semibold">Audience</th>
-              <th className="px-3 py-2 font-semibold">Subject</th>
-              <th className="px-3 py-2 text-right font-semibold">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {sentEmails.length === 0 ? (
-              <tr><td colSpan={5} className="px-3 py-6 text-center text-slate-400">No sent digest emails yet.</td></tr>
-            ) : (
-              (archivePageSize === 0 ? sentEmails : sentEmails.slice(0, archivePageSize)).map((email) => (
-                <tr key={email.id}>
-                  <td className="px-3 py-2.5 text-slate-600">{fmt(email.sentAt)}</td>
-                  <td className="px-3 py-2.5 text-slate-600">{email.recipient}</td>
-                  <td className="px-3 py-2.5 text-slate-600">{email.audience}</td>
-                  <td className="px-3 py-2.5 font-semibold text-ink-900">{email.subject}</td>
-                  <td className="whitespace-nowrap px-3 py-2.5 text-right">
-                    <button onClick={() => setPreview(email)} className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">View</button>
-                    <button onClick={() => sendCopy(email.id)} className="ml-2 rounded-md border border-brand-200 px-2.5 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50">Send copy</button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-      </>
-      )}
-
-      <div className="mt-8 rounded-xl border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-extrabold text-ink-900">Email templates</h2>
-        <p className="mt-0.5 text-[12px] text-slate-500">
-          Edit the wording of the digest emails, or add your own template.
-        </p>
-        <div className="mt-3">
-          <EmailTemplateManager />
-        </div>
-      </div>
-      </>
       )}
 
       {preview && (

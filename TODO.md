@@ -62,4 +62,8 @@ A living backlog. Check items off as they ship; add new ones at the bottom.
       "Not rated" — it reads as an error/alert when it's just missing data.
 
 ## Tech / ops
+- [ ] **Decide on editable email templates.** The Email Templates admin UI was
+      removed (we now use fixed, code-driven reminder/offer emails). The backend
+      (`EmailTemplateManager`, `app_upgrade_email_templates`, template APIs) is
+      still in the code. Review whether to reinstate the UI or delete the code.
 - [ ] Optional: Mapbox token for best-in-class address autocomplete (env-gated).
