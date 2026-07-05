@@ -248,6 +248,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
   const [scopeType, setScopeType] = useState<"all" | "partner" | "customer">("all");
   const [scopeId, setScopeId] = useState("");
   const [scopeSearch, setScopeSearch] = useState("");
+  const [scopeOpen, setScopeOpen] = useState(false);
   const [scopeOptions, setScopeOptions] = useState<ScopeOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -582,62 +583,91 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
           <h2 className="text-sm font-extrabold text-ink-900">View</h2>
           <p className="mt-1 text-[12px] text-slate-500">
             {isOwner
-              ? "Show all requests, or focus on a single partner or customer. Type to search, then choose."
-              : "Show all of your customers' requests, or focus on a single customer. Type to search, then choose."}
+              ? "Show all requests, or type to find and focus on a single partner or customer."
+              : "Show all of your customers' requests, or type to find and focus on a single customer."}
           </p>
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
-            <label className="flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-bold text-brand-700">
-              <input
-                type="radio"
-                name="scope-mode"
-                checked={scopeType === "all"}
-                onChange={() => {
+          <div className="relative mt-3 max-w-md">
+            <input
+              value={scopeSearch}
+              onChange={(e) => {
+                setScopeSearch(e.target.value);
+                setScopeOpen(true);
+                // Typing after a selection reverts to "all" until a new pick is made.
+                if (scopeType !== "all") {
                   setScopeType("all");
                   setScopeId("");
+                }
+              }}
+              onFocus={() => setScopeOpen(true)}
+              onBlur={() => setTimeout(() => setScopeOpen(false), 150)}
+              placeholder={isOwner ? "All partners & customers — type to search…" : "All customers — type to search…"}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 pr-8 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+            />
+            {(scopeType !== "all" || scopeSearch) && (
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setScopeType("all");
+                  setScopeId("");
+                  setScopeSearch("");
+                  setScopeOpen(false);
                 }}
-                className="h-4 w-4 accent-brand-600"
-              />
-              All {isOwner ? "partners & customers" : "customers"}
-            </label>
-            <div className="flex-1">
-              <input
-                value={scopeSearch}
-                onChange={(e) => setScopeSearch(e.target.value)}
-                placeholder={isOwner ? "Search partner or customer…" : "Search customer…"}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              />
-              <select
-                value={scopeType === "all" ? "" : `${scopeType}:${scopeId}`}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (!v) {
-                    setScopeType("all");
-                    setScopeId("");
-                  } else {
-                    const [t, id] = v.split(/:(.+)/);
-                    setScopeType(t as "partner" | "customer");
-                    setScopeId(id);
-                  }
-                }}
-                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                aria-label="Clear"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-1 text-slate-400 hover:text-slate-600"
               >
-                <option value="">All {isOwner ? "partners & customers" : "customers"}</option>
+                ×
+              </button>
+            )}
+            {scopeOpen && (
+              <ul className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 text-sm shadow-lg">
+                <li>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setScopeType("all");
+                      setScopeId("");
+                      setScopeSearch("");
+                      setScopeOpen(false);
+                    }}
+                    className={`block w-full px-3 py-2 text-left hover:bg-slate-50 ${scopeType === "all" ? "font-bold text-brand-700" : "text-slate-700"}`}
+                  >
+                    All {isOwner ? "partners & customers" : "customers"}
+                  </button>
+                </li>
                 {filteredScopeOptions.length === 0 ? (
-                  <option value="" disabled>No matches</option>
+                  <li className="px-3 py-2 text-slate-400">No matches</li>
                 ) : (
-                  filteredScopeOptions.map((o) => (
-                    <option key={`${o.type}:${o.id}`} value={`${o.type}:${o.id}`}>
-                      {o.type === "partner" ? "Partner — " : "Customer — "}{o.label} · {o.sub}
-                    </option>
-                  ))
+                  filteredScopeOptions.map((o) => {
+                    const selected = scopeType === o.type && scopeId === o.id;
+                    return (
+                      <li key={`${o.type}:${o.id}`}>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setScopeType(o.type);
+                            setScopeId(o.id);
+                            setScopeSearch(o.label);
+                            setScopeOpen(false);
+                          }}
+                          className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-slate-50 ${selected ? "bg-brand-50" : ""}`}
+                        >
+                          <span className={selected ? "font-bold text-brand-700" : "text-slate-800"}>{o.label}</span>
+                          <span className="shrink-0 text-[11px] text-slate-400">{o.type === "partner" ? "Partner" : o.sub}</span>
+                        </button>
+                      </li>
+                    );
+                  })
                 )}
-              </select>
-            </div>
+              </ul>
+            )}
           </div>
           {scopeType !== "all" && (
             <p className="mt-2 text-[12px] text-slate-500">
-              Showing <strong>{scopeType}</strong>: {scopeOptions.find((o) => o.type === scopeType && o.id === scopeId)?.label || scopeId}.{" "}
-              <button onClick={() => { setScopeType("all"); setScopeId(""); }} className="font-semibold text-brand-700 hover:text-brand-800">Clear</button>
+              Showing {scopeType === "partner" ? "partner" : "customer"}:{" "}
+              <strong>{scopeOptions.find((o) => o.type === scopeType && o.id === scopeId)?.label || scopeId}</strong>.
             </p>
           )}
         </div>
