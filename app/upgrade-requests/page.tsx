@@ -56,6 +56,7 @@ interface ScopeOption {
   id: string;
   label: string;
   sub: string;
+  email: string;
 }
 
 interface SeriesPoint {
@@ -72,6 +73,23 @@ function fmt(v: string | null): string {
   if (!v) return "—";
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
+}
+
+function PageSizeButtons({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <div className="flex items-center gap-1 text-[12px] text-slate-500">
+      <span className="font-semibold">Show:</span>
+      {[10, 20, 50, 100, 0].map((s) => (
+        <button
+          key={s}
+          onClick={() => onChange(s)}
+          className={`rounded-md px-2 py-1 text-xs font-bold transition ${value === s ? "bg-brand-600 text-white" : "border border-slate-300 text-slate-600 hover:bg-slate-50"}`}
+        >
+          {s === 0 ? "All" : s}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function InlineStat({ label, value }: { label: string; value: number }) {
@@ -244,8 +262,12 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
   const [discountCode, setDiscountCode] = useState("");
   const [offerText, setOfferText] = useState("Upgrade to Neighborhood Explorer and give your buyers the full neighborhood picture with 38+ hyperlocal insights.");
   const [offerHistoryFilter, setOfferHistoryFilter] = useState("");
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
+  const [offerHistoryOpen, setOfferHistoryOpen] = useState(false);
+  const [offerHistoryPageSize, setOfferHistoryPageSize] = useState(10);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archivePageSize, setArchivePageSize] = useState(10);
   const [scopeType, setScopeType] = useState<"all" | "partner" | "customer">("all");
   const [scopeId, setScopeId] = useState("");
   const [scopeSearch, setScopeSearch] = useState("");
@@ -332,7 +354,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
         for (const c of j.customers || []) {
           if (c.isOwner) continue;
           if (c.isPartner) {
-            if (isOwner) opts.push({ type: "partner", id: c.id, label: c.companyName || c.email, sub: "Partner" });
+            if (isOwner) opts.push({ type: "partner", id: c.id, label: c.companyName || c.email, sub: "Partner", email: c.email });
           } else {
             opts.push({
               type: "customer",
@@ -340,6 +362,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
               label: c.businessName || c.email,
               // Partner view: search & display by Realtor Name only (no sub text).
               sub: isOwner ? (c.partnerName ? `Customer · ${c.partnerName}` : "Customer") : "",
+              email: c.email,
             });
           }
         }
@@ -850,7 +873,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
                     </div>
                   )}
 
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
                     <button
                       onClick={previewRealtorEmail}
                       disabled={busy}
@@ -865,6 +888,11 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
                     >
                       {busy ? "Sending…" : partnerEmailKind === "offer" ? "Send special offer" : "Send reminder"}
                     </button>
+                    {target.email && (
+                      <span className="text-[12px] text-slate-500">
+                        Will be sent to: <strong className="text-slate-700">{target.email}</strong>
+                      </span>
+                    )}
                   </div>
                 </>
               )}
@@ -1089,7 +1117,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1 text-[12px] text-slate-500">
               <span className="font-semibold">Show:</span>
-              {[20, 50, 100, 0].map((size) => (
+              {[10, 20, 50, 100, 0].map((size) => (
                 <button
                   key={size}
                   onClick={() => setPageSize(size)}
@@ -1128,18 +1156,26 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
       {isManager && (
         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-extrabold text-ink-900">Offer Email History</h2>
-              <p className="text-[12px] text-slate-500">A record of targeted upgrade-offer emails sent to Standard Accounts.</p>
-            </div>
-            <input
-              value={offerHistoryFilter}
-              onChange={(e) => setOfferHistoryFilter(e.target.value)}
-              placeholder="Filter history by customer"
-              className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            />
+            <button onClick={() => setOfferHistoryOpen((o) => !o)} className="flex items-center gap-2 text-left">
+              <span className="text-lg font-extrabold text-ink-900">Offer Email History</span>
+              <span className="text-[12px] font-semibold text-slate-400">({filteredOfferEmails.length})</span>
+              <span className="text-[10px] text-slate-400">{offerHistoryOpen ? "▲" : "▼"}</span>
+            </button>
+            {offerHistoryOpen && (
+              <input
+                value={offerHistoryFilter}
+                onChange={(e) => setOfferHistoryFilter(e.target.value)}
+                placeholder="Filter history by customer"
+                className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            )}
           </div>
-          <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200">
+          {!offerHistoryOpen ? (
+            <p className="mt-1 text-[12px] text-slate-500">A record of targeted upgrade-offer emails. Click to expand.</p>
+          ) : (
+          <>
+          <div className="mt-3 flex justify-end"><PageSizeButtons value={offerHistoryPageSize} onChange={setOfferHistoryPageSize} /></div>
+          <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200">
             <table className="min-w-full text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
                 <tr>
@@ -1156,7 +1192,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
                 {filteredOfferEmails.length === 0 ? (
                   <tr><td colSpan={isOwner ? 7 : 6} className="px-3 py-6 text-center text-slate-400">No offer emails yet.</td></tr>
                 ) : (
-                  filteredOfferEmails.map((email) => (
+                  (offerHistoryPageSize === 0 ? filteredOfferEmails : filteredOfferEmails.slice(0, offerHistoryPageSize)).map((email) => (
                     <tr key={email.id}>
                       <td className="px-3 py-2.5 text-slate-600">{fmt(email.sentAt)}</td>
                       <td className="px-3 py-2.5">
@@ -1176,25 +1212,35 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
               </tbody>
             </table>
           </div>
+          </>
+          )}
         </div>
       )}
 
       {isOwner && (
       <>
-      <div className="mt-6 flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-extrabold text-ink-900">Sent Email Archive</h2>
-          <p className="text-[12px] text-slate-500">View sent digests and send yourself a copy.</p>
-        </div>
-        <input
-          value={copyTo}
-          onChange={(e) => setCopyTo(e.target.value)}
-          placeholder="copy-to email"
-          className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm"
-        />
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <button onClick={() => setArchiveOpen((o) => !o)} className="flex items-center gap-2 text-left">
+          <span className="text-lg font-extrabold text-ink-900">Sent Email Archive</span>
+          <span className="text-[12px] font-semibold text-slate-400">({sentEmails.length})</span>
+          <span className="text-[10px] text-slate-400">{archiveOpen ? "▲" : "▼"}</span>
+        </button>
+        {archiveOpen && (
+          <input
+            value={copyTo}
+            onChange={(e) => setCopyTo(e.target.value)}
+            placeholder="copy-to email"
+            className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+        )}
       </div>
 
-      <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      {!archiveOpen ? (
+        <p className="mt-1 text-[12px] text-slate-500">View sent digests and send yourself a copy. Click to expand.</p>
+      ) : (
+      <>
+      <div className="mt-3 flex justify-end"><PageSizeButtons value={archivePageSize} onChange={setArchivePageSize} /></div>
+      <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
             <tr>
@@ -1209,7 +1255,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
             {sentEmails.length === 0 ? (
               <tr><td colSpan={5} className="px-3 py-6 text-center text-slate-400">No sent digest emails yet.</td></tr>
             ) : (
-              sentEmails.map((email) => (
+              (archivePageSize === 0 ? sentEmails : sentEmails.slice(0, archivePageSize)).map((email) => (
                 <tr key={email.id}>
                   <td className="px-3 py-2.5 text-slate-600">{fmt(email.sentAt)}</td>
                   <td className="px-3 py-2.5 text-slate-600">{email.recipient}</td>
@@ -1225,6 +1271,8 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
           </tbody>
         </table>
       </div>
+      </>
+      )}
 
       <div className="mt-8 rounded-xl border border-slate-200 bg-white p-4">
         <h2 className="text-lg font-extrabold text-ink-900">Email templates</h2>
