@@ -50,6 +50,16 @@ interface TemplateOption {
 
 type SortKey = "date" | "customer" | "partner";
 
+interface SeriesPoint {
+  period: string;
+  count: number;
+}
+interface RequestSeries {
+  week: SeriesPoint[];
+  month: SeriesPoint[];
+  year: SeriesPoint[];
+}
+
 function fmt(v: string | null): string {
   if (!v) return "—";
   const d = new Date(v);
@@ -61,6 +71,87 @@ function SummaryStat({ label, value }: { label: string; value: number }) {
     <div className="rounded-xl border border-slate-200 bg-white p-3">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</div>
       <div className="mt-0.5 text-2xl font-extrabold text-ink-900">{value.toLocaleString()}</div>
+    </div>
+  );
+}
+
+function formatPeriod(iso: string, granularity: "week" | "month" | "year"): string {
+  const d = new Date(iso + (iso.length === 10 ? "T00:00:00" : ""));
+  if (Number.isNaN(d.getTime())) return iso;
+  if (granularity === "year") return String(d.getFullYear());
+  if (granularity === "month") return d.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function RequestsChart({
+  series,
+  granularity,
+  onGranularity,
+}: {
+  series: RequestSeries;
+  granularity: "week" | "month" | "year";
+  onGranularity: (g: "week" | "month" | "year") => void;
+}) {
+  const data = series[granularity] || [];
+  const max = data.reduce((m, p) => Math.max(m, p.count), 0);
+  const total = data.reduce((s, p) => s + p.count, 0);
+  // Keep the bar count readable — show the most recent buckets.
+  const maxBars = granularity === "week" ? 26 : granularity === "month" ? 24 : 12;
+  const shown = data.slice(-maxBars);
+
+  return (
+    <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-extrabold text-ink-900">Requests over time</h2>
+          <p className="text-[12px] text-slate-500">
+            {total.toLocaleString()} request{total === 1 ? "" : "s"} across {shown.length} {granularity}
+            {shown.length === 1 ? "" : granularity === "week" ? "s" : granularity === "month" ? "s" : "s"}.
+          </p>
+        </div>
+        <div className="flex items-center gap-1">
+          {(["week", "month", "year"] as const).map((g) => (
+            <button
+              key={g}
+              onClick={() => onGranularity(g)}
+              className={`rounded-md px-3 py-1.5 text-xs font-bold capitalize transition ${
+                granularity === g ? "bg-brand-600 text-white" : "border border-slate-300 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {g === "week" ? "Weekly" : g === "month" ? "Monthly" : "Annual"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {shown.length === 0 ? (
+        <p className="mt-6 text-center text-sm text-slate-400">No request data to chart yet.</p>
+      ) : (
+        <div className="mt-4 flex h-48 items-end gap-1 overflow-x-auto border-b border-slate-100 pb-1">
+          {shown.map((p) => {
+            const pct = max > 0 ? Math.round((p.count / max) * 100) : 0;
+            return (
+              <div key={p.period} className="group flex min-w-[14px] flex-1 flex-col items-center justify-end" title={`${formatPeriod(p.period, granularity)}: ${p.count}`}>
+                <div className="mb-1 text-[9px] font-semibold text-slate-500 opacity-0 group-hover:opacity-100">{p.count}</div>
+                <div
+                  className="w-full rounded-t bg-brand-500 transition-all group-hover:bg-brand-600"
+                  style={{ height: `${Math.max(pct, p.count > 0 ? 4 : 0)}%` }}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {shown.length > 0 && (
+        <div className="mt-1 flex gap-1 overflow-x-auto text-[9px] text-slate-400">
+          {shown.map((p) => (
+            <div key={p.period} className="min-w-[14px] flex-1 text-center">
+              {formatPeriod(p.period, granularity)}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -88,6 +179,9 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
   const [sentEmails, setSentEmails] = useState<SentDigestEmail[]>([]);
   const [offerEmails, setOfferEmails] = useState<UpgradeOfferEmail[]>([]);
   const [summary, setSummary] = useState<{ total: number; pending: number; sent: number } | null>(null);
+  const [series, setSeries] = useState<RequestSeries | null>(null);
+  const [showChart, setShowChart] = useState(false);
+  const [granularity, setGranularity] = useState<"week" | "month" | "year">("month");
   const [truncated, setTruncated] = useState(false);
   const [limit, setLimit] = useState(200);
   const [includeSent, setIncludeSent] = useState(true);
@@ -128,6 +222,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
       }
       setRequests(j.requests || []);
       setSummary(j.summary || null);
+      setSeries(j.series || null);
       setTruncated(Boolean(j.truncated));
       setLimit(j.limit || 200);
       if (isOwner) {
@@ -631,11 +726,27 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
       {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
 
       {summary && (
-        <div className={`mt-4 grid gap-3 ${isManager ? "grid-cols-3" : "grid-cols-1 sm:max-w-xs"}`}>
-          <SummaryStat label="Total requests" value={summary.total} />
-          {isManager && <SummaryStat label="Pending (not yet emailed)" value={summary.pending} />}
-          {isManager && <SummaryStat label="Previously sent" value={summary.sent} />}
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-stretch">
+          <div className={`grid flex-1 gap-3 ${isManager ? "sm:grid-cols-3" : "grid-cols-1 sm:max-w-xs"}`}>
+            <SummaryStat label="Total requests" value={summary.total} />
+            {isManager && <SummaryStat label="Pending (not yet emailed)" value={summary.pending} />}
+            {isManager && <SummaryStat label="Previously sent" value={summary.sent} />}
+          </div>
+          <button
+            onClick={() => setShowChart((s) => !s)}
+            aria-pressed={showChart}
+            className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold shadow-sm transition ${
+              showChart ? "border-brand-600 bg-brand-600 text-white hover:bg-brand-700" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></svg>
+            {showChart ? "Hide graph" : "Show graph"}
+          </button>
         </div>
+      )}
+
+      {showChart && series && (
+        <RequestsChart series={series} granularity={granularity} onGranularity={setGranularity} />
       )}
 
       {truncated && (
@@ -665,7 +776,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
               </th>
               <th className="px-3 py-2 font-semibold">{isManager ? sortButton("customer", "Realtor Name") : "Realtor Name"}</th>
               {isManager && <th className="px-3 py-2 font-semibold">{sortButton("partner", "Partner")}</th>}
-              <th className="px-3 py-2 font-semibold">Address</th>
+              <th className="px-3 py-2 font-semibold">Listing Address</th>
               <th className="px-3 py-2 font-semibold">Source</th>
               <th className="px-3 py-2 font-semibold" title={isManager ? "When this request was included in an admin digest email." : "When this request was included in a reminder email to you."}>
                 {isManager ? "Sent in digest" : "Emailed to you"}

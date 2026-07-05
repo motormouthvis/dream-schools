@@ -13,7 +13,7 @@ const VALUE_PROPS: [string, React.ReactNode][] = [
 
 const BENEFITS: [string, string, string][] = [
   ["🔑", "Data no one else has", "Displays critical school data that no one else has."],
-  ["💸", "No expensive data fees", "Avoid paying pricey monthly school-data tools — ours is full features and free forever."],
+  ["💸", "No expensive data fees", "Avoid paying pricey monthly school-data tools — ours is fully featured and free forever."],
   ["⏱", "Engagement & SEO", "Rich school data on every listing keeps visitors on your site (not Zillow) and boosts local SEO."],
   ["🎓", "Ratings, tests & safety", "Dream Rating, test scores, college readiness & safety, nationwide."],
   ["💬", "Popup", "Zero website redesign — auto-detects the address of the listing or neighborhood page."],

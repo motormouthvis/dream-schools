@@ -503,6 +503,44 @@ export async function getUpgradeRequestSummary(
   return { total: rows[0].total, pending: rows[0].pending, sent: rows[0].sent };
 }
 
+export interface UpgradeRequestSeriesPoint {
+  period: string;
+  count: number;
+}
+
+export interface UpgradeRequestSeries {
+  week: UpgradeRequestSeriesPoint[];
+  month: UpgradeRequestSeriesPoint[];
+  year: UpgradeRequestSeriesPoint[];
+}
+
+// Request counts bucketed by week/month/year for charting, scoped to the viewer.
+export async function getUpgradeRequestSeries(
+  viewer?: { id: string; isOwner: boolean; isPartner: boolean } | null
+): Promise<UpgradeRequestSeries> {
+  const empty: UpgradeRequestSeries = { week: [], month: [], year: [] };
+  if (!hasDatabase()) return empty;
+  await ensureTables();
+  const params: unknown[] = [];
+  let scope = "";
+  if (viewer && !viewer.isOwner) {
+    params.push(viewer.id);
+    scope = viewer.isPartner ? ` WHERE r.partner_id = $1` : ` WHERE r.customer_id = $1`;
+  }
+  async function bucket(unit: "week" | "month" | "year"): Promise<UpgradeRequestSeriesPoint[]> {
+    const { rows } = await getPool().query(
+      `SELECT to_char(date_trunc('${unit}', r.requested_at), 'YYYY-MM-DD') AS period, COUNT(*)::int AS count
+         FROM app_upgrade_requests r${scope}
+        GROUP BY 1
+        ORDER BY 1`,
+      params
+    );
+    return rows.map((r: any) => ({ period: r.period, count: Number(r.count) }));
+  }
+  const [week, month, year] = await Promise.all([bucket("week"), bucket("month"), bucket("year")]);
+  return { week, month, year };
+}
+
 function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {
   const out = new Map<string, T[]>();
   for (const item of items) {
