@@ -137,7 +137,6 @@ export default function EditPage() {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                     <h3 className="text-sm font-extrabold text-brand-700">Popup</h3>
-                    <DetectionLine label="Popup" detected={detection?.popupDetected} lastSeen={detection?.popupLastSeen} />
                     <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
                       A small button floats in the corner of every page and{" "}
                       <strong>auto-detects the listing address</strong>. Zero website redesign — just one
@@ -149,7 +148,6 @@ export default function EditPage() {
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                     <h3 className="text-sm font-extrabold text-ink-900">Embed</h3>
-                    <DetectionLine label="Embed" detected={detection?.embedDetected} lastSeen={detection?.embedLastSeen} />
                     <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
                       The explorer renders <strong>inline, exactly where you place it</strong> on a page —
                       full control of placement and size.
@@ -216,6 +214,7 @@ export default function EditPage() {
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 <TechColumn title="Popup" subtitle="A floating school button for every listing page.">
                   <OptionBlock title="Popup options">
+                    <DetectionLine label="Popup" detected={detection?.popupDetected} lastSeen={detection?.popupLastSeen} domain={form.authorizedDomain} />
                     <Field label="Location" hint="Where the floating button sits on the page.">
                       <select className={inp} value={form.position} onChange={(e) => set("position", e.target.value as "left" | "right")}>
                         <option value="right">Bottom right</option>
@@ -241,6 +240,7 @@ export default function EditPage() {
 
                 <TechColumn title="Embed" subtitle="An inline explorer placed exactly where you want it.">
                   <OptionBlock title="Embed options">
+                    <DetectionLine label="Embed" detected={detection?.embedDetected} lastSeen={detection?.embedLastSeen} domain={form.authorizedDomain} />
                     <p className="text-[12px] leading-relaxed text-slate-500">
                       A <code className="rounded bg-white px-1">&lt;div&gt;</code> marks where the explorer
                       renders inline. Put it in the exact page section you want.
@@ -268,18 +268,21 @@ const POPUP_SNIPPET = `<script src="https://www.dreamneighborhoodschools.com/emb
 const INLINE_SNIPPET = `<div id="dream-schools-explorer"></div>
 <script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
 
-function DetectionLine({ label, detected, lastSeen }: { label: string; detected?: boolean; lastSeen?: string | null }) {
+function DetectionLine({ label, detected, lastSeen, domain }: { label: string; detected?: boolean; lastSeen?: string | null; domain?: string }) {
   const seen = lastSeen ? new Date(lastSeen) : null;
   const seenStr = seen && !Number.isNaN(seen.getTime()) ? seen.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+  const where = domain?.trim() ? ` on ${domain.trim()}` : "";
   return (
     <div
-      className={`mt-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-        detected ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200" : "bg-slate-100 text-slate-500"
+      className={`mb-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+        detected
+          ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200"
+          : "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200"
       }`}
       title={detected && seenStr ? `Last detected ${seenStr}` : `${label} snippet not detected yet`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${detected ? "bg-emerald-500" : "bg-slate-400"}`} />
-      {detected ? `${label} detected${seenStr ? ` · ${seenStr}` : ""}` : `${label} not detected yet`}
+      <span className={`h-1.5 w-1.5 rounded-full ${detected ? "bg-emerald-500" : "bg-amber-500"}`} />
+      {detected ? `${label} detected${where}${seenStr ? ` · ${seenStr}` : ""}` : `${label} not detected${where}`}
     </div>
   );
 }

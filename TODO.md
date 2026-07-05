@@ -2,6 +2,16 @@
 
 A living backlog. Check items off as they ship; add new ones at the bottom.
 
+## Priority
+- [ ] **Server-side pagination for the Upgrade Requests list.** Today the list is
+      loaded into the browser with a `LIMIT` (currently 2,000) and sorted/filtered
+      client-side; totals/graph come from server-side aggregates. This won't scale
+      as request volume grows. Move to true server-side paging: API accepts
+      `page`, `pageSize`, `sort`, `dir` (plus existing scope/filter) and returns
+      `{ rows, total }`; the client fetches only the current page. Add DB indexes
+      on `app_upgrade_requests(requested_at, customer_id)` and provide a separate
+      export for "download everything." Do this before onboarding high-volume partners.
+
 ## Data
 - [ ] **Find data for private schools to create a more confident rating.** Private
       schools (NCES PSS) have no federal test scores, graduation, or safety data,
