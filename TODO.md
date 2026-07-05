@@ -45,6 +45,10 @@ A living backlog. Check items off as they ship; add new ones at the bottom.
       popup).
 
 ## Emails
+- [ ] **Auto-apply Stripe offer code from the email:** in the Special Offer email,
+      make the Upgrade button carry the offer code so clicking it pre-fills /
+      auto-applies the code at `app.dreamneighborhood.com/accounts/signup/`
+      (e.g. `?offer=CODE` / Stripe promotion code), so the realtor doesn't type it.
 - [ ] **Install reminder in reminder emails:** if a Realtor hasn't installed the
       embed/popup on their site yet (no detected usage / no authorized domain),
       include a friendly "finish setup — add it to your website" section with

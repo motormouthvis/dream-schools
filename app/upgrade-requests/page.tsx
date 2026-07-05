@@ -251,6 +251,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
   const [scopeOpen, setScopeOpen] = useState(false);
   const [scopeOptions, setScopeOptions] = useState<ScopeOption[]>([]);
   const [adminScopeKind, setAdminScopeKind] = useState<"realtors" | "partners">("realtors");
+  const [partnerEmailKind, setPartnerEmailKind] = useState<"reminder" | "offer">("reminder");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -539,6 +540,39 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
     );
   }
 
+  async function sendRealtorEmail() {
+    if (scopeType !== "customer" || !scopeId) {
+      setError("Select a realtor first.");
+      return;
+    }
+    if (partnerEmailKind === "offer" && (!offerText.trim() || !discountCode.trim())) {
+      setError("Offer text and Stripe offer code are required for a Special Offer.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/owner/realtor-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ realtorId: scopeId, kind: partnerEmailKind, offerText, discountCode }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(j.error || "Could not send the email.");
+        return;
+      }
+      setMessage(`${partnerEmailKind === "offer" ? "Special offer" : "Reminder"} sent to ${j.recipient}.`);
+      if (partnerEmailKind === "offer") setDiscountCode("");
+      await load();
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function sendOffer() {
     const customerId = selectedCustomer?.id || "";
     if (!customerId) {
@@ -764,7 +798,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
         </div>
       )}
 
-      {isManager ? (
+      {isOwner ? (
         <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
           <div className="grid gap-4 xl:grid-cols-[minmax(240px,320px)_1fr]">
             <div>
@@ -839,6 +873,78 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
             </div>
           </div>
         </div>
+      ) : isPartner ? (
+        (() => {
+          const selectedRealtor = scopeType === "customer" && scopeId ? scopeOptions.find((o) => o.type === "customer" && o.id === scopeId) : null;
+          const offerValid = partnerEmailKind === "reminder" || (offerText.trim() && discountCode.trim());
+          return (
+            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+              <h2 className="text-sm font-extrabold text-ink-900">Send Email To Selected Realtor</h2>
+              {!selectedRealtor ? (
+                <p className="mt-1 text-[12px] text-slate-500">
+                  Select a realtor in <strong>View/Select Realtors</strong> above to send them an email.
+                </p>
+              ) : (
+                <>
+                  <p className="mt-1 text-[12px] text-slate-500">
+                    Sending to <strong>{selectedRealtor.label}</strong>. They receive the same beautiful upgrade email they can send themselves.
+                  </p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <label className="flex items-start gap-2 rounded-xl border border-brand-100 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm">
+                      <input type="radio" name="partner-email-kind" checked={partnerEmailKind === "reminder"} onChange={() => setPartnerEmailKind("reminder")} className="mt-0.5 h-4 w-4 accent-brand-600" />
+                      <span>
+                        <span className="block font-bold text-ink-900">Reminder</span>
+                        <span className="block text-[11px] text-slate-500">The standard upgrade reminder email.</span>
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2 rounded-xl border border-brand-100 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm">
+                      <input type="radio" name="partner-email-kind" checked={partnerEmailKind === "offer"} onChange={() => setPartnerEmailKind("offer")} className="mt-0.5 h-4 w-4 accent-brand-600" />
+                      <span>
+                        <span className="block font-bold text-ink-900">Special Offer</span>
+                        <span className="block text-[11px] text-slate-500">Same email plus your offer + Stripe code.</span>
+                      </span>
+                    </label>
+                  </div>
+
+                  {partnerEmailKind === "offer" && (
+                    <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_220px]">
+                      <label className="block">
+                        <span className="block text-xs font-bold text-slate-600">Offer text <span className="text-rose-500">*</span></span>
+                        <textarea
+                          value={offerText}
+                          onChange={(e) => setOfferText(e.target.value)}
+                          rows={3}
+                          placeholder="e.g. Upgrade this month and get your first 3 months at 50% off."
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="block text-xs font-bold text-slate-600">Stripe offer code <span className="text-rose-500">*</span></span>
+                        <input
+                          value={discountCode}
+                          onChange={(e) => setDiscountCode(e.target.value)}
+                          placeholder="SAVE50"
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                        />
+                        <p className="mt-1 text-[11px] text-slate-400">Both fields are required for a Special Offer.</p>
+                      </label>
+                    </div>
+                  )}
+
+                  <div className="mt-3">
+                    <button
+                      onClick={sendRealtorEmail}
+                      disabled={busy || !offerValid}
+                      className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60"
+                    >
+                      {busy ? "Sending…" : partnerEmailKind === "offer" ? "Send special offer" : "Send reminder"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()
       ) : (
         <div className="mt-4 rounded-2xl border border-brand-100 bg-gradient-to-br from-white via-lime-50/60 to-emerald-50 p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">

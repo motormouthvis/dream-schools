@@ -1056,6 +1056,12 @@ export async function setReminderInterval(userId: string, days: number): Promise
   return clean;
 }
 
+interface SpecialOffer {
+  partnerName: string;
+  offerText: string;
+  discountCode: string;
+}
+
 function reminderHtml(opts: {
   template: UpgradeEmailTemplate;
   businessName: string;
@@ -1063,8 +1069,9 @@ function reminderHtml(opts: {
   includedRequests: UpgradeRequestRow[];
   totalViews: number;
   totalRequests: number;
+  specialOffer?: SpecialOffer;
 }): string {
-  const { template, businessName, newRequests, includedRequests, totalViews, totalRequests } = opts;
+  const { template, businessName, newRequests, includedRequests, totalViews, totalRequests, specialOffer } = opts;
   const previewRequests = includedRequests.slice(0, REMINDER_REQUEST_PREVIEW_LIMIT);
   const hiddenRequestCount = Math.max(0, includedRequests.length - previewRequests.length);
   const vars = {
@@ -1092,6 +1099,18 @@ function reminderHtml(opts: {
        </div>
 
        <div style="padding:20px 22px 6px">
+         ${
+           specialOffer
+             ? `<div style="background:linear-gradient(135deg,#fff7ed 0%,#ffedd5 100%);border:1px solid #fdba74;border-radius:18px;padding:16px;margin:0 0 16px">
+                  <div style="font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#9a3412;margin:0 0 6px">Special Offer From ${htmlEscape(specialOffer.partnerName)}</div>
+                  <p style="font-size:14px;line-height:1.6;color:#7c2d12;margin:0 0 12px">${htmlEscape(specialOffer.offerText)}</p>
+                  <div style="display:inline-block;background:#ffffff;border:1px dashed #fb923c;border-radius:12px;padding:8px 14px">
+                    <span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#9a3412">Offer code</span>
+                    <span style="font-size:18px;font-weight:900;color:#0f172a;margin-left:8px;letter-spacing:.04em">${htmlEscape(specialOffer.discountCode)}</span>
+                  </div>
+                </div>`
+             : ""
+         }
          <p style="color:#0f172a;font-size:14px;line-height:1.6;margin:0 0 12px">
            <strong>Dream Neighborhood&trade; has two product offerings:</strong>
          </p>
@@ -1286,6 +1305,118 @@ export async function sendCustomerReminder(
   await archiveEmail({ recipient: user.email, subject, variant: "customer_reminder", audience: "reminder", requestIds: allRows.map((r) => r.id), html, text });
   await pool.query(`UPDATE app_users SET reminder_last_sent_at = NOW() WHERE id = $1`, [userId]);
   return { sent: true, newCount: newRows.length, includedCount: allRows.length };
+}
+
+// Partner/admin-initiated email to one of their realtors. Reuses the exact
+// realtor reminder email; for "offer" it prepends a "Special Offer From
+// {partner}" block. Does NOT reset the realtor's own reminder schedule.
+export async function sendPartnerRealtorEmail(input: {
+  viewer: UpgradeManagerViewer;
+  realtorId: string;
+  kind: "reminder" | "offer";
+  offerText?: string;
+  discountCode?: string;
+}): Promise<{ sent: boolean; recipient: string; requestCount: number }> {
+  if (!hasDatabase()) return { sent: false, recipient: "", requestCount: 0 };
+  assertCanManageUpgradeOffers(input.viewer);
+  if (input.kind === "offer") {
+    if (!input.offerText?.trim() || !input.discountCode?.trim()) {
+      throw new Error("Offer text and offer code are required for a Special Offer.");
+    }
+  }
+  await ensureAuthTables();
+  await ensureTables();
+  const pool = getPool();
+
+  // Authorize: a partner may only email a realtor currently assigned to them.
+  const uParams: unknown[] = [input.realtorId];
+  let uScope = "";
+  if (!input.viewer.isOwner) {
+    uParams.push(input.viewer.id);
+    uScope = ` AND partner_id = $2`;
+  }
+  const user = (
+    await pool.query(
+      `SELECT id, email, business_name, company_name, reminder_last_sent_at
+         FROM app_users WHERE id = $1 AND deleted_at IS NULL${uScope}`,
+      uParams
+    )
+  ).rows[0];
+  if (!user?.email) throw new Error("Realtor not found in your account.");
+
+  const since = user.reminder_last_sent_at || new Date(0).toISOString();
+  const newRows = (
+    await pool.query(
+      `SELECT r.*, cu.email AS customer_email, cu.business_name
+         FROM app_upgrade_requests r LEFT JOIN app_users cu ON cu.id = r.customer_id
+        WHERE r.customer_id = $1 AND r.requested_at > $2 ORDER BY r.requested_at ASC`,
+      [input.realtorId, since]
+    )
+  ).rows.map(row);
+  const allRows = (
+    await pool.query(
+      `SELECT r.*, cu.email AS customer_email, cu.business_name
+         FROM app_upgrade_requests r LEFT JOIN app_users cu ON cu.id = r.customer_id
+        WHERE r.customer_id = $1 ORDER BY r.requested_at ASC`,
+      [input.realtorId]
+    )
+  ).rows.map(row);
+  const totalViews = Number(
+    (await pool.query(`SELECT COALESCE(SUM(views),0)::bigint AS n FROM embed_usage WHERE partner_id = $1`, [input.realtorId])).rows[0].n
+  ) || 0;
+  const totalRequests = Number(
+    (await pool.query(`SELECT COUNT(*)::int AS n FROM app_upgrade_requests WHERE customer_id = $1`, [input.realtorId])).rows[0].n
+  );
+
+  // Partner display name for the special-offer header.
+  let partnerName = "Dream Neighborhood";
+  if (!input.viewer.isOwner) {
+    const p = (await pool.query(`SELECT company_name, email FROM app_users WHERE id = $1`, [input.viewer.id])).rows[0];
+    partnerName = (p?.company_name || "").trim() || p?.email || input.viewer.email;
+  }
+
+  const template = await getUpgradeEmailTemplate("customer_reminder");
+  const businessName = user.business_name || user.company_name || "";
+  const specialOffer =
+    input.kind === "offer"
+      ? { partnerName, offerText: input.offerText!.trim(), discountCode: input.discountCode!.trim() }
+      : undefined;
+  const html = reminderHtml({ template, businessName, newRequests: newRows, includedRequests: allRows, totalViews, totalRequests, specialOffer });
+  const subject =
+    input.kind === "offer"
+      ? `Special offer from ${partnerName}: Upgrade to Neighborhood Explorer`
+      : fillTemplate(template.subject, { request_count: String(newRows.length) });
+  const text = [
+    subject,
+    specialOffer ? `\nSpecial Offer From ${partnerName}\n${specialOffer.offerText}\nOffer code: ${specialOffer.discountCode}\n` : "",
+    `School Explorer usage — ${totalViews} views, ${totalRequests} total upgrade requests.`,
+    `Get the full neighborhood picture: ${SIGNUP_URL}`,
+  ].filter(Boolean).join("\n");
+
+  await sendTransactionalEmail({ to: user.email, subject, text, html });
+  if (input.kind === "offer") {
+    await pool.query(
+      `INSERT INTO app_upgrade_offer_emails
+         (customer_id, partner_id, sent_by, recipient, customer_name, offer_text, discount_code, request_ids, request_count, html, text)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [
+        input.realtorId,
+        input.viewer.isOwner ? null : input.viewer.id,
+        input.viewer.email,
+        user.email,
+        businessName || user.email,
+        specialOffer!.offerText,
+        specialOffer!.discountCode,
+        allRows.map((r) => r.id),
+        allRows.length,
+        html,
+        text,
+      ]
+    );
+  } else {
+    await archiveEmail({ recipient: user.email, subject, variant: "customer_reminder", audience: "partner_reminder", requestIds: allRows.map((r) => r.id), html, text });
+  }
+  return { sent: true, recipient: user.email, requestCount: allRows.length };
 }
 
 export async function runDueCustomerReminders(now = new Date()): Promise<{ processed: number }> {
