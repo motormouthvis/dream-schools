@@ -581,7 +581,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
 
       {isManager && (
         <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-extrabold text-ink-900">View</h2>
+          <h2 className="text-sm font-extrabold text-ink-900">{isOwner ? "View" : "View/Select Customers"}</h2>
           <p className="mt-1 text-[12px] text-slate-500">
             {isOwner
               ? "Show all requests, or type to find and focus on a single partner or customer."
@@ -600,8 +600,9 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
                 }
               }}
               onFocus={() => setScopeOpen(true)}
+              onClick={() => setScopeOpen(true)}
               onBlur={() => setTimeout(() => setScopeOpen(false), 150)}
-              placeholder={isOwner ? "All partners & customers — type to search…" : "All customers — type to search…"}
+              placeholder={isOwner ? "All partners & customers — type to search…" : "Type to search for customers"}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 pr-8 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
             />
             {(scopeType !== "all" || scopeSearch) && (
@@ -612,7 +613,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
                   setScopeType("all");
                   setScopeId("");
                   setScopeSearch("");
-                  setScopeOpen(false);
+                  setScopeOpen(true);
                 }}
                 aria-label="Clear"
                 className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-1 text-slate-400 hover:text-slate-600"
