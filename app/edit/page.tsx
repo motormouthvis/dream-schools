@@ -40,7 +40,7 @@ export default function EditPage() {
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [detection, setDetection] = useState<{ popupDetected?: boolean; embedDetected?: boolean; popupLastSeen?: string | null; embedLastSeen?: string | null } | null>(null);
+  const [detection, setDetection] = useState<{ popupDetected?: boolean; embedDetected?: boolean; popupLastSeen?: string | null; embedLastSeen?: string | null; detected?: boolean; lastSeen?: string | null } | null>(null);
 
   useEffect(() => {
     fetch("/api/app/summary")
@@ -214,7 +214,15 @@ export default function EditPage() {
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 <TechColumn title="Popup" subtitle="A floating school button for every listing page.">
                   <OptionBlock title="Popup options">
-                    <DetectionLine label="Popup" detected={detection?.popupDetected} lastSeen={detection?.popupLastSeen} domain={form.authorizedDomain} />
+                    <DetectionLine
+                      label="Popup"
+                      detected={detection?.popupDetected}
+                      lastSeen={detection?.popupLastSeen}
+                      domain={form.authorizedDomain}
+                      anySurface={Boolean(detection?.popupDetected || detection?.embedDetected)}
+                      overallDetected={detection?.detected}
+                      overallLastSeen={detection?.lastSeen}
+                    />
                     <Field label="Location" hint="Where the floating button sits on the page.">
                       <select className={inp} value={form.position} onChange={(e) => set("position", e.target.value as "left" | "right")}>
                         <option value="right">Bottom right</option>
@@ -240,7 +248,15 @@ export default function EditPage() {
 
                 <TechColumn title="Embed" subtitle="An inline explorer placed exactly where you want it.">
                   <OptionBlock title="Embed options">
-                    <DetectionLine label="Embed" detected={detection?.embedDetected} lastSeen={detection?.embedLastSeen} domain={form.authorizedDomain} />
+                    <DetectionLine
+                      label="Embed"
+                      detected={detection?.embedDetected}
+                      lastSeen={detection?.embedLastSeen}
+                      domain={form.authorizedDomain}
+                      anySurface={Boolean(detection?.popupDetected || detection?.embedDetected)}
+                      overallDetected={detection?.detected}
+                      overallLastSeen={detection?.lastSeen}
+                    />
                     <p className="text-[12px] leading-relaxed text-slate-500">
                       A <code className="rounded bg-white px-1">&lt;div&gt;</code> marks where the explorer
                       renders inline. Put it in the exact page section you want.
@@ -268,21 +284,59 @@ const POPUP_SNIPPET = `<script src="https://www.dreamneighborhoodschools.com/emb
 const INLINE_SNIPPET = `<div id="dream-schools-explorer"></div>
 <script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
 
-function DetectionLine({ label, detected, lastSeen, domain }: { label: string; detected?: boolean; lastSeen?: string | null; domain?: string }) {
-  const seen = lastSeen ? new Date(lastSeen) : null;
-  const seenStr = seen && !Number.isNaN(seen.getTime()) ? seen.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+function fmtSeen(v?: string | null): string {
+  const d = v ? new Date(v) : null;
+  return d && !Number.isNaN(d.getTime()) ? d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+}
+
+function DetectionLine({
+  label,
+  detected,
+  lastSeen,
+  domain,
+  anySurface,
+  overallDetected,
+  overallLastSeen,
+}: {
+  label: string;
+  detected?: boolean;
+  lastSeen?: string | null;
+  domain?: string;
+  anySurface?: boolean;
+  overallDetected?: boolean;
+  overallLastSeen?: string | null;
+}) {
   const where = domain?.trim() ? ` on ${domain.trim()}` : "";
+
+  // Prefer the per-surface signal. If we have no per-surface data yet (feature
+  // is new / the site is still serving a cached embed.js) but the Explorer is
+  // detected overall, show that instead of a misleading "not detected".
+  let green: boolean;
+  let text: string;
+  if (detected) {
+    green = true;
+    const s = fmtSeen(lastSeen);
+    text = `${label} detected${where}${s ? ` · ${s}` : ""}`;
+  } else if (anySurface) {
+    green = false;
+    text = `${label} not detected${where}`;
+  } else if (overallDetected) {
+    green = true;
+    const s = fmtSeen(overallLastSeen);
+    text = `Explorer detected${where}${s ? ` · ${s}` : ""} — confirming ${label.toLowerCase()} on next visit`;
+  } else {
+    green = false;
+    text = `${label} not detected${where}`;
+  }
+
   return (
     <div
       className={`mb-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-        detected
-          ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200"
-          : "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200"
+        green ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200" : "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200"
       }`}
-      title={detected && seenStr ? `Last detected ${seenStr}` : `${label} snippet not detected yet`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${detected ? "bg-emerald-500" : "bg-amber-500"}`} />
-      {detected ? `${label} detected${where}${seenStr ? ` · ${seenStr}` : ""}` : `${label} not detected${where}`}
+      <span className={`h-1.5 w-1.5 rounded-full ${green ? "bg-emerald-500" : "bg-amber-500"}`} />
+      {text}
     </div>
   );
 }
