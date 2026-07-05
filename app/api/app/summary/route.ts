@@ -87,6 +87,10 @@ export async function GET(request: Request) {
     detected: Boolean(usage.firstSeen || usage.lastSeen),
     firstSeen: usage.firstSeen,
     lastSeen: usage.lastSeen,
+    popupDetected: Boolean(usage.popupLastSeen),
+    embedDetected: Boolean(usage.embedLastSeen),
+    popupLastSeen: usage.popupLastSeen,
+    embedLastSeen: usage.embedLastSeen,
     metrics: {
       views: usage.views,
       requests: requests.rows[0].n,

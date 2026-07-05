@@ -24,6 +24,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const host = (searchParams.get("host") || "").trim();
   const widgetRaw = (searchParams.get("widget_number") || "1").trim();
+  const surfaceRaw = (searchParams.get("surface") || "").trim();
+  const surface = surfaceRaw === "popup" || surfaceRaw === "embed" ? surfaceRaw : undefined;
 
   if (!host) {
     return withCors(request, { error: "host query parameter is required" }, { status: 400 });
@@ -42,7 +44,7 @@ export async function GET(request: Request) {
 
   // Count this resolution as one view / "code detected" signal for the customer.
   // Fire-and-forget so the widget response stays fast.
-  recordUsageAsync(config.partnerId, config.widgetNumber);
+  recordUsageAsync(config.partnerId, config.widgetNumber, surface);
 
   let providerName = "";
   let businessName = "";

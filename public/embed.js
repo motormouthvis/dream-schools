@@ -138,8 +138,9 @@
     };
   }
 
-  function fetchConfig(apiBase, host, widgetNumber) {
+  function fetchConfig(apiBase, host, widgetNumber, surface) {
     var url = apiBase + "/api/embed/config?host=" + encodeURIComponent(host) + "&widget_number=" + encodeURIComponent(widgetNumber);
+    if (surface) url += "&surface=" + encodeURIComponent(surface);
     return fetch(url, { method: "GET", mode: "cors", credentials: "omit" })
       .then(function (r) { return r.ok ? r.json() : null; })
       .catch(function () { return null; });
@@ -148,7 +149,10 @@
   function resolveConfig(anchorEl, apiBase) {
     var identity = readIdentity(anchorEl, apiBase);
     var widgetNumber = identity.widgetNumber;
-    return fetchConfig(apiBase, location.hostname, widgetNumber).then(function (remote) {
+    // Report which snippet is present so the admin can see popup vs embed
+    // detection separately. Inline (embed) takes priority when both exist.
+    var surface = inlinePresent() ? "embed" : "popup";
+    return fetchConfig(apiBase, location.hostname, widgetNumber, surface).then(function (remote) {
       if (remote && remote.enabled === false) return { disabledReason: remote.reason || "disabled" };
       var partnerId = identity.partnerId || (remote && remote.partnerId) || "";
       if (remote && remote.widgetNumber != null) widgetNumber = String(remote.widgetNumber);

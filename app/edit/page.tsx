@@ -40,6 +40,14 @@ export default function EditPage() {
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [detection, setDetection] = useState<{ popupDetected?: boolean; embedDetected?: boolean; popupLastSeen?: string | null; embedLastSeen?: string | null } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/app/summary")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => j && setDetection(j))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch("/api/app/config")
@@ -129,6 +137,7 @@ export default function EditPage() {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                     <h3 className="text-sm font-extrabold text-brand-700">Popup</h3>
+                    <DetectionLine label="Popup" detected={detection?.popupDetected} lastSeen={detection?.popupLastSeen} />
                     <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
                       A small button floats in the corner of every page and{" "}
                       <strong>auto-detects the listing address</strong>. Zero website redesign — just one
@@ -140,6 +149,7 @@ export default function EditPage() {
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                     <h3 className="text-sm font-extrabold text-ink-900">Embed</h3>
+                    <DetectionLine label="Embed" detected={detection?.embedDetected} lastSeen={detection?.embedLastSeen} />
                     <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
                       The explorer renders <strong>inline, exactly where you place it</strong> on a page —
                       full control of placement and size.
@@ -257,6 +267,22 @@ export default function EditPage() {
 const POPUP_SNIPPET = `<script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
 const INLINE_SNIPPET = `<div id="dream-schools-explorer"></div>
 <script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
+
+function DetectionLine({ label, detected, lastSeen }: { label: string; detected?: boolean; lastSeen?: string | null }) {
+  const seen = lastSeen ? new Date(lastSeen) : null;
+  const seenStr = seen && !Number.isNaN(seen.getTime()) ? seen.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+  return (
+    <div
+      className={`mt-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+        detected ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200" : "bg-slate-100 text-slate-500"
+      }`}
+      title={detected && seenStr ? `Last detected ${seenStr}` : `${label} snippet not detected yet`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${detected ? "bg-emerald-500" : "bg-slate-400"}`} />
+      {detected ? `${label} detected${seenStr ? ` · ${seenStr}` : ""}` : `${label} not detected yet`}
+    </div>
+  );
+}
 
 function Collapsible({ summary, children }: { summary: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
