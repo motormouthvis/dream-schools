@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app/AppShell";
 import { EmailTemplateManager } from "@/components/app/EmailTemplateManager";
+import { SchoolhouseMark } from "@/components/Logo";
 
 interface UpgradeRequest {
   id: number;
@@ -215,6 +216,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
   const [series, setSeries] = useState<RequestSeries | null>(null);
   const [showChart, setShowChart] = useState(false);
   const [granularity, setGranularity] = useState<"week" | "month" | "year">("month");
+  const [realtorTab, setRealtorTab] = useState<"list" | "graph">("list");
   const [truncated, setTruncated] = useState(false);
   const [limit, setLimit] = useState(200);
   const [includeSent, setIncludeSent] = useState(true);
@@ -654,116 +656,80 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
           </div>
         </div>
       ) : (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-          <div className="rounded-2xl border border-brand-100 bg-gradient-to-br from-white via-lime-50/60 to-emerald-50 p-4 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-extrabold text-ink-900">Email Reminder Settings</h2>
-                <p className="mt-1 max-w-2xl text-[12px] leading-relaxed text-slate-500">
-                  Send yourself a polished reminder email with your School Explorer usage, upgrade requests, and Neighborhood Explorer upgrade links.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <a
-                  href="https://www.dreamneighborhood.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-lg border border-brand-200 bg-white px-3 py-2 text-xs font-extrabold text-brand-700 shadow-sm hover:bg-brand-50"
-                >
-                  Learn More
-                </a>
-                <a
-                  href="https://app.dreamneighborhood.com/accounts/signup/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-lg bg-brand-600 px-3 py-2 text-xs font-extrabold text-white shadow-sm hover:bg-brand-700"
-                >
-                  Upgrade Now
-                </a>
-              </div>
+        <div className="mt-4 rounded-2xl border border-brand-100 bg-gradient-to-br from-white via-lime-50/60 to-emerald-50 p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <div className="flex items-center gap-2">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-lime-200 to-emerald-300 text-emerald-800">
+                <SchoolhouseMark className="h-5 w-5" />
+              </span>
+              <h2 className="text-base font-extrabold text-ink-900">Email Reminder Settings</h2>
             </div>
-
-            <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(180px,240px)_minmax(260px,1fr)_auto] xl:items-end">
-              <div>
-                <label className="block text-xs font-bold text-slate-600">Email me a reminder every</label>
-                <div className="mt-1 flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={1}
-                    max={90}
-                    value={reminderDays}
-                    onChange={(e) => setReminderDays(e.target.value)}
-                    className="w-24 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                  />
-                  <span className="text-sm font-semibold text-slate-500">days</span>
-                </div>
-                <p className="mt-1 text-[11px] text-slate-400">
-                  1 to 90 days. {reminderLastSentAt && <>Last sent: <strong>{fmt(reminderLastSentAt)}</strong>.</>}
-                </p>
-                <div className="mt-3">
-                  <label className="block text-xs font-bold text-slate-600">Sends to</label>
-                  <div className="mt-1 w-full truncate rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-600" title={email}>
-                    {email}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs font-bold text-slate-600">When an email is sent</div>
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  <label className="flex items-start gap-2 rounded-xl border border-brand-100 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm">
-                    <input
-                      type="radio"
-                      name="reminder-send-scope"
-                      value="all"
-                      checked={reminderSendScope === "all"}
-                      onChange={() => setReminderSendScope("all")}
-                      className="mt-0.5 h-4 w-4 accent-brand-600"
-                    />
-                    <span>
-                      <span className="block font-bold text-ink-900">All requests</span>
-                      <span className="block text-[11px] text-slate-500">Default. Includes the full request list preview.</span>
-                    </span>
-                  </label>
-                  <label className="flex items-start gap-2 rounded-xl border border-brand-100 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm">
-                    <input
-                      type="radio"
-                      name="reminder-send-scope"
-                      value="new"
-                      checked={reminderSendScope === "new"}
-                      onChange={() => setReminderSendScope("new")}
-                      className="mt-0.5 h-4 w-4 accent-brand-600"
-                    />
-                    <span>
-                      <span className="block font-bold text-ink-900">New requests only</span>
-                      <span className="block text-[11px] text-slate-500">Only requests since the last reminder.</span>
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2 xl:justify-end">
-                <button onClick={() => saveReminder(false)} disabled={busy} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60">
-                  Save schedule
-                </button>
-                <button onClick={() => saveReminder(true)} disabled={busy} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60">
-                  Send me one now
-                </button>
-              </div>
+            <div className="text-[12px] text-slate-500">
+              Sends to: <span className="font-semibold text-slate-700" title={email}>{email}</span>
             </div>
           </div>
+          <p className="mt-1 text-[12px] leading-relaxed text-slate-500">
+            Send yourself a reminder email with your School Explorer usage, views, and upgrade requests.
+          </p>
+
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-bold text-slate-600">Every</label>
+              <input
+                type="number"
+                min={1}
+                max={90}
+                value={reminderDays}
+                onChange={(e) => setReminderDays(e.target.value)}
+                className="w-16 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm"
+              />
+              <span className="text-sm font-semibold text-slate-500">days</span>
+            </div>
+
+            <div className="inline-flex overflow-hidden rounded-lg border border-brand-200 bg-white text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setReminderSendScope("all")}
+                className={`px-3 py-1.5 transition ${reminderSendScope === "all" ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}
+                title="Include the full request list when sending"
+              >
+                All requests
+              </button>
+              <button
+                type="button"
+                onClick={() => setReminderSendScope("new")}
+                className={`border-l border-brand-200 px-3 py-1.5 transition ${reminderSendScope === "new" ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}
+                title="Only requests since your last reminder"
+              >
+                New only
+              </button>
+            </div>
+
+            <div className="ml-auto flex flex-wrap gap-2">
+              <button onClick={() => saveReminder(false)} disabled={busy} className="rounded-lg border border-slate-300 bg-white px-4 py-1.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60">
+                Save schedule
+              </button>
+              <button onClick={() => saveReminder(true)} disabled={busy} className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60">
+                Send me one now
+              </button>
+            </div>
+          </div>
+          {reminderLastSentAt && (
+            <p className="mt-2 text-[11px] text-slate-400">Last sent: <strong>{fmt(reminderLastSentAt)}</strong>.</p>
+          )}
         </div>
       )}
 
       {message && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>}
       {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
 
-      {summary && (
+      {/* Manager: summary stats + graph toggle (both list and graph visible). */}
+      {isManager && summary && (
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-stretch">
-          <div className={`grid flex-1 gap-3 ${isManager ? "sm:grid-cols-3" : "grid-cols-1 sm:max-w-xs"}`}>
+          <div className="grid flex-1 gap-3 sm:grid-cols-3">
             <SummaryStat label="Total requests" value={summary.total} />
-            {isManager && <SummaryStat label="Pending (not yet emailed)" value={summary.pending} />}
-            {isManager && <SummaryStat label="Previously sent" value={summary.sent} />}
+            <SummaryStat label="Pending (not yet emailed)" value={summary.pending} />
+            <SummaryStat label="Previously sent" value={summary.sent} />
           </div>
           <button
             onClick={() => setShowChart((s) => !s)}
@@ -778,16 +744,76 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
         </div>
       )}
 
-      {showChart && series && (
+      {isManager && showChart && series && (
         <RequestsChart series={series} granularity={granularity} onGranularity={setGranularity} />
       )}
 
-      {truncated && (
+      {/* Realtor: CTA headline + upgrade buttons. */}
+      {!isManager && summary && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-100 bg-gradient-to-br from-white via-lime-50/60 to-emerald-50 p-4 shadow-sm">
+          <h2 className="max-w-2xl text-base font-extrabold leading-snug text-ink-900 sm:text-lg">
+            {summary.total > 0
+              ? `${summary.total.toLocaleString()} Homebuyers Have Requested That You Upgrade from the free School Explorer to the full Neighborhood Explorer`
+              : "Upgrade from the free School Explorer to the full Neighborhood Explorer to Improve Your Homebuyer's Experience"}
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href="https://www.dreamneighborhood.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-brand-200 bg-white px-4 py-2 text-sm font-extrabold text-brand-700 shadow-sm hover:bg-brand-50"
+            >
+              Learn More
+            </a>
+            <a
+              href="https://app.dreamneighborhood.com/accounts/signup/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-extrabold text-white shadow-sm hover:bg-brand-700"
+            >
+              Upgrade Now
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* Realtor: List / Graph tabs — one view at a time. */}
+      {!isManager && (
+        <div className="mt-4 flex gap-1 border-b border-slate-200">
+          {(["list", "graph"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setRealtorTab(t)}
+              className={`-mb-px rounded-t-lg border-b-2 px-4 py-2 text-sm font-bold capitalize transition ${
+                realtorTab === t ? "border-brand-600 text-brand-700" : "border-transparent text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!isManager && realtorTab === "graph" && (
+        <div className="mt-4 flex min-h-[50vh] items-center">
+          {series ? (
+            <div className="w-full">
+              <RequestsChart series={series} granularity={granularity} onGranularity={setGranularity} />
+            </div>
+          ) : (
+            <p className="w-full text-center text-sm text-slate-400">No graph data yet.</p>
+          )}
+        </div>
+      )}
+
+      {truncated && (isManager || realtorTab === "list") && (
         <p className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-[12px] text-slate-600">
           Showing the most recent {limit} requests. Use the summary above for totals.
         </p>
       )}
 
+      {(isManager || realtorTab === "list") && (
+      <>
       <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
@@ -893,6 +919,8 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
             )}
           </div>
         </div>
+      )}
+      </>
       )}
 
       {isManager && (
