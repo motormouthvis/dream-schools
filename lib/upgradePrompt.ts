@@ -184,6 +184,12 @@ async function ensureTables(): Promise<void> {
   return tableReady;
 }
 
+// Exported so other modules (e.g. the customer list) can guarantee the upgrade
+// tables exist before joining against them on a fresh database.
+export function ensureUpgradeTables(): Promise<void> {
+  return ensureTables();
+}
+
 function cleanInt(v: unknown, fallback: number, min: number, max: number): number {
   const n = Number(v);
   if (!Number.isFinite(n)) return fallback;

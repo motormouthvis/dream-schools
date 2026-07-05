@@ -55,6 +55,7 @@ async function ensureTables(): Promise<void> {
            upgrade_idle_seconds INTEGER,
            reminder_interval_days INTEGER,
            reminder_last_sent_at TIMESTAMPTZ,
+           neighborhood_explorer_active BOOLEAN NOT NULL DEFAULT FALSE,
            created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
            deleted_at     TIMESTAMPTZ
          )`
@@ -71,7 +72,8 @@ async function ensureTables(): Promise<void> {
              ADD COLUMN IF NOT EXISTS upgrade_min_days_between INTEGER,
              ADD COLUMN IF NOT EXISTS upgrade_idle_seconds INTEGER,
              ADD COLUMN IF NOT EXISTS reminder_interval_days INTEGER,
-             ADD COLUMN IF NOT EXISTS reminder_last_sent_at TIMESTAMPTZ`
+             ADD COLUMN IF NOT EXISTS reminder_last_sent_at TIMESTAMPTZ,
+             ADD COLUMN IF NOT EXISTS neighborhood_explorer_active BOOLEAN NOT NULL DEFAULT FALSE`
         )
       )
       .then(() =>

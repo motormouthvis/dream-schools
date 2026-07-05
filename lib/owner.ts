@@ -1,5 +1,6 @@
 import { getPool, hasDatabase } from "@/lib/db";
-import { currentUser, type AppUser } from "@/lib/auth";
+import { currentUser, ensureAuthTables, type AppUser } from "@/lib/auth";
+import { ensureUpgradeTables } from "@/lib/upgradePrompt";
 import { logUserEventAsync } from "@/lib/audit";
 
 // ---------------------------------------------------------------------------
@@ -26,6 +27,8 @@ export interface CustomerRow {
   enabled: boolean;
   defaultAddress: string;
   views: number;
+  upgradeRequests: number; // homebuyer upgrade requests recorded for this customer
+  upgraded: boolean; // has upgraded to the paid Neighborhood Explorer (future: Stripe)
   firstSeen: string | null; // popup/embed code first detected
   lastSeen: string | null; // last active
 }
@@ -43,6 +46,9 @@ export async function requireCustomerListAccess(request: Request): Promise<AppUs
 
 export async function listCustomers(viewer?: AppUser | null): Promise<CustomerRow[]> {
   if (!hasDatabase()) return [];
+  // Guarantee the new column and the upgrade-requests table exist before joining.
+  await ensureAuthTables();
+  await ensureUpgradeTables();
   const pool = getPool();
   const params: unknown[] = [];
   const where = viewer && !viewer.isOwner && viewer.isPartner ? `WHERE u.partner_id = $1` : "";
@@ -61,12 +67,14 @@ export async function listCustomers(viewer?: AppUser | null): Promise<CustomerRo
         u.deleted_at,
         partner.company_name AS partner_company_name,
         partner.email AS partner_email,
+        u.neighborhood_explorer_active,
         p.allowed_hosts,
         p.enabled,
         p.default_address,
         usg.views,
         usg.first_seen,
-        usg.last_seen
+        usg.last_seen,
+        COALESCE(req.n, 0) AS upgrade_requests
       FROM app_users u
       LEFT JOIN app_users partner
         ON partner.id = u.partner_id
@@ -74,6 +82,11 @@ export async function listCustomers(viewer?: AppUser | null): Promise<CustomerRo
         ON p.partner_id = u.id AND p.widget_number = 1
       LEFT JOIN embed_usage usg
         ON usg.partner_id = u.id AND usg.widget_number = 1
+      LEFT JOIN (
+        SELECT customer_id, COUNT(*)::int AS n
+          FROM app_upgrade_requests
+         GROUP BY customer_id
+      ) req ON req.customer_id = u.id
       ${where}
       ORDER BY (u.deleted_at IS NOT NULL) ASC, u.created_at DESC`
     , params
@@ -95,6 +108,8 @@ export async function listCustomers(viewer?: AppUser | null): Promise<CustomerRo
     enabled: Boolean(r.enabled),
     defaultAddress: r.default_address ?? "",
     views: Number(r.views) || 0,
+    upgradeRequests: Number(r.upgrade_requests) || 0,
+    upgraded: Boolean(r.neighborhood_explorer_active),
     firstSeen: r.first_seen ?? null,
     lastSeen: r.last_seen ?? null,
   }));

@@ -31,6 +31,8 @@ interface Customer {
   enabled: boolean;
   defaultAddress: string;
   views: number;
+  upgradeRequests: number;
+  upgraded: boolean;
   firstSeen: string | null;
   lastSeen: string | null;
 }
@@ -41,7 +43,7 @@ interface PartnerOption {
   companyName: string;
 }
 
-type SortKey = "email" | "createdAt" | "views" | "firstSeen" | "lastSeen" | "partnerName";
+type SortKey = "email" | "createdAt" | "views" | "upgradeRequests" | "firstSeen" | "lastSeen" | "partnerName";
 type SortDir = "asc" | "desc";
 
 function fmtDate(v: string | null): string {
@@ -164,6 +166,10 @@ function OwnerAdmin() {
           av = a.views;
           bv = b.views;
           break;
+        case "upgradeRequests":
+          av = a.upgradeRequests;
+          bv = b.upgradeRequests;
+          break;
         case "partnerName":
           av = (a.partnerName || "").toLowerCase();
           bv = (b.partnerName || "").toLowerCase();
@@ -282,6 +288,8 @@ function OwnerAdmin() {
               <Th label="Customer of This Partner" k="partnerName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <th className="px-3 py-2 font-semibold" title="Enabled means an authorized domain is set and the Explorer toggle is on. Actual usage is shown by Views / Last active.">Status</th>
               <Th label="Views" k="views" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
+              <Th label="Upgrade requests" k="upgradeRequests" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
+              <th className="px-3 py-2 text-center font-semibold" title="Whether this customer has upgraded to the paid Neighborhood Explorer. Populated from Stripe once integrated.">Upgraded</th>
               <Th label="Code detected" k="firstSeen" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <Th label="Last active" k="lastSeen" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <th className="px-3 py-2 text-right font-semibold">Actions</th>
@@ -290,13 +298,13 @@ function OwnerAdmin() {
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               <tr>
-                <td colSpan={9} className="px-3 py-8 text-center text-slate-400">
+                <td colSpan={11} className="px-3 py-8 text-center text-slate-400">
                   Loading…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-3 py-8 text-center text-slate-400">
+                <td colSpan={11} className="px-3 py-8 text-center text-slate-400">
                   No customers yet.
                 </td>
               </tr>
@@ -353,6 +361,12 @@ function OwnerAdmin() {
                   </td>
                   <td className="px-3 py-2.5 text-right font-semibold text-ink-900">
                     {c.views.toLocaleString()}
+                  </td>
+                  <td className="px-3 py-2.5 text-right font-semibold text-ink-900">
+                    {c.upgradeRequests.toLocaleString()}
+                  </td>
+                  <td className="px-3 py-2.5 text-center">
+                    {c.upgraded ? <Badge tone="green">Yes</Badge> : <Badge tone="slate">No</Badge>}
                   </td>
                   <td className="px-3 py-2.5 text-slate-600">{fmtDateTime(c.firstSeen)}</td>
                   <td className="px-3 py-2.5 text-slate-600">{fmtDateTime(c.lastSeen)}</td>
