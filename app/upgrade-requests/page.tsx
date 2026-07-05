@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/app/AppShell";
 import { EmailTemplateManager } from "@/components/app/EmailTemplateManager";
 import { SchoolhouseMark } from "@/components/Logo";
@@ -221,6 +221,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
   const [offerEmails, setOfferEmails] = useState<UpgradeOfferEmail[]>([]);
   const [summary, setSummary] = useState<{ total: number; pending: number; sent: number; views: number } | null>(null);
   const [emailPreview, setEmailPreview] = useState<{ subject: string; html: string } | null>(null);
+  const graphRef = useRef<HTMLDivElement | null>(null);
   const [series, setSeries] = useState<RequestSeries | null>(null);
   const [granularity, setGranularity] = useState<"week" | "month" | "year">("month");
   const [realtorTab, setRealtorTab] = useState<"list" | "graph">("list");
@@ -311,6 +312,15 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [includeSent, scopeType, scopeId]);
+
+  // When switching to the Graph tab, nudge the page so the whole graph is in view.
+  useEffect(() => {
+    if (realtorTab !== "graph") return;
+    const t = setTimeout(() => {
+      graphRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }, 60);
+    return () => clearTimeout(t);
+  }, [realtorTab, series]);
 
   // Managers: load the list of partners/customers they can scope the page to.
   useEffect(() => {
@@ -1104,7 +1114,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
       </div>
 
       {realtorTab === "graph" && (
-        <div className="mt-4 flex min-h-[50vh] items-center">
+        <div ref={graphRef} className="mt-4 flex min-h-[50vh] items-center">
           {series ? (
             <div className="w-full">
               <RequestsChart series={series} granularity={granularity} onGranularity={setGranularity} />
@@ -1347,7 +1357,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
 
       {preview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setPreview(null)}>
-          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-white p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="flex h-[92vh] w-full max-w-3xl flex-col rounded-2xl bg-white p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-extrabold text-ink-900">{preview.subject}</h3>
@@ -1362,7 +1372,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
 
       {emailPreview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setEmailPreview(null)}>
-          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-white p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="flex h-[92vh] w-full max-w-3xl flex-col rounded-2xl bg-white p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-extrabold text-ink-900">Preview</h3>
