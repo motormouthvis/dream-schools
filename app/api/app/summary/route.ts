@@ -15,6 +15,19 @@ export async function GET(request: Request) {
   const config = await getByPartner(user.id, 1);
   const usage = await getUsage(user.id, 1);
 
+  // Detection status for the signed-in account's own widget (shown on Configure
+  // Explorer for every role — admins/partners can also install the widget).
+  const detection = {
+    enabled: Boolean(config?.enabled),
+    detected: Boolean(usage.firstSeen || usage.lastSeen),
+    firstSeen: usage.firstSeen,
+    lastSeen: usage.lastSeen,
+    popupDetected: Boolean(usage.popupLastSeen),
+    embedDetected: Boolean(usage.embedLastSeen),
+    popupLastSeen: usage.popupLastSeen,
+    embedLastSeen: usage.embedLastSeen,
+  };
+
   if (user.isOwner) {
     const [customers, partners, views, requests] = await Promise.all([
       pool.query(`SELECT COUNT(*)::int AS n FROM app_users WHERE deleted_at IS NULL AND is_partner = FALSE AND is_owner = FALSE`),
@@ -37,6 +50,7 @@ export async function GET(request: Request) {
       createdAt: user.createdAt,
       domain: config?.allowedHosts?.[0] ?? "",
       active: Boolean(config?.enabled && config?.allowedHosts?.length),
+      ...detection,
       metrics: {
         customers: customers.rows[0].n,
         partners: partners.rows[0].n,
@@ -69,6 +83,7 @@ export async function GET(request: Request) {
       createdAt: user.createdAt,
       domain: config?.allowedHosts?.[0] ?? "",
       active: Boolean(config?.enabled && config?.allowedHosts?.length),
+      ...detection,
       metrics: {
         customers: customers.rows[0].n,
         views: Number(views.rows[0].n) || 0,
@@ -83,14 +98,7 @@ export async function GET(request: Request) {
     createdAt: user.createdAt,
     domain: config?.allowedHosts?.[0] ?? "",
     active: Boolean(config?.enabled && config?.allowedHosts?.length),
-    enabled: Boolean(config?.enabled),
-    detected: Boolean(usage.firstSeen || usage.lastSeen),
-    firstSeen: usage.firstSeen,
-    lastSeen: usage.lastSeen,
-    popupDetected: Boolean(usage.popupLastSeen),
-    embedDetected: Boolean(usage.embedLastSeen),
-    popupLastSeen: usage.popupLastSeen,
-    embedLastSeen: usage.embedLastSeen,
+    ...detection,
     metrics: {
       views: usage.views,
       requests: requests.rows[0].n,
