@@ -131,7 +131,7 @@ function RequestsChart({
           {shown.map((p) => {
             const pct = max > 0 ? Math.round((p.count / max) * 100) : 0;
             return (
-              <div key={p.period} className="group flex min-w-[14px] flex-1 flex-col items-center justify-end" title={`${formatPeriod(p.period, granularity)}: ${p.count}`}>
+              <div key={p.period} className="group flex h-full min-w-[14px] flex-1 flex-col items-center justify-end" title={`${formatPeriod(p.period, granularity)}: ${p.count}`}>
                 <div className="mb-1 text-[9px] font-semibold text-slate-500 opacity-0 group-hover:opacity-100">{p.count}</div>
                 <div
                   className="w-full rounded-t bg-brand-500 transition-all group-hover:bg-brand-600"
