@@ -701,11 +701,13 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
               </ul>
             )}
           </div>
-          {scopeType !== "all" && (
+          {scopeType !== "all" ? (
             <p className="mt-2 text-[12px] text-slate-500">
               Showing {scopeType === "partner" ? "partner" : "realtor"}:{" "}
               <strong>{scopeOptions.find((o) => o.type === scopeType && o.id === scopeId)?.label || scopeId}</strong>.
             </p>
+          ) : (
+            <p className="mt-2 text-[12px] text-slate-500">Showing all Realtors</p>
           )}
         </div>
       )}
