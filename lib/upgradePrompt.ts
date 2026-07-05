@@ -505,34 +505,55 @@ export async function listUpgradeRequests(options: { includeSent?: boolean; limi
 export async function getUpgradeRequestSummary(
   viewer?: { id: string; isOwner: boolean; isPartner: boolean } | null,
   narrow?: UpgradeRequestNarrow
-): Promise<{ total: number; pending: number; sent: number }> {
-  if (!hasDatabase()) return { total: 0, pending: 0, sent: 0 };
+): Promise<{ total: number; pending: number; sent: number; views: number }> {
+  if (!hasDatabase()) return { total: 0, pending: 0, sent: 0, views: 0 };
   await ensureTables();
   const params: unknown[] = [];
-  const conds: string[] = [];
+  let viewerIdx = 0;
+  let narrowIdx = 0;
+  let narrowKind: "customer" | "partner" | null = null;
   if (viewer && !viewer.isOwner) {
     params.push(viewer.id);
-    conds.push(viewer.isPartner
-      ? `r.customer_id IN (SELECT id FROM app_users WHERE partner_id = $${params.length})`
-      : `r.customer_id = $${params.length}`);
+    viewerIdx = params.length;
   }
   if (narrow?.customerId) {
     params.push(narrow.customerId);
-    conds.push(`r.customer_id = $${params.length}`);
+    narrowIdx = params.length;
+    narrowKind = "customer";
   } else if (narrow?.partnerId) {
     params.push(narrow.partnerId);
-    conds.push(`r.customer_id IN (SELECT id FROM app_users WHERE partner_id = $${params.length})`);
+    narrowIdx = params.length;
+    narrowKind = "partner";
   }
-  const scope = conds.length ? ` WHERE ${conds.join(" AND ")}` : "";
+  // Build an equivalent scope for either table: requests use r.customer_id, and
+  // embed usage rows are keyed by the customer's own id (partner_id column).
+  function scopeFor(col: string): string {
+    const c: string[] = [];
+    if (viewerIdx) {
+      c.push(viewer!.isPartner ? `${col} IN (SELECT id FROM app_users WHERE partner_id = $${viewerIdx})` : `${col} = $${viewerIdx}`);
+    }
+    if (narrowKind === "customer") c.push(`${col} = $${narrowIdx}`);
+    else if (narrowKind === "partner") c.push(`${col} IN (SELECT id FROM app_users WHERE partner_id = $${narrowIdx})`);
+    return c.length ? ` WHERE ${c.join(" AND ")}` : "";
+  }
   const { rows } = await getPool().query(
     `SELECT
         COUNT(*)::int AS total,
         COUNT(*) FILTER (WHERE r.summary_sent_at IS NULL)::int AS pending,
         COUNT(*) FILTER (WHERE r.summary_sent_at IS NOT NULL)::int AS sent
-       FROM app_upgrade_requests r${scope}`,
+       FROM app_upgrade_requests r${scopeFor("r.customer_id")}`,
     params
   );
-  return { total: rows[0].total, pending: rows[0].pending, sent: rows[0].sent };
+  const viewsRow = await getPool().query(
+    `SELECT COALESCE(SUM(views),0)::bigint AS n FROM embed_usage${scopeFor("partner_id")}`,
+    params
+  );
+  return {
+    total: rows[0].total,
+    pending: rows[0].pending,
+    sent: rows[0].sent,
+    views: Number(viewsRow.rows[0].n) || 0,
+  };
 }
 
 export interface UpgradeRequestSeriesPoint {
@@ -1316,10 +1337,11 @@ export async function sendPartnerRealtorEmail(input: {
   kind: "reminder" | "offer";
   offerText?: string;
   discountCode?: string;
-}): Promise<{ sent: boolean; recipient: string; requestCount: number }> {
+  preview?: boolean;
+}): Promise<{ sent: boolean; recipient: string; requestCount: number; html?: string; subject?: string }> {
   if (!hasDatabase()) return { sent: false, recipient: "", requestCount: 0 };
   assertCanManageUpgradeOffers(input.viewer);
-  if (input.kind === "offer") {
+  if (input.kind === "offer" && !input.preview) {
     if (!input.offerText?.trim() || !input.discountCode?.trim()) {
       throw new Error("Offer text and offer code are required for a Special Offer.");
     }
@@ -1379,7 +1401,7 @@ export async function sendPartnerRealtorEmail(input: {
   const businessName = user.business_name || user.company_name || "";
   const specialOffer =
     input.kind === "offer"
-      ? { partnerName, offerText: input.offerText!.trim(), discountCode: input.discountCode!.trim() }
+      ? { partnerName, offerText: (input.offerText || "").trim() || "Your special offer text will appear here.", discountCode: (input.discountCode || "").trim() || "OFFERCODE" }
       : undefined;
   const html = reminderHtml({ template, businessName, newRequests: newRows, includedRequests: allRows, totalViews, totalRequests, specialOffer });
   const subject =
@@ -1392,6 +1414,11 @@ export async function sendPartnerRealtorEmail(input: {
     `School Explorer usage — ${totalViews} views, ${totalRequests} total upgrade requests.`,
     `Get the full neighborhood picture: ${SIGNUP_URL}`,
   ].filter(Boolean).join("\n");
+
+  // Preview only: return the rendered email without sending or recording.
+  if (input.preview) {
+    return { sent: false, recipient: user.email, requestCount: allRows.length, html, subject };
+  }
 
   await sendTransactionalEmail({ to: user.email, subject, text, html });
   if (input.kind === "offer") {

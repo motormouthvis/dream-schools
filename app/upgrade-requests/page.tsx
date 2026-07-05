@@ -74,11 +74,11 @@ function fmt(v: string | null): string {
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
 }
 
-function SummaryStat({ label, value }: { label: string; value: number }) {
+function InlineStat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</div>
-      <div className="mt-0.5 text-2xl font-extrabold text-ink-900">{value.toLocaleString()}</div>
+    <div className="flex items-baseline gap-2">
+      <span className="text-2xl font-extrabold text-ink-900">{value.toLocaleString()}</span>
+      <span className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">{label}</span>
     </div>
   );
 }
@@ -219,9 +219,9 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
   const [requests, setRequests] = useState<UpgradeRequest[]>([]);
   const [sentEmails, setSentEmails] = useState<SentDigestEmail[]>([]);
   const [offerEmails, setOfferEmails] = useState<UpgradeOfferEmail[]>([]);
-  const [summary, setSummary] = useState<{ total: number; pending: number; sent: number } | null>(null);
+  const [summary, setSummary] = useState<{ total: number; pending: number; sent: number; views: number } | null>(null);
+  const [emailPreview, setEmailPreview] = useState<{ subject: string; html: string } | null>(null);
   const [series, setSeries] = useState<RequestSeries | null>(null);
-  const [showChart, setShowChart] = useState(false);
   const [granularity, setGranularity] = useState<"week" | "month" | "year">("month");
   const [realtorTab, setRealtorTab] = useState<"list" | "graph">("list");
   const [truncated, setTruncated] = useState(false);
@@ -538,6 +538,32 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
         {active && <span className="text-[9px]">{sortDir === "asc" ? "▲" : "▼"}</span>}
       </button>
     );
+  }
+
+  async function previewRealtorEmail() {
+    if (scopeType !== "customer" || !scopeId) {
+      setError("Select a realtor first.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/owner/realtor-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ realtorId: scopeId, kind: partnerEmailKind, offerText, discountCode, preview: true }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(j.error || "Could not build the preview.");
+        return;
+      }
+      setEmailPreview({ subject: j.subject || "Email preview", html: j.html || "" });
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function sendRealtorEmail() {
@@ -931,7 +957,14 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
                     </div>
                   )}
 
-                  <div className="mt-3">
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      onClick={previewRealtorEmail}
+                      disabled={busy}
+                      className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      Preview email
+                    </button>
                     <button
                       onClick={sendRealtorEmail}
                       disabled={busy || !offerValid}
@@ -1013,29 +1046,17 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
       {message && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>}
       {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
 
-      {/* Manager: summary stats + graph toggle (both list and graph visible). */}
+      {/* Manager: one summary line (views + request states). */}
       {isManager && summary && (
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-stretch">
-          <div className="grid flex-1 gap-3 sm:grid-cols-3">
-            <SummaryStat label="Total requests" value={summary.total} />
-            <SummaryStat label="Pending (not yet emailed)" value={summary.pending} />
-            <SummaryStat label="Previously sent" value={summary.sent} />
-          </div>
-          <button
-            onClick={() => setShowChart((s) => !s)}
-            aria-pressed={showChart}
-            className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold shadow-sm transition ${
-              showChart ? "border-brand-600 bg-brand-600 text-white hover:bg-brand-700" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-            }`}
-          >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></svg>
-            {showChart ? "Hide graph" : "Show graph"}
-          </button>
+        <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3 rounded-xl border border-slate-200 bg-white px-5 py-4">
+          <InlineStat label="Views" value={summary.views} />
+          <span className="hidden h-8 w-px bg-slate-200 sm:block" />
+          <InlineStat label="Total requests" value={summary.total} />
+          <span className="hidden h-8 w-px bg-slate-200 sm:block" />
+          <InlineStat label="Pending (not yet emailed)" value={summary.pending} />
+          <span className="hidden h-8 w-px bg-slate-200 sm:block" />
+          <InlineStat label="Previously sent" value={summary.sent} />
         </div>
-      )}
-
-      {isManager && showChart && series && (
-        <RequestsChart series={series} granularity={granularity} onGranularity={setGranularity} />
       )}
 
       {/* Realtor: CTA headline + upgrade buttons. */}
@@ -1067,24 +1088,22 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
         </div>
       )}
 
-      {/* Realtor: List / Graph tabs — one view at a time. */}
-      {!isManager && (
-        <div className="mt-4 flex gap-1 border-b border-slate-200">
-          {(["list", "graph"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setRealtorTab(t)}
-              className={`-mb-px rounded-t-lg border-b-2 px-4 py-2 text-sm font-bold capitalize transition ${
-                realtorTab === t ? "border-brand-600 text-brand-700" : "border-transparent text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* List / Graph tabs — one view at a time (all roles). */}
+      <div className="mt-4 flex gap-1 border-b border-slate-200">
+        {(["list", "graph"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setRealtorTab(t)}
+            className={`-mb-px rounded-t-lg border-b-2 px-4 py-2 text-sm font-bold capitalize transition ${
+              realtorTab === t ? "border-brand-600 text-brand-700" : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
 
-      {!isManager && realtorTab === "graph" && (
+      {realtorTab === "graph" && (
         <div className="mt-4 flex min-h-[50vh] items-center">
           {series ? (
             <div className="w-full">
@@ -1096,13 +1115,13 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
         </div>
       )}
 
-      {truncated && (isManager || realtorTab === "list") && (
+      {truncated && realtorTab === "list" && (
         <p className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-[12px] text-slate-600">
           Showing the most recent {limit} requests. Use the summary above for totals.
         </p>
       )}
 
-      {(isManager || realtorTab === "list") && (
+      {realtorTab === "list" && (
       <>
       <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="min-w-full text-left text-sm">
@@ -1337,6 +1356,21 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
               <button onClick={() => setPreview(null)} className="rounded-full px-2 py-1 text-xl text-slate-400 hover:bg-slate-100">×</button>
             </div>
             <iframe className="mt-3 min-h-0 flex-1 rounded-xl border border-slate-200" srcDoc={preview.html} />
+          </div>
+        </div>
+      )}
+
+      {emailPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setEmailPreview(null)}>
+          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-white p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-extrabold text-ink-900">Preview</h3>
+                <p className="text-xs text-slate-500">{emailPreview.subject}</p>
+              </div>
+              <button onClick={() => setEmailPreview(null)} className="rounded-full px-2 py-1 text-xl text-slate-400 hover:bg-slate-100">×</button>
+            </div>
+            <iframe className="mt-3 min-h-0 flex-1 rounded-xl border border-slate-200" srcDoc={emailPreview.html} title="Email preview" />
           </div>
         </div>
       )}

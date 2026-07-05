@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   if (!me.isOwner && !me.isPartner) {
     return NextResponse.json({ error: "Admin or partner access required." }, { status: 403 });
   }
-  let body: { realtorId?: string; kind?: string; offerText?: string; discountCode?: string };
+  let body: { realtorId?: string; kind?: string; offerText?: string; discountCode?: string; preview?: boolean };
   try {
     body = await request.json();
   } catch {
@@ -27,6 +27,7 @@ export async function POST(request: Request) {
       kind,
       offerText: String(body.offerText || ""),
       discountCode: String(body.discountCode || ""),
+      preview: Boolean(body.preview),
     });
     return NextResponse.json({ ok: true, ...result });
   } catch (err: any) {
