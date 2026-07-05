@@ -80,7 +80,15 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <HeroMetrics role={summary?.role || (me.isOwner ? "admin" : me.isPartner ? "partner" : "customer")} createdAt={summary?.createdAt || me.createdAt} metrics={summary?.metrics || {}} domain={domain} active={active} />
+          <HeroMetrics
+            role={summary?.role || (me.isOwner ? "admin" : me.isPartner ? "partner" : "customer")}
+            createdAt={summary?.createdAt || me.createdAt}
+            metrics={summary?.metrics || {}}
+            domain={domain}
+            active={active}
+            enabled={Boolean(summary?.enabled)}
+            detected={Boolean(summary?.detected)}
+          />
 
           {/* Two halves: School Explorer (this product) + Neighborhood Explorer upgrade */}
           <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -148,7 +156,14 @@ export default function DashboardPage() {
   );
 }
 
-function HeroMetrics({ role, createdAt, metrics, domain, active }: { role: string; createdAt?: string; metrics: any; domain?: string; active: boolean }) {
+function detectionStatus(enabled: boolean, detected: boolean): string {
+  if (enabled && detected) return "Enabled & detected on";
+  if (enabled && !detected) return "Explorer Enabled but Not Detected On";
+  if (!enabled && detected) return "Disabled but detected on";
+  return "Disabled — not detected on";
+}
+
+function HeroMetrics({ role, createdAt, metrics, domain, active, enabled, detected }: { role: string; createdAt?: string; metrics: any; domain?: string; active: boolean; enabled?: boolean; detected?: boolean }) {
   const items =
     role === "admin"
       ? [
@@ -169,7 +184,7 @@ function HeroMetrics({ role, createdAt, metrics, domain, active }: { role: strin
           ["Customer since", fmtDateTime(createdAt) || "—"],
           ["Total views by homebuyers", Number(metrics.views ?? 0).toLocaleString()],
           ["Requests for full Neighborhood Data", Number(metrics.requests ?? 0).toLocaleString()],
-          ...(domain ? [["Active on", active ? domain : `${domain} (off)`]] : []),
+          ...(domain ? [[detectionStatus(Boolean(enabled), Boolean(detected)), domain]] : []),
         ];
 
   return (

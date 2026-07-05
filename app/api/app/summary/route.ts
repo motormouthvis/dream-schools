@@ -83,6 +83,10 @@ export async function GET(request: Request) {
     createdAt: user.createdAt,
     domain: config?.allowedHosts?.[0] ?? "",
     active: Boolean(config?.enabled && config?.allowedHosts?.length),
+    enabled: Boolean(config?.enabled),
+    detected: Boolean(usage.firstSeen || usage.lastSeen),
+    firstSeen: usage.firstSeen,
+    lastSeen: usage.lastSeen,
     metrics: {
       views: usage.views,
       requests: requests.rows[0].n,

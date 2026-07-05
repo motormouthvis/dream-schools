@@ -157,7 +157,7 @@ export default function EditPage() {
                   <div>
                     <div className="text-sm font-extrabold text-ink-900">Enable Explorer</div>
                     <div className="text-[12px] text-slate-500">
-                      {form.enabled ? "Popup and embed are eligible to show once a domain is set." : "Disabled — no popup or embed will appear."}
+                      {form.enabled ? "The Popup or Embed School Explorer are eligible to show once a domain is set." : "Disabled — no popup or embed will appear."}
                     </div>
                   </div>
                   <button

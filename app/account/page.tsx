@@ -42,6 +42,7 @@ export default function AccountPage() {
               <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email</div>
               <div className="mt-1 break-all text-sm text-ink-900">{me.email}</div>
             </div>
+            {!me.isOwner && !me.isPartner && <CodeDetectionStatus />}
             <BusinessProfile initialBusinessName={me.businessName || ""} />
             {me.isPartner && <PartnerSignupLink partnerId={me.id} />}
             {me.isPartner && (
@@ -526,6 +527,43 @@ function ChangePassword({ email }: { email: string }) {
         </div>
       </form>
     </Card>
+  );
+}
+
+function CodeDetectionStatus() {
+  const [s, setS] = useState<{ domain?: string; enabled?: boolean; detected?: boolean; lastSeen?: string | null } | null>(null);
+  useEffect(() => {
+    fetch("/api/app/summary")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => j && setS(j))
+      .catch(() => {});
+  }, []);
+
+  const domain = s?.domain || "";
+  const enabled = Boolean(s?.enabled);
+  const detected = Boolean(s?.detected);
+  let status = "Checking…";
+  let tone = "text-slate-600";
+  if (s) {
+    if (!domain) {
+      status = "No authorized domain set yet.";
+    } else if (detected) {
+      status = enabled ? `Detected on ${domain}` : `Detected on ${domain} — Explorer disabled`;
+      tone = enabled ? "text-emerald-700" : "text-amber-700";
+    } else {
+      status = enabled ? `Enabled, but not yet detected on ${domain}` : `Not detected on ${domain} — Explorer disabled`;
+      tone = "text-amber-700";
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Code snippet</div>
+      <div className={`mt-1 text-sm font-semibold ${tone}`}>{status}</div>
+      {detected && s?.lastSeen && (
+        <div className="mt-0.5 text-[11px] text-slate-500">Last detected: {fmtDateTime(s.lastSeen)}</div>
+      )}
+    </div>
   );
 }
 
