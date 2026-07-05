@@ -30,7 +30,14 @@ async function listGuard(request: Request) {
 export async function GET(request: Request) {
   const g = await listGuard(request);
   if (g.error) return g.error;
-  const includeSent = new URL(request.url).searchParams.get("include_sent") === "1";
+  const url = new URL(request.url);
+  const includeSent = url.searchParams.get("include_sent") === "1";
+  // Optional scope selector: "customer:<id>" or "partner:<id>". The viewer's own
+  // scope is always enforced too, so this can only narrow within what they may see.
+  const rawScope = (url.searchParams.get("scope") || "").trim();
+  const narrow: { customerId?: string; partnerId?: string } = {};
+  if (rawScope.startsWith("customer:")) narrow.customerId = rawScope.slice("customer:".length);
+  else if (rawScope.startsWith("partner:")) narrow.partnerId = rawScope.slice("partner:".length);
   // Admins can see every customer's requests (potentially huge), so cap their
   // list. A scoped viewer (partner/realtor) only sees their own, so allow more.
   const effectiveLimit = g.user!.isOwner ? INCLUDE_SENT_LIMIT : SCOPED_LIMIT;
@@ -38,10 +45,11 @@ export async function GET(request: Request) {
     includeSent,
     viewer: g.user,
     limit: includeSent ? effectiveLimit : undefined,
+    narrow,
   });
   const schedule = await getUpgradeDigestSchedule();
-  const summary = await getUpgradeRequestSummary(g.user);
-  const series = await getUpgradeRequestSeries(g.user);
+  const summary = await getUpgradeRequestSummary(g.user, narrow);
+  const series = await getUpgradeRequestSeries(g.user, narrow);
   return NextResponse.json({
     requests,
     schedule,

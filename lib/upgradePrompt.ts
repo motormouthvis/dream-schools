@@ -450,7 +450,12 @@ function row(r: any): UpgradeRequestRow {
   };
 }
 
-export async function listUpgradeRequests(options: { includeSent?: boolean; limit?: number; viewer?: { id: string; isOwner: boolean; isPartner: boolean } | null } = {}): Promise<UpgradeRequestRow[]> {
+export interface UpgradeRequestNarrow {
+  customerId?: string | null;
+  partnerId?: string | null;
+}
+
+export async function listUpgradeRequests(options: { includeSent?: boolean; limit?: number; viewer?: { id: string; isOwner: boolean; isPartner: boolean } | null; narrow?: UpgradeRequestNarrow } = {}): Promise<UpgradeRequestRow[]> {
   if (!hasDatabase()) return [];
   await ensureTables();
   const params: unknown[] = [Boolean(options.includeSent)];
@@ -464,6 +469,15 @@ export async function listUpgradeRequests(options: { includeSent?: boolean; limi
     } else {
       scope = ` AND r.customer_id = $${params.length}`;
     }
+  }
+  // Optional narrowing (all/one partner/one customer). The viewer scope above is
+  // always applied too, so a partner can never narrow outside their own customers.
+  if (options.narrow?.customerId) {
+    params.push(options.narrow.customerId);
+    scope += ` AND r.customer_id = $${params.length}`;
+  } else if (options.narrow?.partnerId) {
+    params.push(options.narrow.partnerId);
+    scope += ` AND r.customer_id IN (SELECT id FROM app_users WHERE partner_id = $${params.length})`;
   }
   let limitClause = "";
   if (options.limit && Number.isFinite(options.limit)) {
@@ -489,18 +503,27 @@ export async function listUpgradeRequests(options: { includeSent?: boolean; limi
 }
 
 export async function getUpgradeRequestSummary(
-  viewer?: { id: string; isOwner: boolean; isPartner: boolean } | null
+  viewer?: { id: string; isOwner: boolean; isPartner: boolean } | null,
+  narrow?: UpgradeRequestNarrow
 ): Promise<{ total: number; pending: number; sent: number }> {
   if (!hasDatabase()) return { total: 0, pending: 0, sent: 0 };
   await ensureTables();
   const params: unknown[] = [];
-  let scope = "";
+  const conds: string[] = [];
   if (viewer && !viewer.isOwner) {
     params.push(viewer.id);
-    scope = viewer.isPartner
-      ? ` WHERE r.customer_id IN (SELECT id FROM app_users WHERE partner_id = $1)`
-      : ` WHERE r.customer_id = $1`;
+    conds.push(viewer.isPartner
+      ? `r.customer_id IN (SELECT id FROM app_users WHERE partner_id = $${params.length})`
+      : `r.customer_id = $${params.length}`);
   }
+  if (narrow?.customerId) {
+    params.push(narrow.customerId);
+    conds.push(`r.customer_id = $${params.length}`);
+  } else if (narrow?.partnerId) {
+    params.push(narrow.partnerId);
+    conds.push(`r.customer_id IN (SELECT id FROM app_users WHERE partner_id = $${params.length})`);
+  }
+  const scope = conds.length ? ` WHERE ${conds.join(" AND ")}` : "";
   const { rows } = await getPool().query(
     `SELECT
         COUNT(*)::int AS total,
@@ -525,19 +548,28 @@ export interface UpgradeRequestSeries {
 
 // Request counts bucketed by week/month/year for charting, scoped to the viewer.
 export async function getUpgradeRequestSeries(
-  viewer?: { id: string; isOwner: boolean; isPartner: boolean } | null
+  viewer?: { id: string; isOwner: boolean; isPartner: boolean } | null,
+  narrow?: UpgradeRequestNarrow
 ): Promise<UpgradeRequestSeries> {
   const empty: UpgradeRequestSeries = { week: [], month: [], year: [] };
   if (!hasDatabase()) return empty;
   await ensureTables();
   const params: unknown[] = [];
-  let scope = "";
+  const conds: string[] = [];
   if (viewer && !viewer.isOwner) {
     params.push(viewer.id);
-    scope = viewer.isPartner
-      ? ` WHERE r.customer_id IN (SELECT id FROM app_users WHERE partner_id = $1)`
-      : ` WHERE r.customer_id = $1`;
+    conds.push(viewer.isPartner
+      ? `r.customer_id IN (SELECT id FROM app_users WHERE partner_id = $${params.length})`
+      : `r.customer_id = $${params.length}`);
   }
+  if (narrow?.customerId) {
+    params.push(narrow.customerId);
+    conds.push(`r.customer_id = $${params.length}`);
+  } else if (narrow?.partnerId) {
+    params.push(narrow.partnerId);
+    conds.push(`r.customer_id IN (SELECT id FROM app_users WHERE partner_id = $${params.length})`);
+  }
+  const scope = conds.length ? ` WHERE ${conds.join(" AND ")}` : "";
   async function bucket(unit: "week" | "month" | "year"): Promise<UpgradeRequestSeriesPoint[]> {
     const { rows } = await getPool().query(
       `SELECT to_char(date_trunc('${unit}', r.requested_at), 'YYYY-MM-DD') AS period, COUNT(*)::int AS count

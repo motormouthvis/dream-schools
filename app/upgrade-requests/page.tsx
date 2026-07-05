@@ -51,6 +51,13 @@ interface TemplateOption {
 
 type SortKey = "date" | "customer" | "partner";
 
+interface ScopeOption {
+  type: "partner" | "customer";
+  id: string;
+  label: string;
+  sub: string;
+}
+
 interface SeriesPoint {
   period: string;
   count: number;
@@ -238,6 +245,10 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
   const [offerHistoryFilter, setOfferHistoryFilter] = useState("");
   const [pageSize, setPageSize] = useState(20);
   const [page, setPage] = useState(1);
+  const [scopeType, setScopeType] = useState<"all" | "partner" | "customer">("all");
+  const [scopeId, setScopeId] = useState("");
+  const [scopeSearch, setScopeSearch] = useState("");
+  const [scopeOptions, setScopeOptions] = useState<ScopeOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -249,7 +260,8 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
     try {
       // Managers can include all requests; standard customers always see their permanent list.
       const wantAll = isManager ? includeSent : true;
-      const res = await fetch(`/api/owner/upgrade-requests?include_sent=${wantAll ? "1" : "0"}`);
+      const scopeParam = isManager && scopeType !== "all" && scopeId ? `&scope=${encodeURIComponent(`${scopeType}:${scopeId}`)}` : "";
+      const res = await fetch(`/api/owner/upgrade-requests?include_sent=${wantAll ? "1" : "0"}${scopeParam}`);
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(j.error || "Could not load requests.");
@@ -295,7 +307,34 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [includeSent]);
+  }, [includeSent, scopeType, scopeId]);
+
+  // Managers: load the list of partners/customers they can scope the page to.
+  useEffect(() => {
+    if (!isManager) return;
+    fetch("/api/owner/customers")
+      .then((r) => r.json())
+      .then((j) => {
+        const opts: ScopeOption[] = [];
+        for (const c of j.customers || []) {
+          if (c.isOwner) continue;
+          if (c.isPartner) {
+            if (isOwner) opts.push({ type: "partner", id: c.id, label: c.companyName || c.email, sub: "Partner" });
+          } else {
+            opts.push({
+              type: "customer",
+              id: c.id,
+              label: c.businessName || c.email,
+              sub: c.partnerName ? `Customer · ${c.partnerName}` : "Customer",
+            });
+          }
+        }
+        opts.sort((a, b) => (a.type === b.type ? a.label.localeCompare(b.label) : a.type === "partner" ? -1 : 1));
+        setScopeOptions(opts);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isManager, isOwner]);
 
   async function sendNow() {
     setBusy(true);
@@ -450,6 +489,16 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
     if (!q) return offerEmails;
     return offerEmails.filter((e) => `${e.customerName} ${e.customerEmail}`.toLowerCase().includes(q));
   }, [offerEmails, offerHistoryFilter]);
+  const filteredScopeOptions = useMemo(() => {
+    const q = scopeSearch.trim().toLowerCase();
+    const base = q ? scopeOptions.filter((o) => `${o.label} ${o.sub}`.toLowerCase().includes(q)) : scopeOptions;
+    // Always keep the current selection visible even if it doesn't match the search.
+    if (scopeType !== "all" && scopeId && !base.some((o) => o.type === scopeType && o.id === scopeId)) {
+      const sel = scopeOptions.find((o) => o.type === scopeType && o.id === scopeId);
+      if (sel) return [sel, ...base];
+    }
+    return base;
+  }, [scopeOptions, scopeSearch, scopeType, scopeId]);
 
   const totalRows = sortedRequests.length;
   const pageCount = pageSize === 0 ? 1 : Math.max(1, Math.ceil(totalRows / pageSize));
@@ -527,6 +576,72 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
           Refresh
         </button>
       </div>
+
+      {isManager && (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+          <h2 className="text-sm font-extrabold text-ink-900">View</h2>
+          <p className="mt-1 text-[12px] text-slate-500">
+            {isOwner
+              ? "Show all requests, or focus on a single partner or customer. Type to search, then choose."
+              : "Show all of your customers' requests, or focus on a single customer. Type to search, then choose."}
+          </p>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+            <label className="flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-bold text-brand-700">
+              <input
+                type="radio"
+                name="scope-mode"
+                checked={scopeType === "all"}
+                onChange={() => {
+                  setScopeType("all");
+                  setScopeId("");
+                }}
+                className="h-4 w-4 accent-brand-600"
+              />
+              All {isOwner ? "partners & customers" : "customers"}
+            </label>
+            <div className="flex-1">
+              <input
+                value={scopeSearch}
+                onChange={(e) => setScopeSearch(e.target.value)}
+                placeholder={isOwner ? "Search partner or customer…" : "Search customer…"}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+              <select
+                value={scopeType === "all" ? "" : `${scopeType}:${scopeId}`}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) {
+                    setScopeType("all");
+                    setScopeId("");
+                  } else {
+                    const [t, id] = v.split(/:(.+)/);
+                    setScopeType(t as "partner" | "customer");
+                    setScopeId(id);
+                  }
+                }}
+                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                <option value="">All {isOwner ? "partners & customers" : "customers"}</option>
+                {filteredScopeOptions.length === 0 ? (
+                  <option value="" disabled>No matches</option>
+                ) : (
+                  filteredScopeOptions.map((o) => (
+                    <option key={`${o.type}:${o.id}`} value={`${o.type}:${o.id}`}>
+                      {o.type === "partner" ? "Partner — " : "Customer — "}{o.label} · {o.sub}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+          </div>
+          {scopeType !== "all" && (
+            <p className="mt-2 text-[12px] text-slate-500">
+              Showing <strong>{scopeType}</strong>: {scopeOptions.find((o) => o.type === scopeType && o.id === scopeId)?.label || scopeId}.{" "}
+              <button onClick={() => { setScopeType("all"); setScopeId(""); }} className="font-semibold text-brand-700 hover:text-brand-800">Clear</button>
+            </p>
+          )}
+        </div>
+      )}
 
       {isOwner && (
         <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
