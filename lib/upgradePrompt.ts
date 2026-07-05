@@ -450,11 +450,12 @@ export async function listUpgradeRequests(options: { includeSent?: boolean; limi
   const params: unknown[] = [Boolean(options.includeSent)];
   let scope = "";
   if (options.viewer && !options.viewer.isOwner) {
+    params.push(options.viewer.id);
     if (options.viewer.isPartner) {
-      params.push(options.viewer.id);
-      scope = ` AND r.partner_id = $${params.length}`;
+      // Scope by the customer's CURRENT partner association, so requests appear
+      // for the partner even if the row wasn't stamped with partner_id.
+      scope = ` AND r.customer_id IN (SELECT id FROM app_users WHERE partner_id = $${params.length})`;
     } else {
-      params.push(options.viewer.id);
       scope = ` AND r.customer_id = $${params.length}`;
     }
   }
@@ -490,7 +491,9 @@ export async function getUpgradeRequestSummary(
   let scope = "";
   if (viewer && !viewer.isOwner) {
     params.push(viewer.id);
-    scope = viewer.isPartner ? ` WHERE r.partner_id = $1` : ` WHERE r.customer_id = $1`;
+    scope = viewer.isPartner
+      ? ` WHERE r.customer_id IN (SELECT id FROM app_users WHERE partner_id = $1)`
+      : ` WHERE r.customer_id = $1`;
   }
   const { rows } = await getPool().query(
     `SELECT
@@ -525,7 +528,9 @@ export async function getUpgradeRequestSeries(
   let scope = "";
   if (viewer && !viewer.isOwner) {
     params.push(viewer.id);
-    scope = viewer.isPartner ? ` WHERE r.partner_id = $1` : ` WHERE r.customer_id = $1`;
+    scope = viewer.isPartner
+      ? ` WHERE r.customer_id IN (SELECT id FROM app_users WHERE partner_id = $1)`
+      : ` WHERE r.customer_id = $1`;
   }
   async function bucket(unit: "week" | "month" | "year"): Promise<UpgradeRequestSeriesPoint[]> {
     const { rows } = await getPool().query(
@@ -893,14 +898,16 @@ export async function sendUpgradeOfferEmail(input: {
   const params: unknown[] = [input.customerId];
   let scope = "";
   if (!input.viewer.isOwner) {
+    // A partner may only send to a customer currently assigned to them.
     params.push(input.viewer.id);
-    scope = ` AND r.partner_id = $${params.length}`;
+    scope = ` AND customer.partner_id = $${params.length}`;
   }
   const { rows } = await getPool().query(
     `SELECT
         r.*,
         customer.email AS customer_email,
         customer.business_name,
+        customer.partner_id AS customer_partner_id,
         partner.email AS partner_email,
         partner.company_name AS partner_company_name
        FROM app_upgrade_requests r
@@ -913,6 +920,8 @@ export async function sendUpgradeOfferEmail(input: {
   const requests = rows.map(row);
   const first = requests[0];
   if (!first?.customerEmail) throw new Error("No scoped upgrade requests found for this customer.");
+  // Prefer the customer's current partner association for the archived record.
+  const offerPartnerId = (rows[0] as any)?.customer_partner_id || first.partnerId || null;
   const customerName = first.businessName || first.customerEmail;
   const offerText = input.offerText.trim();
   const discountCode = (input.discountCode || "").trim();
@@ -926,7 +935,7 @@ export async function sendUpgradeOfferEmail(input: {
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
     [
       first.customerId,
-      first.partnerId,
+      offerPartnerId,
       input.viewer.email,
       first.customerEmail,
       customerName,
