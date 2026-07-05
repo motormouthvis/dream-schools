@@ -250,6 +250,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
   const [scopeSearch, setScopeSearch] = useState("");
   const [scopeOpen, setScopeOpen] = useState(false);
   const [scopeOptions, setScopeOptions] = useState<ScopeOption[]>([]);
+  const [adminScopeKind, setAdminScopeKind] = useState<"realtors" | "partners">("realtors");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -492,15 +493,18 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
     return offerEmails.filter((e) => `${e.customerName} ${e.customerEmail}`.toLowerCase().includes(q));
   }, [offerEmails, offerHistoryFilter]);
   const filteredScopeOptions = useMemo(() => {
+    // Admin toggles between searching Realtors (customers) and Partners.
+    const kindType: "customer" | "partner" = isOwner && adminScopeKind === "partners" ? "partner" : "customer";
+    const byKind = isOwner ? scopeOptions.filter((o) => o.type === kindType) : scopeOptions;
     const q = scopeSearch.trim().toLowerCase();
-    const base = q ? scopeOptions.filter((o) => `${o.label} ${o.sub}`.toLowerCase().includes(q)) : scopeOptions;
+    const base = q ? byKind.filter((o) => `${o.label} ${o.sub}`.toLowerCase().includes(q)) : byKind;
     // Always keep the current selection visible even if it doesn't match the search.
     if (scopeType !== "all" && scopeId && !base.some((o) => o.type === scopeType && o.id === scopeId)) {
       const sel = scopeOptions.find((o) => o.type === scopeType && o.id === scopeId);
       if (sel) return [sel, ...base];
     }
     return base;
-  }, [scopeOptions, scopeSearch, scopeType, scopeId]);
+  }, [scopeOptions, scopeSearch, scopeType, scopeId, isOwner, adminScopeKind]);
 
   const totalRows = sortedRequests.length;
   const pageCount = pageSize === 0 ? 1 : Math.max(1, Math.ceil(totalRows / pageSize));
@@ -581,12 +585,41 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
 
       {isManager && (
         <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-extrabold text-ink-900">{isOwner ? "View" : "View/Select Customers"}</h2>
-          <p className="mt-1 text-[12px] text-slate-500">
-            {isOwner
-              ? "Show all requests, or type to find and focus on a single partner or customer."
-              : "Show all of your customers' requests, or type to find and focus on a single customer."}
-          </p>
+          {isOwner ? (
+            <>
+              <div className="flex flex-wrap items-center gap-4">
+                <h2 className="text-sm font-extrabold text-ink-900">View/Select</h2>
+                {(["realtors", "partners"] as const).map((k) => (
+                  <label key={k} className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <input
+                      type="radio"
+                      name="admin-scope-kind"
+                      checked={adminScopeKind === k}
+                      onChange={() => {
+                        setAdminScopeKind(k);
+                        setScopeType("all");
+                        setScopeId("");
+                        setScopeSearch("");
+                        setScopeOpen(false);
+                      }}
+                      className="h-4 w-4 accent-brand-600"
+                    />
+                    {k === "realtors" ? "Realtors" : "Partners"}
+                  </label>
+                ))}
+              </div>
+              <p className="mt-1 text-[12px] text-slate-500">
+                Show all requests, or type to find and focus on a single {adminScopeKind === "partners" ? "partner" : "realtor"}.
+              </p>
+            </>
+          ) : (
+            <>
+              <h2 className="text-sm font-extrabold text-ink-900">View/Select Realtors</h2>
+              <p className="mt-1 text-[12px] text-slate-500">
+                Show all of your realtors' requests, or type to find and focus on a single realtor.
+              </p>
+            </>
+          )}
           <div className="relative mt-3 max-w-md">
             <input
               value={scopeSearch}
@@ -602,7 +635,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
               onFocus={() => setScopeOpen(true)}
               onClick={() => setScopeOpen(true)}
               onBlur={() => setTimeout(() => setScopeOpen(false), 150)}
-              placeholder={isOwner ? "All partners & customers — type to search…" : "Type to search for customers"}
+              placeholder={isOwner ? `Type to search for ${adminScopeKind === "partners" ? "partner" : "realtor"} name` : "Type to search for realtor name"}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 pr-8 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
             />
             {(scopeType !== "all" || scopeSearch) && (
@@ -635,7 +668,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
                     }}
                     className={`block w-full px-3 py-2 text-left hover:bg-slate-50 ${scopeType === "all" ? "font-bold text-brand-700" : "text-slate-700"}`}
                   >
-                    All {isOwner ? "partners & customers" : "customers"}
+                    All {isOwner ? (adminScopeKind === "partners" ? "partners" : "realtors") : "realtors"}
                   </button>
                 </li>
                 {filteredScopeOptions.length === 0 ? (
@@ -670,7 +703,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
           </div>
           {scopeType !== "all" && (
             <p className="mt-2 text-[12px] text-slate-500">
-              Showing {scopeType === "partner" ? "partner" : "customer"}:{" "}
+              Showing {scopeType === "partner" ? "partner" : "realtor"}:{" "}
               <strong>{scopeOptions.find((o) => o.type === scopeType && o.id === scopeId)?.label || scopeId}</strong>.
             </p>
           )}
