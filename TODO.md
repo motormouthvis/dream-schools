@@ -45,6 +45,9 @@ A living backlog. Check items off as they ship; add new ones at the bottom.
       popup).
 
 ## Emails
+- [ ] **Bulk email from the Upgrade Requests page:** let a partner email all their
+      realtors at once, and let an admin email all realtors or all partners at once
+      (reminder or special offer), instead of only a single selected recipient.
 - [ ] **Auto-apply Stripe offer code from the email:** in the Special Offer email,
       make the Upgrade button carry the offer code so clicking it pre-fills /
       auto-applies the code at `app.dreamneighborhood.com/accounts/signup/`

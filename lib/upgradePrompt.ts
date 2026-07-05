@@ -1446,6 +1446,189 @@ export async function sendPartnerRealtorEmail(input: {
   return { sent: true, recipient: user.email, requestCount: allRows.length };
 }
 
+// Partner-focused email (admin → a partner). Same visual design as the realtor
+// reminder, but the copy is about getting their realtors' clients to upgrade,
+// with aggregated stats across the partner's whole book of business.
+function partnerEmailHtml(opts: {
+  partnerName: string;
+  totalViews: number;
+  totalRequests: number;
+  realtorCount: number;
+  specialOffer?: { offerText: string; discountCode: string };
+}): string {
+  const { partnerName, totalViews, totalRequests, realtorCount, specialOffer } = opts;
+  const intro =
+    "Homebuyers across your realtors' websites are asking for the full Neighborhood Explorer — home prices, commute, walkability, safety, dining, and 38+ hyperlocal insights. Encourage your realtors to upgrade their clients so they stay on their sites instead of leaving for Realtor.com\u2122.";
+  return emailShell(
+    `<div style="background:#f8fbf4;border:1px solid #dcebd5;border-radius:26px;overflow:hidden;box-shadow:0 18px 48px rgba(15,81,50,.10)">
+       <div style="background:linear-gradient(135deg,#fbfff1 0%,#effdd1 48%,#dcfce7 100%);padding:26px 24px 24px;color:#0f172a;border-bottom:1px solid #d9f99d">
+         <div style="display:inline-block;background:#ffffff;border:1px solid #bbf7d0;border-radius:999px;padding:6px 11px;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;margin-bottom:13px;color:#12854c">Dream Neighborhood&trade; · Partner</div>
+         <h1 style="font-size:24px;line-height:1.15;margin:0 0 10px;color:#102a1d">Your realtors' homebuyers want the full neighborhood picture</h1>
+         <p style="font-size:14px;line-height:1.65;margin:0;color:#31523d">${htmlEscape(intro)}</p>
+       </div>
+
+       <div style="padding:20px 22px 6px">
+         ${
+           specialOffer
+             ? `<div style="background:linear-gradient(135deg,#fff7ed 0%,#ffedd5 100%);border:1px solid #fdba74;border-radius:18px;padding:16px;margin:0 0 16px">
+                  <div style="font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#9a3412;margin:0 0 6px">Share this offer with your realtors</div>
+                  <p style="font-size:13px;line-height:1.6;color:#7c2d12;margin:0 0 10px">Forward the code and message below to your realtors so their homebuyers can upgrade at a discount.</p>
+                  <p style="font-size:14px;line-height:1.6;color:#7c2d12;margin:0 0 12px">${htmlEscape(specialOffer.offerText)}</p>
+                  <div style="display:inline-block;background:#ffffff;border:1px dashed #fb923c;border-radius:12px;padding:8px 14px">
+                    <span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#9a3412">Offer code</span>
+                    <span style="font-size:18px;font-weight:900;color:#0f172a;margin-left:8px;letter-spacing:.04em">${htmlEscape(specialOffer.discountCode)}</span>
+                  </div>
+                </div>`
+             : ""
+         }
+         <p style="color:#0f172a;font-size:14px;line-height:1.6;margin:0 0 12px">
+           <strong>Dream Neighborhood&trade; has two product offerings:</strong>
+         </p>
+         <table role="presentation" style="width:100%;border-collapse:collapse;margin:0 0 16px">
+           <tr>
+             <td style="background:#ffffff;border:1px solid #dcebd5;border-left:5px solid #12854c;border-radius:16px;padding:14px;vertical-align:top">
+               <div style="font-size:13px;font-weight:800;color:#12854c;margin-bottom:4px">School Explorer</div>
+               <div style="font-size:12px;line-height:1.55;color:#475569">Free forever, no ads, and no credit card required.</div>
+             </td>
+           </tr>
+           <tr><td style="height:10px"></td></tr>
+           <tr>
+             <td style="background:#ffffff;border:1px solid #dcebd5;border-left:5px solid #84cc16;border-radius:16px;padding:14px;vertical-align:top">
+               <div style="font-size:13px;font-weight:800;color:#3f6212;margin-bottom:4px">Neighborhood Explorer</div>
+               <div style="font-size:12px;line-height:1.55;color:#475569">School information plus much more! 38+ hyperlocal neighborhood insights: prices, commute, walkability, safety, dining, and more. Very cost effective.</div>
+             </td>
+           </tr>
+         </table>
+
+         <div style="background:#ffffff;border:1px solid #dcebd5;border-radius:20px;padding:16px;margin:0 0 16px">
+           <div style="font-size:15px;font-weight:900;color:#0f172a;margin:0 0 4px">Your realtors are using the School Explorer!</div>
+           <div style="font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#12854c;margin:0 0 12px">School Explorer Usage</div>
+           <table role="presentation" style="width:100%;border-collapse:collapse">
+             <tr>
+               <td style="background:#f1f5f9;border-radius:14px;padding:14px 8px;text-align:center;width:33.333%">
+                 <div style="font-size:24px;font-weight:900;color:#0f172a;line-height:1">${totalViews.toLocaleString()}</div>
+                 <div style="font-size:11px;color:#64748b;line-height:1.3;margin-top:5px">Total homebuyer views</div>
+               </td>
+               <td style="width:8px"></td>
+               <td style="background:#f1f5f9;border-radius:14px;padding:14px 8px;text-align:center;width:33.333%">
+                 <div style="font-size:24px;font-weight:900;color:#0f172a;line-height:1">${totalRequests.toLocaleString()}</div>
+                 <div style="font-size:11px;color:#64748b;line-height:1.3;margin-top:5px">Total upgrade requests</div>
+               </td>
+               <td style="width:8px"></td>
+               <td style="background:#ecfdf5;border:1px solid #bbf7d0;border-radius:14px;padding:14px 8px;text-align:center;width:33.333%">
+                 <div style="font-size:24px;font-weight:900;color:#047857;line-height:1">${realtorCount.toLocaleString()}</div>
+                 <div style="font-size:11px;color:#047857;line-height:1.3;margin-top:5px">Realtors on School Explorer</div>
+               </td>
+             </tr>
+           </table>
+         </div>
+
+         <div style="text-align:center;background:#ffffff;border:1px solid #bbf7d0;border-radius:22px;padding:20px;margin:0 0 16px;box-shadow:0 10px 30px rgba(18,133,76,.10)">
+           <div style="font-size:18px;font-weight:900;color:#0f172a;line-height:1.25;margin:0 0 14px">Help your realtors give homebuyers the full neighborhood picture!</div>
+           <table role="presentation" align="center" style="margin:0 auto;border-collapse:collapse"><tr>
+             <td style="padding-right:8px">
+               <a href="${LEARN_MORE_URL}" style="display:inline-block;background:#ffffff;border:2px solid #12854c;color:#12854c;font-weight:800;text-decoration:none;padding:11px 18px;border-radius:999px;font-size:14px">Learn More</a>
+             </td>
+             <td>
+               <a href="${SIGNUP_URL}" style="display:inline-block;background:#12854c;color:#ffffff;font-weight:800;text-decoration:none;padding:13px 22px;border-radius:999px;font-size:14px;box-shadow:0 8px 18px rgba(18,133,76,.25)">See Neighborhood Explorer</a>
+             </td>
+           </tr></table>
+         </div>
+
+         <div style="background:#ffffff;border:1px solid #dcebd5;border-radius:20px;padding:16px;margin:0 0 16px">
+           <div style="font-size:14px;font-weight:900;color:#0f5132;margin:0 0 8px">Why this matters for your realtors</div>
+           <ul style="color:#334155;font-size:13px;line-height:1.65;padding-left:18px;margin:0">
+             <li>Help your realtors keep buyers on their sites instead of bouncing to Zillow or Realtor.com&trade;</li>
+             <li>38+ hyperlocal insights: prices, commute, walkability, safety, dining</li>
+             <li>More time on page, better SEO, fewer showings, happier clients</li>
+           </ul>
+         </div>
+       </div>
+     </div>`
+  );
+}
+
+export async function sendPartnerTargetedEmail(input: {
+  viewer: UpgradeManagerViewer;
+  partnerId: string;
+  kind: "reminder" | "offer";
+  offerText?: string;
+  discountCode?: string;
+  preview?: boolean;
+}): Promise<{ sent: boolean; recipient: string; requestCount: number; html?: string; subject?: string }> {
+  if (!hasDatabase()) return { sent: false, recipient: "", requestCount: 0 };
+  if (!input.viewer.isOwner) throw new Error("Admin access required to email a partner.");
+  if (input.kind === "offer" && !input.preview) {
+    if (!input.offerText?.trim() || !input.discountCode?.trim()) {
+      throw new Error("Suggested text and offer code are required for a Special Offer.");
+    }
+  }
+  await ensureAuthTables();
+  await ensureTables();
+  const pool = getPool();
+
+  const partner = (
+    await pool.query(
+      `SELECT id, email, company_name FROM app_users WHERE id = $1 AND is_partner = TRUE AND deleted_at IS NULL`,
+      [input.partnerId]
+    )
+  ).rows[0];
+  if (!partner?.email) throw new Error("Partner not found.");
+  const partnerName = (partner.company_name || "").trim() || partner.email;
+
+  const totalViews = Number(
+    (await pool.query(
+      `SELECT COALESCE(SUM(views),0)::bigint AS n FROM embed_usage
+        WHERE partner_id IN (SELECT id FROM app_users WHERE partner_id = $1)`,
+      [input.partnerId]
+    )).rows[0].n
+  ) || 0;
+  const totalRequests = Number(
+    (await pool.query(
+      `SELECT COUNT(*)::int AS n FROM app_upgrade_requests
+        WHERE customer_id IN (SELECT id FROM app_users WHERE partner_id = $1)`,
+      [input.partnerId]
+    )).rows[0].n
+  );
+  const realtorCount = Number(
+    (await pool.query(
+      `SELECT COUNT(*)::int AS n FROM app_users
+        WHERE partner_id = $1 AND deleted_at IS NULL AND is_owner = FALSE AND is_partner = FALSE`,
+      [input.partnerId]
+    )).rows[0].n
+  );
+
+  const specialOffer =
+    input.kind === "offer"
+      ? { offerText: (input.offerText || "").trim() || "Your suggested message to realtors will appear here.", discountCode: (input.discountCode || "").trim() || "OFFERCODE" }
+      : undefined;
+  const html = partnerEmailHtml({ partnerName, totalViews, totalRequests, realtorCount, specialOffer });
+  const subject = input.kind === "offer" ? "A special offer to share with your realtors" : "Your realtors' homebuyers want the full neighborhood picture";
+  const text = [
+    subject,
+    specialOffer ? `\nShare this offer with your realtors\n${specialOffer.offerText}\nOffer code: ${specialOffer.discountCode}\n` : "",
+    `Across your realtors: ${totalViews} homebuyer views, ${totalRequests} upgrade requests, ${realtorCount} realtors on the School Explorer.`,
+    `Learn more: ${LEARN_MORE_URL}`,
+  ].filter(Boolean).join("\n");
+
+  if (input.preview) {
+    return { sent: false, recipient: partner.email, requestCount: totalRequests, html, subject };
+  }
+
+  await sendTransactionalEmail({ to: partner.email, subject, text, html });
+  if (input.kind === "offer") {
+    await pool.query(
+      `INSERT INTO app_upgrade_offer_emails
+         (customer_id, partner_id, sent_by, recipient, customer_name, offer_text, discount_code, request_ids, request_count, html, text)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [input.partnerId, input.partnerId, input.viewer.email, partner.email, partnerName, specialOffer!.offerText, specialOffer!.discountCode, [], totalRequests, html, text]
+    );
+  } else {
+    await archiveEmail({ recipient: partner.email, subject, variant: "partner_target", audience: "partner_target", requestIds: [], html, text });
+  }
+  return { sent: true, recipient: partner.email, requestCount: totalRequests };
+}
+
 export async function runDueCustomerReminders(now = new Date()): Promise<{ processed: number }> {
   if (!hasDatabase()) return { processed: 0 };
   await ensureAuthTables();

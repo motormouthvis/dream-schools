@@ -550,9 +550,13 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
     );
   }
 
+  // The current send target derived from the View/Select selection.
+  const emailTargetType = scopeType === "partner" ? "partner" : "realtor";
+  const hasEmailTarget = (scopeType === "customer" || scopeType === "partner") && Boolean(scopeId);
+
   async function previewRealtorEmail() {
-    if (scopeType !== "customer" || !scopeId) {
-      setError("Select a realtor first.");
+    if (!hasEmailTarget) {
+      setError("Select a realtor or partner first.");
       return;
     }
     setBusy(true);
@@ -561,7 +565,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
       const res = await fetch("/api/owner/realtor-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ realtorId: scopeId, kind: partnerEmailKind, offerText, discountCode, preview: true }),
+        body: JSON.stringify({ targetType: emailTargetType, targetId: scopeId, kind: partnerEmailKind, offerText, discountCode, preview: true }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -577,8 +581,8 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
   }
 
   async function sendRealtorEmail() {
-    if (scopeType !== "customer" || !scopeId) {
-      setError("Select a realtor first.");
+    if (!hasEmailTarget) {
+      setError("Select a realtor or partner first.");
       return;
     }
     if (partnerEmailKind === "offer" && (!offerText.trim() || !discountCode.trim())) {
@@ -592,7 +596,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
       const res = await fetch("/api/owner/realtor-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ realtorId: scopeId, kind: partnerEmailKind, offerText, discountCode }),
+        body: JSON.stringify({ targetType: emailTargetType, targetId: scopeId, kind: partnerEmailKind, offerText, discountCode }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -782,148 +786,27 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
         </div>
       )}
 
-      {isOwner && (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-          <div className="grid gap-3 lg:grid-cols-[1fr_180px_auto_auto] lg:items-end">
-            <label className="block">
-              <span className="block text-xs font-bold text-slate-600">Template variant for Realtor/customer email</span>
-              <select value={variant} onChange={(e) => setVariant(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                {(templates.length ? templates : [{ variant: "soft_nudge", label: "Soft nudge" }]).map((t) => (
-                  <option key={t.variant} value={t.variant}>
-                    {t.label || t.variant}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="block text-xs font-bold text-slate-600">Auto-send every X weeks</span>
-              <input
-                type="number"
-                min={1}
-                max={52}
-                value={digestIntervalWeeks}
-                onChange={(e) => setDigestIntervalWeeks(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <input type="checkbox" checked={includeSent} onChange={(e) => setIncludeSent(e.target.checked)} className="h-4 w-4 accent-brand-600" />
-              Include previously sent requests
-            </label>
-            <div className="flex gap-2">
-              <button
-                onClick={saveSchedule}
-                disabled={busy}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60"
-              >
-                Save schedule
-              </button>
-              <button
-                onClick={sendNow}
-                disabled={busy || unsentCount === 0}
-                className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60"
-              >
-                {busy ? "Sending…" : `Send digest now (${unsentCount})`}
-              </button>
-            </div>
-          </div>
-          <p className="mt-2 text-[12px] text-slate-500">
-            Sends to the Realtor/customer email, assigned Partner email (if any), and Admin/Product Owner email(s). Sent requests are marked so they are not included again.
-            {lastDigestSentAt && <> Last automatic/manual digest: <strong>{fmt(lastDigestSentAt)}</strong>.</>}
-          </p>
-        </div>
-      )}
-
-      {isOwner ? (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-          <div className="grid gap-4 xl:grid-cols-[minmax(240px,320px)_1fr]">
-            <div>
-              <h2 className="text-sm font-extrabold text-ink-900">Find a Standard Account</h2>
-              <p className="mt-1 text-[12px] leading-relaxed text-slate-500">
-                Filter by customer name or email, then send that customer an offer email with all of their upgrade requests.
-              </p>
-              <input
-                value={customerFilter}
-                onChange={(e) => {
-                  setCustomerFilter(e.target.value);
-                  setSelectedCustomerId("");
-                }}
-                placeholder="Filter by customer name or email"
-                className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              />
-              <select
-                value={selectedCustomer?.id || ""}
-                onChange={(e) => setSelectedCustomerId(e.target.value)}
-                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              >
-                {filteredCustomers.length === 0 ? (
-                  <option value="">No matching customers</option>
-                ) : (
-                  filteredCustomers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} — {c.email} ({c.count})
-                    </option>
-                  ))
-                )}
-              </select>
-              {selectedCustomer && (
-                <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
-                  Sending to <strong>{selectedCustomer.name}</strong>
-                  {selectedCustomer.email && <> &lt;{selectedCustomer.email}&gt;</>} with {selectedCustomer.count} request{selectedCustomer.count === 1 ? "" : "s"}.
-                </p>
-              )}
-            </div>
-
-            <div className="rounded-2xl border border-brand-100 bg-gradient-to-br from-white via-lime-50/60 to-emerald-50 p-4 shadow-sm">
-              <h2 className="text-sm font-extrabold text-ink-900">Send Upgrade Offer Email</h2>
-              <p className="mt-1 text-[12px] leading-relaxed text-slate-500">
-                Add an offer message and optional Stripe discount code. A sent-email history record is saved automatically.
-              </p>
-              <div className="mt-3 grid gap-3 lg:grid-cols-[220px_1fr_auto] lg:items-end">
-                <label className="block">
-                  <span className="block text-xs font-bold text-slate-600">Stripe discount code</span>
-                  <input
-                    value={discountCode}
-                    onChange={(e) => setDiscountCode(e.target.value)}
-                    placeholder="Optional"
-                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                  />
-                </label>
-                <label className="block">
-                  <span className="block text-xs font-bold text-slate-600">Offer text</span>
-                  <textarea
-                    value={offerText}
-                    onChange={(e) => setOfferText(e.target.value)}
-                    rows={3}
-                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                  />
-                </label>
-                <button
-                  onClick={sendOffer}
-                  disabled={busy || !selectedCustomer || !offerText.trim()}
-                  className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60"
-                >
-                  {busy ? "Sending…" : "Send offer"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : isPartner ? (
+      {isManager ? (
         (() => {
           const selectedRealtor = scopeType === "customer" && scopeId ? scopeOptions.find((o) => o.type === "customer" && o.id === scopeId) : null;
+          const selectedPartner = scopeType === "partner" && scopeId ? scopeOptions.find((o) => o.type === "partner" && o.id === scopeId) : null;
+          const target = selectedRealtor || selectedPartner;
+          const targetIsPartner = Boolean(selectedPartner);
           const offerValid = partnerEmailKind === "reminder" || (offerText.trim() && discountCode.trim());
           return (
             <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-              <h2 className="text-sm font-extrabold text-ink-900">Send Email To Selected Realtor</h2>
-              {!selectedRealtor ? (
+              <h2 className="text-sm font-extrabold text-ink-900">{isOwner ? "Send Email to Selected Realtor/Partner" : "Send Email To Selected Realtor"}</h2>
+              {!target ? (
                 <p className="mt-1 text-[12px] text-slate-500">
-                  Select a realtor in <strong>View/Select Realtors</strong> above to send them an email.
+                  Select a {isOwner ? "realtor or partner" : "realtor"} in <strong>{isOwner ? "View/Select" : "View/Select Realtors"}</strong> above to send them an email.
                 </p>
               ) : (
                 <>
                   <p className="mt-1 text-[12px] text-slate-500">
-                    Sending to <strong>{selectedRealtor.label}</strong>. They receive the same beautiful upgrade email they can send themselves.
+                    Sending to <strong>{target.label}</strong>{targetIsPartner ? " (Partner)" : ""}.{" "}
+                    {targetIsPartner
+                      ? "They receive a partner reminder to help their realtors upgrade their clients."
+                      : "They receive the same beautiful upgrade email they can send themselves."}
                   </p>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
                     <label className="flex items-start gap-2 rounded-xl border border-brand-100 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm">
@@ -937,7 +820,7 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
                       <input type="radio" name="partner-email-kind" checked={partnerEmailKind === "offer"} onChange={() => setPartnerEmailKind("offer")} className="mt-0.5 h-4 w-4 accent-brand-600" />
                       <span>
                         <span className="block font-bold text-ink-900">Special Offer</span>
-                        <span className="block text-[11px] text-slate-500">Same email plus your offer + Stripe code.</span>
+                        <span className="block text-[11px] text-slate-500">{targetIsPartner ? "Same email plus a code + text to share with their realtors." : "Same email plus your offer + Stripe code."}</span>
                       </span>
                     </label>
                   </div>
@@ -945,12 +828,12 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
                   {partnerEmailKind === "offer" && (
                     <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_220px]">
                       <label className="block">
-                        <span className="block text-xs font-bold text-slate-600">Offer text <span className="text-rose-500">*</span></span>
+                        <span className="block text-xs font-bold text-slate-600">{targetIsPartner ? "Suggested text to share with realtors" : "Offer text"} <span className="text-rose-500">*</span></span>
                         <textarea
                           value={offerText}
                           onChange={(e) => setOfferText(e.target.value)}
                           rows={3}
-                          placeholder="e.g. Upgrade this month and get your first 3 months at 50% off."
+                          placeholder={targetIsPartner ? "e.g. Share with your realtors: upgrade your clients this month and save 50% for 3 months." : "e.g. Upgrade this month and get your first 3 months at 50% off."}
                           className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                         />
                       </label>
