@@ -102,6 +102,7 @@ function RequestsChart({
   granularity: "week" | "month" | "year";
   onGranularity: (g: "week" | "month" | "year") => void;
 }) {
+  const [hover, setHover] = useState<number | null>(null);
   // Show the full all-time series for the selected granularity.
   const shown = series[granularity] || [];
   const max = shown.reduce((m, p) => Math.max(m, p.count), 0);
@@ -143,18 +144,31 @@ function RequestsChart({
         <p className="mt-6 text-center text-sm text-slate-400">No request data to chart yet.</p>
       ) : (
         <>
-          <div className={`mt-4 flex h-48 items-end ${gap} overflow-x-auto border-b border-slate-100 pb-1`}>
-            {shown.map((p) => {
+          <div className="mt-3 flex h-6 items-center">
+            {hover !== null && shown[hover] ? (
+              <div className="rounded-md bg-ink-900 px-2.5 py-1 text-[12px] font-semibold text-white">
+                {formatPeriodFull(shown[hover].period, granularity)} · {shown[hover].count.toLocaleString()} request{shown[hover].count === 1 ? "" : "s"}
+              </div>
+            ) : (
+              <div className="text-[11px] text-slate-400">Hover a bar to see its {granularity === "week" ? "week start date" : granularity} and request count.</div>
+            )}
+          </div>
+          <div className={`mt-1 flex h-48 items-end ${gap} overflow-x-auto border-b border-slate-100 pb-1`}>
+            {shown.map((p, i) => {
               const pct = max > 0 ? Math.round((p.count / max) * 100) : 0;
               return (
                 <div
                   key={p.period}
-                  className={`group flex h-full ${barMinW} flex-1 flex-col items-center justify-end`}
+                  onMouseEnter={() => setHover(i)}
+                  onMouseLeave={() => setHover((h) => (h === i ? null : h))}
+                  onFocus={() => setHover(i)}
+                  onBlur={() => setHover((h) => (h === i ? null : h))}
+                  tabIndex={0}
+                  className={`group flex h-full ${barMinW} flex-1 flex-col items-center justify-end outline-none`}
                   title={`${formatPeriodFull(p.period, granularity)}: ${p.count} request${p.count === 1 ? "" : "s"}`}
                 >
-                  <div className="mb-1 text-[9px] font-semibold text-slate-500 opacity-0 group-hover:opacity-100">{p.count}</div>
                   <div
-                    className="w-full rounded-t bg-brand-500 transition-all group-hover:bg-brand-600"
+                    className={`w-full rounded-t transition-all ${hover === i ? "bg-brand-700" : "bg-brand-500 group-hover:bg-brand-600"}`}
                     style={{ height: `${Math.max(pct, p.count > 0 ? 4 : 0)}%` }}
                   />
                 </div>
