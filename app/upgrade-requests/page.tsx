@@ -326,7 +326,8 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
               type: "customer",
               id: c.id,
               label: c.businessName || c.email,
-              sub: c.partnerName ? `Customer · ${c.partnerName}` : "Customer",
+              // Partner view: search & display by Realtor Name only (no sub text).
+              sub: isOwner ? (c.partnerName ? `Customer · ${c.partnerName}` : "Customer") : "",
             });
           }
         }
@@ -655,7 +656,9 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
                           className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-slate-50 ${selected ? "bg-brand-50" : ""}`}
                         >
                           <span className={selected ? "font-bold text-brand-700" : "text-slate-800"}>{o.label}</span>
-                          <span className="shrink-0 text-[11px] text-slate-400">{o.type === "partner" ? "Partner" : o.sub}</span>
+                          {(o.type === "partner" || o.sub) && (
+                            <span className="shrink-0 text-[11px] text-slate-400">{o.type === "partner" ? "Partner" : o.sub}</span>
+                          )}
                         </button>
                       </li>
                     );
