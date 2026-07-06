@@ -35,3 +35,6 @@ pipeline/raw/
 
 # Private reference clone of the paid Dream Neighborhood product (never commit)
 .dn-reference/
+
+# Playwright smoke-test screenshots (generated)
+scripts/smoke-shots/
