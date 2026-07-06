@@ -26,9 +26,6 @@ export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
           Enter any address and get clear, helpful information about nearby schools. No account
           needed. No ads. No catch.
         </p>
-        <p className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">
-          Data for 119,000+ schools across the U.S.
-        </p>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">

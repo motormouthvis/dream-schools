@@ -412,6 +412,19 @@ export default function Home() {
         </button>
       </form>
 
+      {/* Trust / stats bar — adds weight under the hero and reinforces credibility. */}
+      {!data && (
+        <div className="mx-auto mt-4 flex max-w-2xl flex-wrap items-center justify-center gap-x-3 gap-y-1.5 rounded-2xl border border-brand-200 bg-white px-4 py-3 text-center shadow-sm">
+          <span className="text-sm text-slate-600">
+            <span className="font-extrabold text-ink-900">119,000+</span> schools across the United States
+          </span>
+          <span aria-hidden className="hidden text-brand-300 sm:inline">•</span>
+          <span className="text-sm font-semibold text-slate-600">Data for every address</span>
+          <span aria-hidden className="hidden text-brand-300 sm:inline">•</span>
+          <span className="text-sm font-bold text-brand-700">Free forever</span>
+        </div>
+      )}
+
       <div className="mt-8">
         {loading && (
           <div className="animate-pulse rounded-3xl border border-slate-200 bg-white p-10 text-center text-slate-400 shadow">
