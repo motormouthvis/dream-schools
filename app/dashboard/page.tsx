@@ -6,7 +6,7 @@ import { NeighborhoodExplorerCard } from "@/components/NeighborhoodExplorerCard"
 
 // Key value props (mirrors the marketing site's School Explorer card).
 const VALUE_PROPS: [string, React.ReactNode][] = [
-  ["Save $50–$100/month", <>vs. other school-data tools — ours is <strong>free, forever</strong>.</>],
+  ["Save $50–$800/month", <>vs. other school-data tools — ours is <strong>free, forever</strong>.</>],
   ["No website redesign", <>our unique popup technology installs with <strong>one line of code</strong>.</>],
   ["Embedded option too", <>Embedded School Explorer also available — <strong>one line of code</strong>, minimal website redesign.</>],
 ];

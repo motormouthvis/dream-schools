@@ -77,7 +77,7 @@ export default function PartnersPage() {
             Book a 15-Minute Demo
           </a>
           <a
-            href="/installation"
+            href="/installation/partners"
             className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-brand-600 px-6 py-3 text-sm font-bold text-brand-700 transition hover:bg-brand-50"
           >
             Start White-Labeling Today
@@ -151,7 +151,7 @@ export default function PartnersPage() {
             Book a 15-Minute Demo
           </a>
           <a
-            href="/installation"
+            href="/installation/partners"
             className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-brand-600 px-6 py-3 text-sm font-bold text-brand-700 transition hover:bg-brand-50"
           >
             Start White-Labeling Today
@@ -164,7 +164,7 @@ export default function PartnersPage() {
         <p>© 2026 Dream Neighborhood. All rights reserved.</p>
         <div className="mt-2 flex flex-wrap items-center justify-center gap-5">
           <a href="/" className="font-medium text-slate-600 transition hover:text-brand-700">Home</a>
-          <a href="/installation" className="font-medium text-slate-600 transition hover:text-brand-700">Add to your site</a>
+          <a href="/installation/partners" className="font-medium text-slate-600 transition hover:text-brand-700">Add to your site</a>
           <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="font-medium text-slate-600 transition hover:text-brand-700">Terms of Service</a>
           <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="font-medium text-slate-600 transition hover:text-brand-700">Privacy Policy</a>
         </div>

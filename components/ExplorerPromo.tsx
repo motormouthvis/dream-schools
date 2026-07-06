@@ -24,7 +24,7 @@ export function ExplorerPromo() {
             <li className="flex items-start gap-2.5">
               <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
               <span>
-                <strong>Save $50–$100/month</strong> vs. other school-data tools — ours is free,
+                <strong>Save $50–$800/month</strong> vs. other school-data tools — ours is free,
                 forever.
               </span>
             </li>
