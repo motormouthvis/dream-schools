@@ -471,7 +471,9 @@
     "#dse-root .dse-header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px;background:var(--dse-accent,#1fa55f);color:#fff;flex-shrink:0}" +
     "#dse-root .dse-hl{display:flex;align-items:center;gap:10px;min-width:0;flex:1 1 auto;overflow:hidden}" +
     "#dse-root .dse-hicon{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;flex-shrink:0}" +
-    "#dse-root .dse-hicon svg{width:18px;height:18px}#dse-root .dse-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px;font-weight:600}" +
+    // Title clipping window — starts AFTER the logo so a marquee never runs over it.
+    "#dse-root .dse-tw{min-width:0;flex:1 1 auto;overflow:hidden}" +
+    "#dse-root .dse-hicon svg{width:18px;height:18px}#dse-root .dse-title{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px;font-weight:600}" +
     "@media(max-width:520px){#dse-root .dse-title{display:inline-block;min-width:max-content;animation:dse-title-marquee 12s linear infinite}}" +
     "#dse-root .dse-close{background:none;border:none;color:#fff;cursor:pointer;padding:6px;border-radius:8px;display:flex;flex-shrink:0;position:relative;z-index:1}" +
     "#dse-root .dse-close:hover{background:rgba(255,255,255,.15)}#dse-root .dse-close svg{width:18px;height:18px}" +
@@ -569,7 +571,7 @@
     backdrop.style.display = "none";
     var title = "Dream Neighborhood School Explorer" + (config.providerName ? " provided by " + config.providerName : "");
     backdrop.innerHTML =
-      '<div class="dse-panel"><div class="dse-header"><div class="dse-hl"><div class="dse-hicon">' + ICON_PIN + '</div><span class="dse-title" title="' + escHtml(title) + '">' + escHtml(title) + '</span></div>' +
+      '<div class="dse-panel"><div class="dse-header"><div class="dse-hl"><div class="dse-hicon">' + ICON_PIN + '</div><div class="dse-tw"><span class="dse-title" title="' + escHtml(title) + '">' + escHtml(title) + '</span></div></div>' +
       '<button class="dse-close" aria-label="Close">' + ICON_CLOSE + '</button></div>' +
       '<div class="dse-loading dse-hidden"><div class="dse-spinner"></div></div>' +
       '<iframe class="dse-iframe" allow="geolocation" allowfullscreen></iframe></div>';
