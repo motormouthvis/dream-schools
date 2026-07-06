@@ -5,7 +5,7 @@ import { SchoolsTab } from "@/components/SchoolsTab";
 import { Logo, SchoolhouseMark } from "@/components/Logo";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { DataSourcesModal } from "@/components/DataSourcesModal";
-import { ExplorerPromo } from "@/components/ExplorerPromo";
+import { HomeSections } from "@/components/HomeSections";
 import { getRecent, addRecent, removeRecent, type RecentSearch } from "@/lib/recent";
 import { TERMS_URL, PRIVACY_URL } from "@/lib/legalLinks";
 import type { LookupResult } from "@/lib/types";
@@ -434,7 +434,14 @@ export default function Home() {
           />
         )}
 
-        {!loading && !error && !data && <ExplorerPromo />}
+        {!loading && !error && !data && (
+          <HomeSections
+            onSearchNow={() => {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+              setTimeout(() => inputRef.current?.focus(), 350);
+            }}
+          />
+        )}
       </div>
 
       {/* Footnote: coverage (moved off the top to declutter) */}
@@ -448,7 +455,13 @@ export default function Home() {
       {/* Footer — matches dreamneighborhood.com */}
       <footer className="mx-auto mt-10 max-w-2xl border-t border-slate-200 pt-6 text-center text-xs text-slate-500">
         <p>© 2026 Dream Neighborhood. All rights reserved.</p>
-        <div className="mt-2 flex items-center justify-center gap-5">
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-5">
+          <a href="/installation" className="font-medium text-slate-600 transition hover:text-brand-700">
+            Add to your site
+          </a>
+          <a href="/partners" className="font-medium text-slate-600 transition hover:text-brand-700">
+            Partners
+          </a>
           <a
             href={TERMS_URL}
             target="_blank"
