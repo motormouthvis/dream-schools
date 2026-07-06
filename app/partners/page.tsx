@@ -1,15 +1,12 @@
 import { Logo } from "@/components/Logo";
 import { ExplorerPromo } from "@/components/ExplorerPromo";
-import { TERMS_URL, PRIVACY_URL } from "@/lib/legalLinks";
+import { TERMS_URL, PRIVACY_URL, CALENDLY_URL } from "@/lib/legalLinks";
 
 export const metadata = {
   title: "Partner Program — Dream Neighborhood Schools",
   description:
     "White-label the free School Explorer for your clients and earn up to 40% recurring revenue when they upgrade to the full Neighborhood Explorer widget.",
 };
-
-// Book a demo/partnership call via the shared Dream Neighborhood Calendly.
-const CALENDLY_URL = "https://calendly.com/d/cvbg-myt-4x9/dream-neighborhood-demo-call";
 
 const BENEFITS: [string, string][] = [
   [

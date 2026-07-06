@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Logo } from "@/components/Logo";
 import { Check, Copy, ArrowRight } from "lucide-react";
-import { TERMS_URL, PRIVACY_URL } from "@/lib/legalLinks";
+import { TERMS_URL, PRIVACY_URL, CALENDLY_URL } from "@/lib/legalLinks";
 
 const POPUP_SNIPPET = `<script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
 
@@ -240,10 +240,12 @@ export default function InstallationPage() {
             </p>
             <div className="mt-3 flex flex-col gap-3 pl-10 sm:flex-row">
               <a
-                href={"mailto:partners@dreamneighborhood.com?subject=" + encodeURIComponent("Dream Neighborhood partnership")}
+                href={CALENDLY_URL}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700"
               >
-                Book a 15-Minute Partnership Call
+                Book a 15-Minute Demo
               </a>
               <a
                 href="/partners"
