@@ -57,13 +57,16 @@ export default function PartnerInstallationPage() {
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-slate-700">
             Give every client the free School Explorer at zero cost, and share in the revenue when
-            they upgrade to the full paid Neighborhood Explorer widget.
+            they upgrade to the full paid Neighborhood Explorer widget. One integration, every client
+            site — instantly.
           </p>
-          <ul className="mt-4 space-y-2.5">
+          <ul className="mt-4 grid gap-2.5 sm:grid-cols-2">
             <Benefit><strong>Zero cost to white-label</strong> — free for every client site, no minimums.</Benefit>
-            <Benefit><strong>Up to 40% recurring revenue</strong> on upgrades to the full paid widget.</Benefit>
-            <Benefit><strong>Works with any IDX or website</strong> — installs with one line of code, no redesign.</Benefit>
-            <Benefit><strong>Sticky &amp; competitive</strong> — school data becomes part of your platform.</Benefit>
+            <Benefit><strong>Up to 40% recurring revenue</strong> on every client upgrade.</Benefit>
+            <Benefit><strong>Deploy to all client sites at once</strong> — add it to your global template and it&apos;s live everywhere.</Benefit>
+            <Benefit><strong>Works with any IDX, CMS, or custom site</strong> — one line of code, no redesign.</Benefit>
+            <Benefit><strong>Sticky &amp; competitive</strong> — school data becomes part of your platform and your brand.</Benefit>
+            <Benefit><strong>Your clients look like heroes</strong> — richer listings, happier buyers, more time on site.</Benefit>
           </ul>
           <a
             href="/partners"
@@ -80,8 +83,9 @@ export default function PartnerInstallationPage() {
             <h2 className="text-lg font-extrabold tracking-tight text-ink-900">Drop in one line, platform-wide</h2>
           </div>
           <p className="mt-2 pl-10 text-sm leading-relaxed text-slate-600">
-            Add the script to your global template or theme so it appears on every client listing
-            page automatically. It auto-detects the listing address on each page.
+            Add the script once to your global template or theme and it goes live across every client
+            listing page automatically — no per-site work. It auto-detects the listing address on each
+            page, so the right schools always show.
           </p>
           <div className="mt-3 pl-10">
             <CodeBlock code={POPUP_SNIPPET} />

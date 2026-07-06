@@ -10,13 +10,17 @@ const PAGES = [
   {
     path: "/",
     mustInclude: [
-      "For parents & home buyers",
+      "for parents & home buyers",
+      "Find the Best Schools in Your New Neighborhood",
+      "Easy 1-line install for real estate professionals",
       "Add Free School Explorer for Every Listing",
-      "Automatic address detection",
+      "Add to My Site — Free",
+      "See Full Widget Upgrade",
       "real estate website developer, IDX provider, or PropTech",
-      "Learn More",
+      "Up to 40% recurring revenue",
+      "See Partnership Details",
     ],
-    mustExclude: ["Add to My Site — Free", "See Full Widget Upgrade"],
+    mustExclude: [],
   },
   {
     path: "/realtors",

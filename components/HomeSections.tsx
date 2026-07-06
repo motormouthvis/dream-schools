@@ -1,16 +1,16 @@
 "use client";
 
-import { Check, ArrowRight, Handshake, Code2, Percent } from "lucide-react";
+import { Check, ArrowRight, Handshake, Code2, Percent, Award } from "lucide-react";
 
 // Homepage marketing sections. There are three sections total across the page:
 //   1. Hero image + search (the Parents / home-buyer experience) — lives in app/page.tsx
 //   2. Realtors & Brokerages — the dominant action area (below)
-//   3. Revenue-share Partners — a polished, visually distinct panel (below)
+//   3. Website developers & IDX providers — a lighter, secondary card (below)
 
 export function HomeSections() {
   return (
     <div className="mt-2 space-y-6">
-      {/* Section 2 — Realtors & Brokerages (dominant action area) */}
+      {/* Section 2 — Realtors & Brokerages (primary action area) */}
       <section
         id="realtors"
         className="scroll-mt-4 overflow-hidden rounded-3xl border-2 border-brand-300 bg-gradient-to-br from-brand-50 via-white to-lime-50 p-6 shadow-md sm:p-8"
@@ -22,35 +22,36 @@ export function HomeSections() {
           Add Free School Explorer for Every Listing — Installs with 1 Line of Code
         </h2>
         <p className="mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-slate-700 sm:text-base">
-          Stop paying expensive monthly fees to GreatSchools or Niche for school data that lives off
-          your site.
+          One line of code. Zero website redesign. Our unique popup technology puts accurate school
+          data on every listing and <strong className="text-ink-900">saves you $100–$800/month</strong>{" "}
+          versus GreatSchools or Niche — free forever, no ads, your brand.
         </p>
 
         <ul className="mt-5 grid gap-3 sm:grid-cols-2">
           {[
             [
-              "One line of code, site-wide",
-              "Zero redesign. Paste one line once and the Explorer goes live on every page in under 60 seconds — on any IDX platform or website.",
-            ],
-            [
-              "Automatic address detection",
-              "The Explorer reads each listing's address right off the page, so the correct nearby schools show up everywhere automatically — no per-page setup.",
+              "Installs in under 60 seconds",
+              "Paste one line once and the Explorer goes live site-wide on any IDX platform or website — no redesign, no maintenance.",
             ],
             [
               "Save $100–$800 per month",
               "Versus our competitors — free forever, no ads, and your brand stays on your site.",
             ],
             [
-              "School data on every listing",
-              "Put accurate school ratings, test scores, college readiness, and safety on every listing instantly.",
+              "Automatic address detection",
+              "The Explorer reads each listing's address right off the page, so the correct nearby schools appear everywhere automatically.",
             ],
             [
               "Keep buyers on your site",
-              "Stop leaking traffic to Zillow, GreatSchools, and Niche.",
+              "Rich school data on every listing keeps buyers with you instead of leaking to Zillow, GreatSchools, and Niche.",
+            ],
+            [
+              "School data on every listing",
+              "Ratings, test scores, college readiness, and safety — nationwide, on every property page instantly.",
             ],
             [
               "One-click upgrade path",
-              "Buyers can upgrade inside the popup to the full Dream Neighborhood widget — market trends, commute times, demographics, crime links, walkability, and more.",
+              "Buyers can upgrade inside the popup to the full Dream Neighborhood widget — market trends, commute, demographics, walkability, and more.",
             ],
           ].map(([title, body]) => (
             <li
@@ -65,64 +66,67 @@ export function HomeSections() {
           ))}
         </ul>
 
-        <div className="mt-6">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
           <a
-            href="/realtors"
+            href="/installation"
             className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-7 py-3.5 text-base font-extrabold text-white shadow-md transition hover:bg-brand-700"
           >
-            Learn More <ArrowRight className="h-5 w-5" />
+            Add to My Site — Free <ArrowRight className="h-5 w-5" />
+          </a>
+          <a
+            href="https://www.dreamneighborhood.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border-2 border-brand-600 px-5 py-2.5 text-sm font-bold text-brand-700 transition hover:bg-brand-50"
+          >
+            See Full Widget Upgrade
           </a>
         </div>
+        <a
+          href="/realtors"
+          className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:text-brand-800"
+        >
+          Learn more about School Explorer for realtors <ArrowRight className="h-4 w-4" />
+        </a>
       </section>
 
-      {/* Section 3 — Revenue Share Partners (distinct, polished dark panel) */}
+      {/* Section 3 — Website developers & IDX providers (lighter, secondary card) */}
       <section
         id="partners-teaser"
-        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-ink-900 via-brand-900 to-brand-800 p-6 shadow-lg sm:p-8"
+        className="rounded-3xl border border-brand-200 bg-brand-50/50 p-6 shadow-sm sm:p-7"
       >
-        {/* Soft brand glow in the corner for depth */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(132,204,22,0.25), rgba(132,204,22,0) 70%)" }}
-        />
-        <div className="relative">
-          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-lime2-400 ring-1 ring-inset ring-white/15">
-            <Handshake className="h-3.5 w-3.5" /> For website developers & IDX providers
-          </span>
-          <h3 className="mt-3 max-w-2xl text-xl font-extrabold leading-snug tracking-tight text-white sm:text-2xl">
-            Are you a real estate website developer, IDX provider, or PropTech company?
-          </h3>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-brand-100">
-            White-label the free School Explorer for every client site at zero cost — and earn up to{" "}
-            <strong className="font-bold text-white">40% recurring revenue</strong> when they upgrade
-            to the full paid widget. It&apos;s our unique revenue-share model.
-          </p>
+        <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-600/15">
+          <Handshake className="h-3.5 w-3.5" /> For website developers & IDX providers
+        </span>
+        <h3 className="mt-3 max-w-2xl text-lg font-extrabold leading-snug tracking-tight text-ink-900 sm:text-xl">
+          Are you a real estate website developer, IDX provider, or PropTech company?
+        </h3>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
+          White-label the free School Explorer across every client site — and share in the revenue
+          when they upgrade. A sticky, competitive edge for your platform at zero cost.
+        </p>
 
-          <div className="mt-5 grid gap-2.5 sm:grid-cols-3">
-            {[
-              { Icon: Code2, title: "1-line install", body: "Works with any IDX or website." },
-              { Icon: Percent, title: "Up to 40% recurring", body: "Ongoing revenue on every upgrade." },
-              { Icon: Handshake, title: "Zero cost, zero minimums", body: "Free to white-label for all clients." },
-            ].map(({ Icon, title, body }) => (
-              <div
-                key={title}
-                className="rounded-2xl bg-white/5 p-3 ring-1 ring-inset ring-white/10"
-              >
-                <Icon className="h-4 w-4 text-lime2-400" />
-                <p className="mt-1.5 text-sm font-bold text-white">{title}</p>
-                <p className="mt-0.5 text-[12px] leading-snug text-brand-100/80">{body}</p>
-              </div>
-            ))}
-          </div>
-
-          <a
-            href="/partners"
-            className="mt-6 inline-flex items-center justify-center gap-1.5 rounded-xl bg-lime2-500 px-6 py-3 text-sm font-extrabold text-ink-900 shadow-md transition hover:bg-lime2-400"
-          >
-            Learn More <ArrowRight className="h-4 w-4" />
-          </a>
+        <div className="mt-5 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { Icon: Handshake, title: "Zero cost to white-label", body: "Free for every client site, no minimums." },
+            { Icon: Percent, title: "Up to 40% recurring revenue", body: "On every client upgrade." },
+            { Icon: Award, title: "A competitive edge", body: "School data competitors charge for." },
+            { Icon: Code2, title: "Easy 1-line install", body: "Push to all client sites at once." },
+          ].map(({ Icon, title, body }) => (
+            <div key={title} className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-inset ring-brand-600/10">
+              <Icon className="h-4 w-4 text-brand-600" />
+              <p className="mt-1.5 text-sm font-bold text-ink-900">{title}</p>
+              <p className="mt-0.5 text-[12px] leading-snug text-slate-500">{body}</p>
+            </div>
+          ))}
         </div>
+
+        <a
+          href="/partners"
+          className="mt-5 inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700"
+        >
+          See Partnership Details <ArrowRight className="h-4 w-4" />
+        </a>
       </section>
     </div>
   );

@@ -52,15 +52,18 @@ export default function InstallationPage() {
       </header>
 
       <div className="mt-6">
-        <ul className="space-y-2.5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <ul className="grid gap-2.5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2">
           <Benefit>
             <strong>Save $100–$800/month</strong> vs. GreatSchools or Niche — free forever, no ads.
           </Benefit>
           <Benefit>
-            <strong>School data on every listing</strong> — ratings, test scores, college readiness &amp; safety.
+            <strong>Installs in under 60 seconds</strong> — one line of code, any IDX or website, no redesign.
           </Benefit>
           <Benefit>
-            <strong>Keep buyers on your site</strong> instead of leaking to off-site tools.
+            <strong>School data on every listing</strong> — ratings, test scores, college readiness &amp; safety, nationwide.
+          </Benefit>
+          <Benefit>
+            <strong>Keep buyers on your site</strong> — more time on page and better local SEO instead of leaking to off-site tools.
           </Benefit>
         </ul>
 
@@ -137,13 +140,19 @@ export default function InstallationPage() {
           </a>
         </section>
 
-        {/* Quiet cross-link for the other audience (no revenue details shown here). */}
-        <p className="mt-8 text-center text-xs text-slate-500">
-          Are you a website developer or IDX provider?{" "}
-          <a href="/installation/partners" className="font-semibold text-brand-700 hover:text-brand-800">
-            See partner installation
+        {/* Cross-link for the other audience (no revenue details shown here). */}
+        <div className="mt-8 flex flex-col items-start justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center">
+          <p className="text-sm text-slate-600">
+            <strong className="text-ink-900">Build sites for other agents?</strong> Website developers
+            &amp; IDX providers can add this across all of their client sites at once.
+          </p>
+          <a
+            href="/installation/partners"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-brand-600 px-4 py-2 text-sm font-bold text-brand-700 transition hover:bg-brand-50"
+          >
+            See partner installation <ArrowRight className="h-4 w-4" />
           </a>
-        </p>
+        </div>
       </div>
 
       {/* Footer */}

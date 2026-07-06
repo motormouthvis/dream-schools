@@ -61,7 +61,9 @@ export default function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const acRef = useRef<AbortController | null>(null);
-  const [nationwide, setNationwide] = useState(false);
+  // null until /api/health resolves — avoids briefly flashing the demo-coverage
+  // note on production (which is nationwide).
+  const [nationwide, setNationwide] = useState<boolean | null>(null);
   const [audience, setAudience] = useState<"full" | "fairhousing">("full");
   const [view, setView] = useState<"list" | "map">("list");
   const [showDataSources, setShowDataSources] = useState(false);
@@ -212,17 +214,15 @@ export default function Home() {
           />
           <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10">
             <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/85 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-brand-700 shadow-sm ring-1 ring-inset ring-brand-600/15 sm:text-[11px]">
-              For parents &amp; home buyers
+              School Explorer · for parents &amp; home buyers
             </span>
-            <h1 className="mt-2 max-w-md text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">
-              School Explorer
+            <h1 className="mt-2 max-w-[15rem] text-xl font-extrabold leading-tight tracking-tight text-ink-900 sm:max-w-lg sm:text-3xl">
+              Find the Best Schools in Your New Neighborhood —{" "}
+              <span className="text-brand-700">Free</span>
             </h1>
-            <p className="mt-1 max-w-[15rem] text-base font-bold leading-snug text-ink-800 sm:max-w-md sm:text-xl">
-              Find the Best Schools in Your New Neighborhood
-            </p>
-            <p className="mt-2 max-w-[17rem] text-xs font-semibold leading-snug text-slate-700 sm:max-w-sm">
-              Real ratings, test scores &amp; safety for any address —{" "}
-              <span className="font-bold text-brand-700">free, forever.</span>
+            <p className="mt-2 max-w-[17rem] text-xs font-semibold leading-snug text-slate-700 sm:max-w-md sm:text-sm">
+              Real ratings, test scores &amp; safety for any address.{" "}
+              <span className="font-bold text-brand-700">Easy 1-line install for real estate professionals.</span>
             </p>
           </div>
         </div>
@@ -441,7 +441,7 @@ export default function Home() {
         {!loading && !error && data && (
           <SchoolsTab
             data={data}
-            nationwide={nationwide}
+            nationwide={Boolean(nationwide)}
             fairHousing={fairHousing}
             view={view}
             onViewChange={setView}
@@ -454,7 +454,9 @@ export default function Home() {
 
       {/* Footnote: coverage (moved off the top to declutter) */}
       <p className="mx-auto mt-10 max-w-2xl text-center text-[11px] leading-relaxed text-slate-400">
-        {nationwide
+        {nationwide === null
+          ? ""
+          : nationwide
           ? "Coverage: ~119k U.S. public & private schools (NCES CCD, CRDC, EDFacts, PSS). Private-school data is limited. "
           : "Demo coverage: 10 zip codes around 34946 (Fort Pierce / St. Lucie County, FL). "}
         Data sources &amp; methodology in the menu under “Data sources.”
