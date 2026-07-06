@@ -27,6 +27,7 @@ const PAGES = [
       "38 hyperlocal insights",
       "Install on My Site",
       "See the Neighborhood Explorer in Action",
+      "$50–$800/month",
     ],
     mustExclude: [],
   },
@@ -37,13 +38,28 @@ const PAGES = [
       "38 hyperlocal insights",
       "How the revenue share works",
       "Book a Demo",
+      "$50–$800/month",
     ],
     mustExclude: [],
   },
   {
+    // Realtor install page — must NOT show any revenue-share language.
     path: "/installation",
-    clickText: "Website Developers & Partners",
-    mustInclude: ["Book a 15-Minute Demo"],
+    mustInclude: [
+      "Add the School Explorer to your site",
+      "Save $100–$800/month",
+      "See partner installation",
+    ],
+    mustExclude: ["40%", "revenue share", "revenue-share", "White-label", "white-label"],
+  },
+  {
+    // Partner install page — the revenue-share details live here.
+    path: "/installation/partners",
+    mustInclude: [
+      "Install the School Explorer across every client site",
+      "up to 40% recurring",
+      "Book a 15-Minute Demo",
+    ],
     mustExclude: [],
   },
 ];
