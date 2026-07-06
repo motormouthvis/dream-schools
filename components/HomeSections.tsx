@@ -1,15 +1,88 @@
 "use client";
 
-import { Check, ArrowRight, Handshake, Code2, Percent, Award } from "lucide-react";
+import { Check, ArrowRight, Handshake, Code2, Percent, Award, Search } from "lucide-react";
 
-// Homepage marketing sections. There are three sections total across the page:
-//   1. Hero image + search (the Parents / home-buyer experience) — lives in app/page.tsx
+// Homepage marketing sections. Three audience sections across the page:
+//   1. Parents & home buyers — the hero/search (app/page.tsx) + the content block below
 //   2. Realtors & Brokerages — the dominant action area (below)
 //   3. Website developers & IDX providers — a lighter, secondary card (below)
 
-export function HomeSections() {
+export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
   return (
     <div className="mt-2 space-y-6">
+      {/* Section 1 — Parents & Home Buyers (warm, simple, complete) */}
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-600/15">
+          For parents & home buyers
+        </span>
+        <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-ink-900 sm:text-3xl">
+          School Explorer — <span className="text-brand-700">Free</span>
+        </h2>
+        <p className="mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-slate-700 sm:text-base">
+          See real school ratings, test scores, college readiness, and safety for any address or
+          neighborhood — instantly and free.
+        </p>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
+          Enter any address and get clear, helpful information about nearby schools. No account
+          needed. No ads. No catch.
+        </p>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+            <h3 className="text-sm font-extrabold text-ink-900">What you&apos;ll see</h3>
+            <ul className="mt-2.5 space-y-2">
+              {[
+                "School ratings and test scores",
+                "College readiness information",
+                "Safety data",
+                "School type, grade levels & distance from the address",
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-2.5 text-sm text-slate-700">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+            <h3 className="text-sm font-extrabold text-ink-900">Why families love it</h3>
+            <ul className="mt-2.5 space-y-2">
+              {[
+                "Free forever — no credit card or account required",
+                "No ads — just the information you need",
+                "Works for any address in the United States",
+                "Fast and easy to use",
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-2.5 text-sm text-slate-700">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-brand-200 bg-brand-50/50 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-sm font-extrabold text-ink-900">How it works</h3>
+            <p className="mt-1 max-w-xl text-sm leading-relaxed text-slate-600">
+              Just type in an address or neighborhood name. The School Explorer instantly shows you
+              the relevant schools with the information that matters most to families.
+            </p>
+          </div>
+          {onSearchNow && (
+            <button
+              type="button"
+              onClick={onSearchNow}
+              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-lime2-500 px-5 py-2.5 text-sm font-bold text-ink-900 shadow-sm transition hover:bg-lime2-400"
+            >
+              <Search className="h-4 w-4" /> Search now
+            </button>
+          )}
+        </div>
+      </section>
+
       {/* Section 2 — Realtors & Brokerages (primary action area) */}
       <section
         id="realtors"

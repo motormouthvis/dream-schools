@@ -414,14 +414,8 @@ export default function Home() {
       </form>
 
       {!data && (
-        <p className="mx-auto mt-3 flex max-w-2xl flex-wrap items-center justify-center gap-x-4 gap-y-1 text-center text-xs font-semibold text-slate-500">
-          <span className="text-brand-700">★ Free forever</span>
-          <span aria-hidden className="text-slate-300">·</span>
-          <span>No ads</span>
-          <span aria-hidden className="text-slate-300">·</span>
-          <span>No account needed</span>
-          <span aria-hidden className="text-slate-300">·</span>
-          <span>Ratings, test scores, college readiness &amp; safety</span>
+        <p className="mx-auto mt-2 max-w-2xl text-center text-xs text-slate-500">
+          Search by address, city, or neighborhood name.
         </p>
       )}
 
@@ -449,7 +443,14 @@ export default function Home() {
           />
         )}
 
-        {!loading && !error && !data && <HomeSections />}
+        {!loading && !error && !data && (
+          <HomeSections
+            onSearchNow={() => {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+              setTimeout(() => inputRef.current?.focus(), 350);
+            }}
+          />
+        )}
       </div>
 
       {/* Footnote: coverage (moved off the top to declutter) */}
