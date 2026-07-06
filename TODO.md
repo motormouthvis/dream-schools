@@ -32,6 +32,11 @@ A living backlog. Check items off as they ship; add new ones at the bottom.
       show an unearned "Excellent."
 
 ## Features
+- [ ] **Homebuyer settings (gear icon) in the popup/embed.** Add a small gear icon
+      somewhere in the School Explorer UI that opens a settings panel for the
+      individual homebuyer: font size and other display/accessibility options.
+      Persist choices in cookies/localStorage so they stick across visits (no
+      account needed).
 - [ ] Custom parent rating weights (user-defined) shown beside the "Dream Rating."
 - [ ] "Show all schools in district" view (beyond the nearest 30).
 - [ ] Scheduled data auto-updates (Heroku Scheduler).

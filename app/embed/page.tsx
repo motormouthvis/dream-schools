@@ -815,8 +815,8 @@ function UpgradePrompt({
           </div>
           <button
             onClick={onDismiss}
-            aria-label="Close upgrade prompt"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xl leading-none hover:bg-white/20"
+            aria-label="Close and return to the page"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/25 text-2xl leading-none ring-1 ring-inset ring-white/40 hover:bg-white/40"
           >
             ×
           </button>
