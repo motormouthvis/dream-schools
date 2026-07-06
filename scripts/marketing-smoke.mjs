@@ -10,13 +10,13 @@ const PAGES = [
   {
     path: "/",
     mustInclude: [
-      "for parents & home buyers",
+      "School Explorer — for parents & home buyers",
       "Find the Best Schools in Your New Neighborhood",
-      "Easy 1-line install for real estate professionals",
       "Search by address, city, or neighborhood name",
       "What you'll see",
       "College readiness information",
-      "Why families love it",
+      "Key benefits",
+      "School information no one else has",
       "How it works",
       "Search now",
       "Add Free School Explorer for Every Listing",
@@ -26,7 +26,8 @@ const PAGES = [
       "Up to 40% recurring revenue",
       "See Partnership Details",
     ],
-    mustExclude: [],
+    // The realtor "1-line install" line must not appear in the parents section.
+    mustExclude: ["Easy 1-line install for real estate professionals"],
   },
   {
     path: "/realtors",

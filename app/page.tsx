@@ -214,15 +214,14 @@ export default function Home() {
           />
           <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10">
             <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/85 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-brand-700 shadow-sm ring-1 ring-inset ring-brand-600/15 sm:text-[11px]">
-              School Explorer · for parents &amp; home buyers
+              For parents &amp; home buyers
             </span>
-            <h1 className="mt-2 max-w-[15rem] text-xl font-extrabold leading-tight tracking-tight text-ink-900 sm:max-w-lg sm:text-3xl">
-              Find the Best Schools in Your New Neighborhood —{" "}
-              <span className="text-brand-700">Free</span>
+            <h1 className="mt-2 max-w-md text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">
+              School Explorer
             </h1>
             <p className="mt-2 max-w-[17rem] text-xs font-semibold leading-snug text-slate-700 sm:max-w-md sm:text-sm">
-              Real ratings, test scores &amp; safety for any address.{" "}
-              <span className="font-bold text-brand-700">Easy 1-line install for real estate professionals.</span>
+              Real ratings, test scores &amp; safety for any address —{" "}
+              <span className="font-bold text-brand-700">free.</span>
             </p>
           </div>
         </div>
