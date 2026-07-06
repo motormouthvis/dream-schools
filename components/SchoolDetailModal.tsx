@@ -170,6 +170,12 @@ function DetailBody({
   const addressLine = [c.street, [c.city, c.state].filter(Boolean).join(", "), c.zip]
     .filter(Boolean)
     .join(" · ");
+  // Tappable contact links: tel: opens the default dialer, a maps query opens the
+  // default map app on mobile (and Google/Apple Maps on desktop).
+  const mapQuery = [c.street, c.city, c.state, c.zip].filter(Boolean).join(", ");
+  const mapHref = mapQuery ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}` : undefined;
+  const phoneDigits = c.phone ? String(c.phone).replace(/[^\d+]/g, "") : "";
+  const phoneHref = phoneDigits ? `tel:${phoneDigits}` : undefined;
   const tags = [
     detail.level === "private" ? "Private" : null,
     a.charter ? "Charter" : null,
@@ -204,8 +210,8 @@ function DetailBody({
   );
   const contactSection = (
     <Section title="Contact">
-      {addressLine && <Fact label="Address" value={addressLine} />}
-      {c.phone && <Fact label="Phone" value={c.phone} />}
+      {addressLine && <Fact label="Address" value={addressLine} href={mapHref} />}
+      {c.phone && <Fact label="Phone" value={c.phone} href={phoneHref} />}
       <div className="col-span-full pt-1 text-[10px] text-slate-400">NCES ID {detail.ncesId}</div>
     </Section>
   );
@@ -914,22 +920,30 @@ function Fact({
   value,
   color,
   sub,
+  href,
 }: {
   label: string;
   value: string | number;
   color?: string;
   sub?: string;
+  href?: string;
 }) {
   return (
     <div className="border-b border-slate-200/70 py-1.5 last:border-0">
       <div className="flex items-baseline justify-between gap-3 text-sm">
         <dt className="min-w-0 text-slate-500">{label}</dt>
         <dd
-          className="flex shrink-0 items-center gap-1.5 whitespace-nowrap font-bold tabular-nums"
+          className="flex min-w-0 shrink items-center gap-1.5 text-right font-bold tabular-nums"
           style={{ color: color ?? "#0f172a" }}
         >
-          {color && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />}
-          {value}
+          {color && <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />}
+          {href ? (
+            <a href={href} target="_blank" rel="noopener noreferrer" className="text-brand-700 underline decoration-brand-300 underline-offset-2 hover:text-brand-800">
+              {value}
+            </a>
+          ) : (
+            <span className="whitespace-nowrap">{value}</span>
+          )}
         </dd>
       </div>
       {sub && <div className="mt-0.5 text-right text-[10px] text-slate-500">{sub}</div>}
