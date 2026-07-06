@@ -344,7 +344,7 @@ export default function Home() {
               }
             }}
             autoComplete="off"
-            placeholder={data ? "Search or change address…" : "Enter a US address to find your Dream School"}
+            placeholder={data ? "Search or change address…" : "Search by address, city, or neighborhood name"}
             className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-9 pr-3 text-sm shadow-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
           />
           {focused && !address.trim() && recents.length > 0 && (
@@ -411,12 +411,6 @@ export default function Home() {
           {loading ? "Searching…" : "Search"}
         </button>
       </form>
-
-      {!data && (
-        <p className="mx-auto mt-2 max-w-2xl text-center text-xs text-slate-500">
-          Search by address, city, or neighborhood name.
-        </p>
-      )}
 
       <div className="mt-8">
         {loading && (

@@ -13,18 +13,21 @@ export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
       {/* Section 1 — Parents & Home Buyers (warm, simple, complete) */}
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-600/15">
-          School Explorer — for parents & home buyers
+          For parents & home buyers
         </span>
         <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-ink-900 sm:text-3xl">
-          Find the Best Schools in Your New Neighborhood — <span className="text-brand-700">Free</span>
+          School Explorer — <span className="text-brand-700">Free</span>
         </h2>
         <p className="mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-slate-700 sm:text-base">
-          Get clear, helpful information about nearby schools, including ratings, test scores, college
-          readiness, and safety — instantly and at no cost.
+          See real school ratings, test scores, college readiness, and safety for any address or
+          neighborhood — instantly and free.
         </p>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
-          Search any address or neighborhood and instantly see the schools that serve that area. No
-          account or sign-up required.
+          Enter any address and get clear, helpful information about nearby schools. No account
+          needed. No ads. No catch.
+        </p>
+        <p className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">
+          Data for 119,000+ schools across the U.S.
         </p>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -34,7 +37,7 @@ export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
               {[
                 "School ratings and test scores",
                 "College readiness information",
-                "Safety data and key details",
+                "Safety data",
                 "School type, grade levels & distance from the address",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5 text-sm text-slate-700">
@@ -46,14 +49,13 @@ export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
           </div>
 
           <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-            <h3 className="text-sm font-extrabold text-ink-900">Key benefits</h3>
+            <h3 className="text-sm font-extrabold text-ink-900">Why families love it</h3>
             <ul className="mt-2.5 space-y-2">
               {[
-                "School information no one else has",
-                "Free forever — no credit card or account needed",
+                "Free forever — no credit card or account required",
                 "No ads — just the information you need",
-                "Works for any address across the United States",
-                "Fast and easy to use on any device",
+                "Works for any address in the United States",
+                "Fast and easy to use",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5 text-sm text-slate-700">
                   <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
@@ -68,8 +70,8 @@ export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
           <div>
             <h3 className="text-sm font-extrabold text-ink-900">How it works</h3>
             <p className="mt-1 max-w-xl text-sm leading-relaxed text-slate-600">
-              Type in an address, city, or neighborhood name. The School Explorer shows you the most
-              relevant schools with the information families care about most.
+              Just type in an address or neighborhood name. The School Explorer instantly shows you
+              the relevant schools with the information that matters most to families.
             </p>
           </div>
           {onSearchNow && (
