@@ -9,13 +9,13 @@ mkdirSync(OUT, { recursive: true });
 const PAGES = [
   {
     path: "/",
+    placeholderIncludes: "Search by address, city, or neighborhood name",
     mustInclude: [
       "for parents & home buyers",
       "School Explorer — Free",
       "instantly and free",
       "No account needed. No ads. No catch.",
       "Data for 119,000+ schools across the U.S.",
-      "Search by address, city, or neighborhood name",
       "What you'll see",
       "College readiness information",
       "Why families love it",
@@ -112,6 +112,16 @@ for (const vp of viewports) {
     const body = (await page.evaluate(() => document.body.innerText)).toLowerCase();
     for (const s of p.mustInclude) note(body.includes(s.toLowerCase()), `contains "${s}"`);
     for (const s of p.mustExclude) note(!body.includes(s.toLowerCase()), `does NOT contain "${s}"`);
+
+    if (p.placeholderIncludes) {
+      const placeholders = await page.$$eval("input", (els) =>
+        els.map((e) => e.getAttribute("placeholder") || "")
+      );
+      note(
+        placeholders.some((ph) => ph.includes(p.placeholderIncludes)),
+        `search placeholder = "${p.placeholderIncludes}"`
+      );
+    }
 
     // Every Calendly-labeled booking button must point to the Calendly URL.
     const bookLinks = await page.$$eval("a", (as) =>
