@@ -65,20 +65,12 @@ export function HomeSections() {
           ))}
         </ul>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="mt-6">
           <a
-            href="/installation"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-6 py-3.5 text-base font-extrabold text-white shadow-md transition hover:bg-brand-700"
+            href="/realtors"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-7 py-3.5 text-base font-extrabold text-white shadow-md transition hover:bg-brand-700"
           >
-            Add to My Site — Free <ArrowRight className="h-5 w-5" />
-          </a>
-          <a
-            href="https://www.dreamneighborhood.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border-2 border-brand-600 px-6 py-3 text-sm font-bold text-brand-700 transition hover:bg-brand-50"
-          >
-            See Full Widget Upgrade
+            Learn More <ArrowRight className="h-5 w-5" />
           </a>
         </div>
       </section>

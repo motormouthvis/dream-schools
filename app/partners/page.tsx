@@ -1,4 +1,5 @@
 import { Logo } from "@/components/Logo";
+import { ExplorerPromo } from "@/components/ExplorerPromo";
 import { TERMS_URL, PRIVACY_URL } from "@/lib/legalLinks";
 
 export const metadata = {
@@ -86,6 +87,20 @@ export default function PartnersPage() {
           </a>
         </div>
       </header>
+
+      {/* The two products, so partners understand exactly what they're offering
+          and what the paid upgrade unlocks. */}
+      <section className="mt-10">
+        <h2 className="text-xl font-extrabold tracking-tight text-ink-900">
+          What you&apos;ll offer your clients
+        </h2>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
+          You white-label the free <strong>School Explorer</strong> across every client site. When a
+          client wants the full picture, they upgrade to the paid <strong>Neighborhood Explorer</strong>{" "}
+          — and that&apos;s where your revenue share kicks in.
+        </p>
+        <ExplorerPromo />
+      </section>
 
       {/* How the model works */}
       <section className="mt-10">
