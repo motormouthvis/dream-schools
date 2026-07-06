@@ -211,7 +211,10 @@ export default function Home() {
             style={{ background: "radial-gradient(240px 190px at top left, rgba(180,220,100,0.24), rgba(180,220,100,0) 72%)" }}
           />
           <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10">
-            <h1 className="max-w-md text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/85 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-brand-700 shadow-sm ring-1 ring-inset ring-brand-600/15 sm:text-[11px]">
+              For parents &amp; home buyers
+            </span>
+            <h1 className="mt-2 max-w-md text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">
               School Explorer
             </h1>
             <p className="mt-1 max-w-[15rem] text-base font-bold leading-snug text-ink-800 sm:max-w-md sm:text-xl">

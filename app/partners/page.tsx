@@ -7,13 +7,8 @@ export const metadata = {
     "White-label the free School Explorer for your clients and earn up to 40% recurring revenue when they upgrade to the full Neighborhood Explorer widget.",
 };
 
-const PARTNER_MAILTO =
-  "mailto:partners@dreamneighborhood.com?subject=" +
-  encodeURIComponent("Dream Neighborhood partnership") +
-  "&body=" +
-  encodeURIComponent(
-    "Company:\nWebsite / platform:\nApprox. number of client sites:\nBest time for a 15-minute call:\n"
-  );
+// Book a demo/partnership call via the shared Dream Neighborhood Calendly.
+const CALENDLY_URL = "https://calendly.com/d/cvbg-myt-4x9/dream-neighborhood-demo-call";
 
 const BENEFITS: [string, string][] = [
   [
@@ -51,10 +46,12 @@ export default function PartnersPage() {
           <Logo />
         </a>
         <a
-          href={PARTNER_MAILTO}
+          href={CALENDLY_URL}
+          target="_blank"
+          rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700"
         >
-          Book a Partnership Call
+          Book a Demo
         </a>
       </div>
 
@@ -74,10 +71,12 @@ export default function PartnersPage() {
         </p>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
           <a
-            href={PARTNER_MAILTO}
+            href={CALENDLY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700"
           >
-            Book a 15-Minute Partnership Call
+            Book a 15-Minute Demo
           </a>
           <a
             href="/installation"
@@ -132,10 +131,12 @@ export default function PartnersPage() {
         </p>
         <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
           <a
-            href={PARTNER_MAILTO}
+            href={CALENDLY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700"
           >
-            Book a 15-Minute Partnership Call
+            Book a 15-Minute Demo
           </a>
           <a
             href="/installation"

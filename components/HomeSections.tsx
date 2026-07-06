@@ -19,7 +19,7 @@ export function HomeSections() {
           For realtors & brokerages
         </span>
         <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-ink-900 sm:text-3xl">
-          Free School Explorer for Every Listing — Installs with 1 Line of Code
+          Add Free School Explorer for Every Listing — Installs with 1 Line of Code
         </h2>
         <p className="mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-slate-700 sm:text-base">
           Stop paying expensive monthly fees to GreatSchools or Niche for school data that lives off
@@ -29,8 +29,12 @@ export function HomeSections() {
         <ul className="mt-5 grid gap-3 sm:grid-cols-2">
           {[
             [
-              "One line of code",
-              "Zero website redesign required. Our unique popup technology installs site-wide in under 60 seconds on any IDX platform or website.",
+              "One line of code, site-wide",
+              "Zero redesign. Paste one line once and the Explorer goes live on every page in under 60 seconds — on any IDX platform or website.",
+            ],
+            [
+              "Automatic address detection",
+              "The Explorer reads each listing's address right off the page, so the correct nearby schools show up everywhere automatically — no per-page setup.",
             ],
             [
               "Save $100–$800 per month",
