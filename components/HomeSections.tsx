@@ -162,20 +162,33 @@ export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
         <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-600/15">
           <Handshake className="h-3.5 w-3.5" /> For website developers & IDX providers
         </span>
-        <h3 className="mt-3 max-w-2xl text-lg font-extrabold leading-snug tracking-tight text-ink-900 sm:text-xl">
-          Are you a real estate website developer, IDX provider, or PropTech company?
-        </h3>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
-          White-label the free School Explorer across every client site - and share in the revenue
-          when they upgrade. A sticky, competitive edge for your platform at zero cost.
+        <p className="mt-3 max-w-2xl text-base font-semibold leading-relaxed text-ink-900 sm:text-lg">
+          White-label the free School Explorer across every client site - and earn up to 40%
+          recurring revenue when they upgrade.
         </p>
 
         <div className="mt-5 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { Icon: Handshake, title: "Zero cost to white-label", body: "Free for every client site, no minimums." },
-            { Icon: Percent, title: "Up to 40% recurring revenue", body: "On every client upgrade." },
-            { Icon: Award, title: "A competitive edge", body: "School data competitors charge for." },
-            { Icon: Code2, title: "Easy 1-line install", body: "Push to all client sites at once." },
+            {
+              Icon: Handshake,
+              title: "Zero cost to white-label",
+              body: "Offer the School Explorer free to every client site. No fees, no minimums, no ongoing costs.",
+            },
+            {
+              Icon: Percent,
+              title: "Up to 40% recurring revenue",
+              body: "Earn recurring revenue on every client that upgrades to the full Neighborhood Explorer.",
+            },
+            {
+              Icon: Code2,
+              title: "Easy 1-line install",
+              body: "Push one line of code site-wide across all your client websites in under 60 seconds.",
+            },
+            {
+              Icon: Award,
+              title: "A real competitive edge",
+              body: "Differentiate your platform with school data that most competitors charge extra for.",
+            },
           ].map(({ Icon, title, body }) => (
             <div key={title} className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-inset ring-brand-600/10">
               <Icon className="h-4 w-4 text-brand-600" />
@@ -185,12 +198,15 @@ export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
           ))}
         </div>
 
-        <a
-          href="/partners"
-          className="mt-5 inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700"
-        >
-          See Partnership Details <ArrowRight className="h-4 w-4" />
-        </a>
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <a
+            href="/partners"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-7 py-3.5 text-base font-extrabold text-white shadow-md transition hover:bg-brand-700"
+          >
+            See Partnership Details
+          </a>
+          <p className="text-xs font-semibold text-slate-500">Featured Partner: RealtyCandy</p>
+        </div>
       </section>
     </div>
   );

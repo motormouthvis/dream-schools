@@ -26,9 +26,11 @@ const PAGES = [
       "Add our Free School Explorer to Every Listing",
       "Add to My Site - Free",
       "Installs in under 60 seconds",
-      "real estate website developer, IDX provider, or PropTech",
+      "White-label the free School Explorer across every client site",
+      "Zero cost to white-label",
       "Up to 40% recurring revenue",
       "See Partnership Details",
+      "Featured Partner: RealtyCandy",
     ],
     // No long dashes should remain on the homepage.
     mustExcludeChars: ["—", "–"],
