@@ -37,9 +37,9 @@ export function NeighborhoodExplorerCard() {
       <h3 className="mt-3 text-xl font-extrabold tracking-tight text-ink-900">Neighborhood Explorer</h3>
       <p className="mt-1 text-sm leading-relaxed text-slate-600">
         Schools are just the start. Give buyers <strong>38 hyperlocal insights</strong> on every
-        listing — and turn your site into the most informative in your market.
+        listing - and turn your site into the most informative in your market.
       </p>
-      {/* 38 insights — three rows, scrolling right-to-left */}
+      {/* 38 insights - three rows, scrolling right-to-left */}
       <div className="mt-4 space-y-1.5">
         {ROWS.map((row, ri) => (
           <div key={ri} className="promo-marquee">

@@ -4,9 +4,9 @@ import { CodeBlock, POPUP_SNIPPET, INLINE_SNIPPET } from "@/components/CodeBlock
 import { TERMS_URL, PRIVACY_URL } from "@/lib/legalLinks";
 
 export const metadata = {
-  title: "Install the School Explorer — Realtors & Brokerages",
+  title: "Install the School Explorer - Realtors & Brokerages",
   description:
-    "Add the free School Explorer to every listing with one line of code — ratings, test scores, college readiness & safety. No redesign, no ads, free forever.",
+    "Add the free School Explorer to every listing with one line of code - ratings, test scores, college readiness & safety. No redesign, no ads, free forever.",
 };
 
 function Benefit({ children }: { children: React.ReactNode }) {
@@ -23,7 +23,7 @@ export default function InstallationPage() {
     <main className="mx-auto max-w-3xl px-4 pb-16 pt-4">
       {/* Top bar */}
       <div className="flex items-center justify-between">
-        <a href="/" aria-label="Dream Neighborhood — home" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+        <a href="/" aria-label="Dream Neighborhood - home" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
           <Logo />
         </a>
         <a
@@ -32,7 +32,7 @@ export default function InstallationPage() {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700"
         >
-          Sign up — free <ArrowRight className="h-4 w-4" />
+          Sign up - free <ArrowRight className="h-4 w-4" />
         </a>
       </div>
 
@@ -45,7 +45,7 @@ export default function InstallationPage() {
           Add the School Explorer to your site
         </h1>
         <p className="mt-2 max-w-2xl text-base leading-relaxed text-slate-600">
-          One line of code puts a beautiful school-ratings explorer on every listing — ratings, test
+          One line of code puts a beautiful school-ratings explorer on every listing - ratings, test
           scores, college readiness &amp; safety, nationwide. No website redesign, no ads, and it&apos;s
           free forever.
         </p>
@@ -54,16 +54,16 @@ export default function InstallationPage() {
       <div className="mt-6">
         <ul className="grid gap-2.5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2">
           <Benefit>
-            <strong>Save $100–$800/month</strong> vs. GreatSchools or Niche — free forever, no ads.
+            <strong>Save $100-$800/month</strong> vs. GreatSchools or Niche - free forever, no ads.
           </Benefit>
           <Benefit>
-            <strong>Installs in under 60 seconds</strong> — one line of code, any IDX or website, no redesign.
+            <strong>Installs in under 60 seconds</strong> - one line of code, any IDX or website, no redesign.
           </Benefit>
           <Benefit>
-            <strong>School data on every listing</strong> — ratings, test scores, college readiness &amp; safety, nationwide.
+            <strong>School data on every listing</strong> - ratings, test scores, college readiness &amp; safety, nationwide.
           </Benefit>
           <Benefit>
-            <strong>Keep buyers on your site</strong> — more time on page and better local SEO instead of leaking to off-site tools.
+            <strong>Keep buyers on your site</strong> - more time on page and better local SEO instead of leaking to off-site tools.
           </Benefit>
         </ul>
 
@@ -75,7 +75,7 @@ export default function InstallationPage() {
           </div>
           <p className="mt-2 pl-10 text-sm leading-relaxed text-slate-600">
             Sign up and authorize your website&apos;s domain. Your account also lets you customize the
-            popup — accent color, position, and tooltip.
+            popup - accent color, position, and tooltip.
           </p>
           <div className="mt-3 pl-10">
             <a
@@ -89,7 +89,7 @@ export default function InstallationPage() {
           </div>
         </section>
 
-        {/* Step 2 — popup */}
+        {/* Step 2 - popup */}
         <section className="mt-8">
           <div className="flex items-center gap-3">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">2</span>
@@ -108,7 +108,7 @@ export default function InstallationPage() {
           </p>
         </section>
 
-        {/* Step 3 — inline */}
+        {/* Step 3 - inline */}
         <section className="mt-8">
           <div className="flex items-center gap-3">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">3</span>

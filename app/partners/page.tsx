@@ -3,7 +3,7 @@ import { ExplorerPromo } from "@/components/ExplorerPromo";
 import { TERMS_URL, PRIVACY_URL, CALENDLY_URL } from "@/lib/legalLinks";
 
 export const metadata = {
-  title: "Partner Program — Dream Neighborhood Schools",
+  title: "Partner Program - Dream Neighborhood Schools",
   description:
     "White-label the free School Explorer for your clients and earn up to 40% recurring revenue when they upgrade to the full Neighborhood Explorer widget.",
 };
@@ -23,7 +23,7 @@ const BENEFITS: [string, string][] = [
   ],
   [
     "Sticky by design",
-    "Once school data is live across your clients' listings, it becomes part of your platform — a golden-handcuffs advantage that's hard to leave.",
+    "Once school data is live across your clients' listings, it becomes part of your platform - a golden-handcuffs advantage that's hard to leave.",
   ],
   [
     "A real competitive edge",
@@ -31,7 +31,7 @@ const BENEFITS: [string, string][] = [
   ],
   [
     "Your brand, not ours",
-    "The free explorer runs on your clients' sites under their brand — no ads, no clutter.",
+    "The free explorer runs on your clients' sites under their brand - no ads, no clutter.",
   ],
 ];
 
@@ -40,7 +40,7 @@ export default function PartnersPage() {
     <main className="mx-auto max-w-4xl px-4 pb-16 pt-4">
       {/* Top bar */}
       <div className="flex items-center justify-between">
-        <a href="/" aria-label="Dream Neighborhood — home" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+        <a href="/" aria-label="Dream Neighborhood - home" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
           <Logo />
         </a>
         <a
@@ -59,7 +59,7 @@ export default function PartnersPage() {
           Partner program · revenue share
         </span>
         <h1 className="mt-3 text-3xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">
-          Add school data to every client site — and earn up to 40% recurring revenue.
+          Add school data to every client site - and earn up to 40% recurring revenue.
         </h1>
         <p className="mt-3 max-w-2xl text-base leading-relaxed text-slate-700">
           For real estate website developers, IDX providers, and real estate technology companies:
@@ -94,7 +94,7 @@ export default function PartnersPage() {
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
           You white-label the free <strong>School Explorer</strong> across every client site. When a
           client wants the full picture, they upgrade to the paid <strong>Neighborhood Explorer</strong>{" "}
-          — and that&apos;s where your revenue share kicks in.
+          - and that&apos;s where your revenue share kicks in.
         </p>
         <ExplorerPromo />
       </section>
@@ -104,9 +104,9 @@ export default function PartnersPage() {
         <h2 className="text-xl font-extrabold tracking-tight text-ink-900">How the revenue share works</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           {[
-            ["1", "White-label for free", "Drop one line of code into your platform or client sites. The School Explorer goes live everywhere — free, forever, under your clients' brand."],
-            ["2", "Buyers ask for more", "Home buyers see schools on every listing and can request the full Neighborhood Explorer — market trends, commute, demographics, walkability, safety, and 38+ hyperlocal insights."],
-            ["3", "You earn recurring revenue", "When a client upgrades to the paid widget, you earn up to 40% recurring revenue for as long as they stay — no selling required."],
+            ["1", "White-label for free", "Drop one line of code into your platform or client sites. The School Explorer goes live everywhere - free, forever, under your clients' brand."],
+            ["2", "Buyers ask for more", "Home buyers see schools on every listing and can request the full Neighborhood Explorer - market trends, commute, demographics, walkability, safety, and 38+ hyperlocal insights."],
+            ["3", "You earn recurring revenue", "When a client upgrades to the paid widget, you earn up to 40% recurring revenue for as long as they stay - no selling required."],
           ].map(([n, title, body]) => (
             <div key={n} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">{n}</span>
@@ -129,7 +129,7 @@ export default function PartnersPage() {
           ))}
         </div>
         <p className="mt-4 text-[13px] text-slate-500">
-          Works with any IDX or website and installs with a single line of code — no redesign and no
+          Works with any IDX or website and installs with a single line of code - no redesign and no
           ongoing engineering.
         </p>
       </section>

@@ -9,27 +9,29 @@ mkdirSync(OUT, { recursive: true });
 const PAGES = [
   {
     path: "/",
-    placeholderIncludes: "Search by address, city, or neighborhood name",
+    placeholderIncludes: "Search, by any US address, city or zip code",
     mustInclude: [
       "for parents & home buyers",
-      "School Explorer — Free",
+      "School Explorer - Free",
       "instantly and free",
       "No account needed. No ads. No catch.",
-      "Real ratings, test scores & safety for any US address.",
+      "Dream ratings for over 119,000 schools",
+      "student to teacher ratios",
       "119,000+",
-      "6,180,295 data points",
       "What you'll see",
       "College readiness information",
       "Why families love it",
       "How it works",
       "Search now",
       "Add Free School Explorer for Every Listing",
-      "Add to My Site — Free",
+      "Add to My Site - Free",
       "See Full Widget Upgrade",
       "real estate website developer, IDX provider, or PropTech",
       "Up to 40% recurring revenue",
       "See Partnership Details",
     ],
+    // No long dashes should remain on the homepage.
+    mustExcludeChars: ["—", "–"],
     // The realtor "1-line install" line must not appear in the parents section.
     mustExclude: ["Easy 1-line install for real estate professionals"],
   },
@@ -42,7 +44,7 @@ const PAGES = [
       "38 hyperlocal insights",
       "Install on My Site",
       "See the Neighborhood Explorer in Action",
-      "$50–$800/month",
+      "$50-$800/month",
     ],
     mustExclude: [],
   },
@@ -53,7 +55,7 @@ const PAGES = [
       "38 hyperlocal insights",
       "How the revenue share works",
       "Book a Demo",
-      "$50–$800/month",
+      "$50-$800/month",
     ],
     mustExclude: [],
   },
@@ -62,7 +64,7 @@ const PAGES = [
     path: "/installation",
     mustInclude: [
       "Add the School Explorer to your site",
-      "Save $100–$800/month",
+      "Save $100-$800/month",
       "See partner installation",
     ],
     mustExclude: ["40%", "revenue share", "revenue-share", "White-label", "white-label"],
@@ -114,6 +116,7 @@ for (const vp of viewports) {
     const body = (await page.evaluate(() => document.body.innerText)).toLowerCase();
     for (const s of p.mustInclude) note(body.includes(s.toLowerCase()), `contains "${s}"`);
     for (const s of p.mustExclude) note(!body.includes(s.toLowerCase()), `does NOT contain "${s}"`);
+    for (const ch of p.mustExcludeChars || []) note(!body.includes(ch), `no long dash "${ch}" in visible text`);
 
     if (p.placeholderIncludes) {
       const placeholders = await page.$$eval("input", (els) =>

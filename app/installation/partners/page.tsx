@@ -4,7 +4,7 @@ import { CodeBlock, POPUP_SNIPPET, INLINE_SNIPPET } from "@/components/CodeBlock
 import { TERMS_URL, PRIVACY_URL, CALENDLY_URL } from "@/lib/legalLinks";
 
 export const metadata = {
-  title: "Partner Installation — Website Developers & IDX Providers",
+  title: "Partner Installation - Website Developers & IDX Providers",
   description:
     "White-label the free School Explorer across every client site with one line of code, and earn up to 40% recurring revenue when clients upgrade to the full Neighborhood Explorer.",
 };
@@ -23,7 +23,7 @@ export default function PartnerInstallationPage() {
     <main className="mx-auto max-w-3xl px-4 pb-16 pt-4">
       {/* Top bar */}
       <div className="flex items-center justify-between">
-        <a href="/" aria-label="Dream Neighborhood — home" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+        <a href="/" aria-label="Dream Neighborhood - home" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
           <Logo />
         </a>
         <a
@@ -58,15 +58,15 @@ export default function PartnerInstallationPage() {
           <p className="mt-2 text-sm leading-relaxed text-slate-700">
             Give every client the free School Explorer at zero cost, and share in the revenue when
             they upgrade to the full paid Neighborhood Explorer widget. One integration, every client
-            site — instantly.
+            site - instantly.
           </p>
           <ul className="mt-4 grid gap-2.5 sm:grid-cols-2">
-            <Benefit><strong>Zero cost to white-label</strong> — free for every client site, no minimums.</Benefit>
+            <Benefit><strong>Zero cost to white-label</strong> - free for every client site, no minimums.</Benefit>
             <Benefit><strong>Up to 40% recurring revenue</strong> on every client upgrade.</Benefit>
-            <Benefit><strong>Deploy to all client sites at once</strong> — add it to your global template and it&apos;s live everywhere.</Benefit>
-            <Benefit><strong>Works with any IDX, CMS, or custom site</strong> — one line of code, no redesign.</Benefit>
-            <Benefit><strong>Sticky &amp; competitive</strong> — school data becomes part of your platform and your brand.</Benefit>
-            <Benefit><strong>Your clients look like heroes</strong> — richer listings, happier buyers, more time on site.</Benefit>
+            <Benefit><strong>Deploy to all client sites at once</strong> - add it to your global template and it&apos;s live everywhere.</Benefit>
+            <Benefit><strong>Works with any IDX, CMS, or custom site</strong> - one line of code, no redesign.</Benefit>
+            <Benefit><strong>Sticky &amp; competitive</strong> - school data becomes part of your platform and your brand.</Benefit>
+            <Benefit><strong>Your clients look like heroes</strong> - richer listings, happier buyers, more time on site.</Benefit>
           </ul>
           <a
             href="/partners"
@@ -76,7 +76,7 @@ export default function PartnerInstallationPage() {
           </a>
         </div>
 
-        {/* Step 1 — install */}
+        {/* Step 1 - install */}
         <section className="mt-8">
           <div className="flex items-center gap-3">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">1</span>
@@ -84,7 +84,7 @@ export default function PartnerInstallationPage() {
           </div>
           <p className="mt-2 pl-10 text-sm leading-relaxed text-slate-600">
             Add the script once to your global template or theme and it goes live across every client
-            listing page automatically — no per-site work. It auto-detects the listing address on each
+            listing page automatically - no per-site work. It auto-detects the listing address on each
             page, so the right schools always show.
           </p>
           <div className="mt-3 pl-10">
@@ -98,7 +98,7 @@ export default function PartnerInstallationPage() {
           </div>
         </section>
 
-        {/* Step 2 — revenue share */}
+        {/* Step 2 - revenue share */}
         <section className="mt-8">
           <div className="flex items-center gap-3">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">2</span>

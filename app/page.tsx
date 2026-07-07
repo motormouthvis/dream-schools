@@ -61,7 +61,7 @@ export default function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const acRef = useRef<AbortController | null>(null);
-  // null until /api/health resolves — avoids briefly flashing the demo-coverage
+  // null until /api/health resolves - avoids briefly flashing the demo-coverage
   // note on production (which is nationwide).
   const [nationwide, setNationwide] = useState<boolean | null>(null);
   const [audience, setAudience] = useState<"full" | "fairhousing">("full");
@@ -120,7 +120,7 @@ export default function Home() {
         setShowSuggest(true);
         setActiveIdx(-1);
       } catch {
-        /* aborted (newer query in flight) or network error — keep prior list */
+        /* aborted (newer query in flight) or network error - keep prior list */
       }
     }, 200);
     return () => {
@@ -181,7 +181,7 @@ export default function Home() {
     <main className="mx-auto max-w-4xl px-4 pb-16 pt-4">
       {/* Top bar: logo + settings hamburger */}
       <div className="flex items-center justify-between">
-        <a href="/" aria-label="Dream Neighborhood — home" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+        <a href="/" aria-label="Dream Neighborhood - home" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
           <Logo />
         </a>
         <SettingsMenu
@@ -193,7 +193,7 @@ export default function Home() {
         />
       </div>
 
-      {/* Line 2 — hero. Landing: one image banner with the heading overlaid;
+      {/* Line 2 - hero. Landing: one image banner with the heading overlaid;
           results: a slim heading to keep the page compact. */}
       {!data ? (
         <div className="relative mt-4 overflow-hidden rounded-3xl ring-1 ring-inset ring-brand-600/10">
@@ -219,14 +219,9 @@ export default function Home() {
             <h1 className="mt-2 max-w-md text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">
               School Explorer
             </h1>
-            <p className="mt-2 max-w-[17rem] text-xs font-semibold leading-snug text-slate-700 sm:max-w-md sm:text-sm">
-              Real ratings, test scores &amp; safety for any US address.
-            </p>
-            {/* Data points = total non-null values across schools, districts,
-                safety & graduation tables (measured 2026-07-07). */}
-            <p className="mt-2.5 max-w-[17rem] text-[11px] font-semibold leading-snug text-slate-600 sm:max-w-md">
-              <span className="font-extrabold text-ink-900">119,000+</span> schools,{" "}
-              <span className="font-extrabold text-ink-900">6,180,295</span> data points
+            <p className="mt-2 max-w-[18rem] text-xs font-semibold leading-snug text-slate-700 sm:max-w-lg sm:text-sm">
+              Dream ratings for over 119,000 schools with test scores, student to teacher ratios,
+              safety/disciplinary records, and more, for any US address.
             </p>
           </div>
         </div>
@@ -239,7 +234,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* Line 3 — search box (no address yet / changing) OR address bar.
+      {/* Line 3 - search box (no address yet / changing) OR address bar.
           Home is a SEPARATE button to the left (matches the popup/embed). */}
       {!showSearch && data && (
         <div className="mt-4 flex max-w-2xl items-center gap-2.5">
@@ -349,7 +344,7 @@ export default function Home() {
               }
             }}
             autoComplete="off"
-            placeholder={data ? "Search or change address…" : "Search by address, city, or neighborhood name"}
+            placeholder={data ? "Search or change address…" : "Search, by any US address, city or zip code"}
             className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-9 pr-3 text-sm shadow-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
           />
           {focused && !address.trim() && recents.length > 0 && (
@@ -461,7 +456,7 @@ export default function Home() {
         Data sources &amp; methodology in the menu under “Data sources.”
       </p>
 
-      {/* Footer — matches dreamneighborhood.com */}
+      {/* Footer - matches dreamneighborhood.com */}
       <footer className="mx-auto mt-10 max-w-2xl border-t border-slate-200 pt-6 text-center text-xs text-slate-500">
         <p>© 2026 Dream Neighborhood. All rights reserved.</p>
         <div className="mt-2 flex flex-wrap items-center justify-center gap-5">

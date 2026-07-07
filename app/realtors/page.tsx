@@ -3,7 +3,7 @@ import { ExplorerPromo } from "@/components/ExplorerPromo";
 import { TERMS_URL, PRIVACY_URL } from "@/lib/legalLinks";
 
 export const metadata = {
-  title: "School Explorer for Realtors & Brokerages — Dream Neighborhood Schools",
+  title: "School Explorer for Realtors & Brokerages - Dream Neighborhood Schools",
   description:
     "Add the free School Explorer to every listing with one line of code, and give buyers a one-click upgrade to the full Neighborhood Explorer. No monthly fees, no redesign, your brand.",
 };
@@ -12,24 +12,24 @@ const NEIGHBORHOOD_DEMO_URL = "https://www.dreamneighborhood.com";
 
 const REASONS: [string, string][] = [
   [
-    "Free forever — no monthly fees",
-    "Stop paying $100–$800/month to GreatSchools or Niche for school data that lives off your site. The School Explorer is free forever, with no ads and no credit card.",
+    "Free forever - no monthly fees",
+    "Stop paying $100-$800/month to GreatSchools or Niche for school data that lives off your site. The School Explorer is free forever, with no ads and no credit card.",
   ],
   [
     "Installs with one line of code",
-    "Zero redesign. Paste one line once and the Explorer goes live on every page in under 60 seconds — on any IDX platform, CMS, or custom website.",
+    "Zero redesign. Paste one line once and the Explorer goes live on every page in under 60 seconds - on any IDX platform, CMS, or custom website.",
   ],
   [
     "Automatic address detection",
-    "The Explorer reads each listing's address right off the page, so the correct nearby schools appear everywhere automatically — no per-page setup.",
+    "The Explorer reads each listing's address right off the page, so the correct nearby schools appear everywhere automatically - no per-page setup.",
   ],
   [
     "Your brand, on your site",
-    "Ratings, test scores, college readiness, and safety on every listing — under your brand, keeping buyers on your site instead of leaking to Zillow.",
+    "Ratings, test scores, college readiness, and safety on every listing - under your brand, keeping buyers on your site instead of leaking to Zillow.",
   ],
   [
     "A built-in upgrade path",
-    "Buyers can request the full Neighborhood Explorer right from the popup — market trends, commute, demographics, walkability, safety, and 38+ hyperlocal insights.",
+    "Buyers can request the full Neighborhood Explorer right from the popup - market trends, commute, demographics, walkability, safety, and 38+ hyperlocal insights.",
   ],
   [
     "Happier clients, better SEO",
@@ -44,7 +44,7 @@ export default function RealtorsPage() {
       <div className="flex items-center justify-between">
         <a
           href="/"
-          aria-label="Dream Neighborhood — home"
+          aria-label="Dream Neighborhood - home"
           className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
         >
           <Logo />
@@ -63,10 +63,10 @@ export default function RealtorsPage() {
           For realtors & brokerages
         </span>
         <h1 className="mt-3 text-3xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">
-          Add Free School Explorer to Every Listing — and Give Buyers the Full Picture
+          Add Free School Explorer to Every Listing - and Give Buyers the Full Picture
         </h1>
         <p className="mt-3 max-w-2xl text-base leading-relaxed text-slate-700">
-          Put beautiful, accurate school data on every listing with a single line of code — free,
+          Put beautiful, accurate school data on every listing with a single line of code - free,
           forever. Then let buyers upgrade in one click to the full Neighborhood Explorer, our paid
           widget with 38+ hyperlocal insights. Here&apos;s exactly what each one does.
         </p>
@@ -106,7 +106,7 @@ export default function RealtorsPage() {
           Ready to put school data on every listing?
         </h2>
         <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-700">
-          It takes under 60 seconds and one line of code — free, forever. See the full paid widget in
+          It takes under 60 seconds and one line of code - free, forever. See the full paid widget in
           action, or install the free School Explorer on your site right now.
         </p>
         <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
