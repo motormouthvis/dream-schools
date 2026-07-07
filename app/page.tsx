@@ -234,6 +234,19 @@ export default function Home() {
         </div>
       )}
 
+      {/* Trust / stats bar — sits between the hero text and the search bar. */}
+      {!data && (
+        <div className="relative z-10 mx-auto -mt-7 flex max-w-2xl flex-wrap items-center justify-center gap-x-3 gap-y-1.5 rounded-2xl border border-brand-200 bg-white px-4 py-3 text-center shadow-lg ring-1 ring-black/5 backdrop-blur sm:-mt-8">
+          <span className="text-sm text-slate-600">
+            <span className="font-extrabold text-ink-900">119,000+</span> schools across the United States
+          </span>
+          <span aria-hidden className="hidden text-brand-300 sm:inline">•</span>
+          <span className="text-sm font-semibold text-slate-600">Data for every address</span>
+          <span aria-hidden className="hidden text-brand-300 sm:inline">•</span>
+          <span className="text-sm font-bold text-brand-700">Free forever</span>
+        </div>
+      )}
+
       {/* Line 3 — search box (no address yet / changing) OR address bar.
           Home is a SEPARATE button to the left (matches the popup/embed). */}
       {!showSearch && data && (
@@ -304,7 +317,7 @@ export default function Home() {
           showSearch ? "flex" : "hidden"
         } ${
           !data
-            ? "-mt-7 rounded-2xl bg-white/95 p-2 shadow-lg ring-1 ring-black/5 backdrop-blur sm:-mt-8"
+            ? "mt-3 rounded-2xl bg-white/95 p-2 shadow-lg ring-1 ring-black/5 backdrop-blur"
             : "mt-4"
         }`}
       >
@@ -411,19 +424,6 @@ export default function Home() {
           {loading ? "Searching…" : "Search"}
         </button>
       </form>
-
-      {/* Trust / stats bar — adds weight under the hero and reinforces credibility. */}
-      {!data && (
-        <div className="mx-auto mt-4 flex max-w-2xl flex-wrap items-center justify-center gap-x-3 gap-y-1.5 rounded-2xl border border-brand-200 bg-white px-4 py-3 text-center shadow-sm">
-          <span className="text-sm text-slate-600">
-            <span className="font-extrabold text-ink-900">119,000+</span> schools across the United States
-          </span>
-          <span aria-hidden className="hidden text-brand-300 sm:inline">•</span>
-          <span className="text-sm font-semibold text-slate-600">Data for every address</span>
-          <span aria-hidden className="hidden text-brand-300 sm:inline">•</span>
-          <span className="text-sm font-bold text-brand-700">Free forever</span>
-        </div>
-      )}
 
       <div className="mt-8">
         {loading && (
