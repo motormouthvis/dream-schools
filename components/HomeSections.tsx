@@ -92,7 +92,7 @@ export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
           For realtors & brokerages
         </span>
         <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-ink-900 sm:text-3xl">
-          Add Free School Explorer for Every Listing - Installs with 1 Line of Code
+          Add our Free School Explorer for Every Listing
         </h2>
         <p className="mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-slate-700 sm:text-base">
           One line of code. Zero website redesign. Our unique popup technology puts accurate school
@@ -104,7 +104,7 @@ export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
           {[
             [
               "Installs in under 60 seconds",
-              "Paste one line once and the Explorer goes live site-wide on any IDX platform or website - no redesign, no maintenance.",
+              "Paste a single line of code and the Explorer goes live site-wide on any Website or IDX platform - no redesign, no maintenance.",
             ],
             [
               "Save $100-$800 per month",
@@ -147,20 +147,12 @@ export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
             Add to My Site - Free <ArrowRight className="h-5 w-5" />
           </a>
           <a
-            href="https://www.dreamneighborhood.com"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/realtors"
             className="inline-flex items-center justify-center gap-1.5 rounded-xl border-2 border-brand-600 px-5 py-2.5 text-sm font-bold text-brand-700 transition hover:bg-brand-50"
           >
-            See Full Widget Upgrade
+            Learn more
           </a>
         </div>
-        <a
-          href="/realtors"
-          className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:text-brand-800"
-        >
-          Learn more about School Explorer for realtors <ArrowRight className="h-4 w-4" />
-        </a>
       </section>
 
       {/* Section 3 - Website developers & IDX providers (lighter, secondary card) */}
