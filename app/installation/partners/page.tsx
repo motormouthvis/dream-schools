@@ -98,10 +98,31 @@ export default function PartnerInstallationPage() {
           </div>
         </section>
 
-        {/* Step 2 - revenue share */}
+        {/* Step 2 - sign up */}
         <section className="mt-8">
           <div className="flex items-center gap-3">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">2</span>
+            <h2 className="text-lg font-extrabold tracking-tight text-ink-900">Sign up for an account and enter your authorized URL</h2>
+          </div>
+          <p className="mt-2 pl-10 text-sm leading-relaxed text-slate-600">
+            No cost, no ads, no credit card required.
+          </p>
+          <div className="mt-3 pl-10">
+            <a
+              href="https://app.dreamneighborhoodschools.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700"
+            >
+              Go to app.dreamneighborhoodschools.com <ArrowRight className="h-4 w-4" />
+            </a>
+          </div>
+        </section>
+
+        {/* Step 3 - revenue share */}
+        <section className="mt-8">
+          <div className="flex items-center gap-3">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">3</span>
             <h2 className="text-lg font-extrabold tracking-tight text-ink-900">Set up your revenue share</h2>
           </div>
           <p className="mt-2 pl-10 text-sm leading-relaxed text-slate-600">
