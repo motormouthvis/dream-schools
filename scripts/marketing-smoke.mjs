@@ -17,7 +17,7 @@ const PAGES = [
       "No account needed. No ads. No catch.",
       "Dream ratings for over 119,000 schools",
       "student to teacher ratios",
-      "119,000+",
+      "safety/disciplinary records",
       "What you'll see",
       "College readiness information",
       "Why families love it",
