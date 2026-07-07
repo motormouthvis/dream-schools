@@ -468,6 +468,12 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
           marketing links are removed so visitors can't navigate away. */}
       <footer className="mx-auto mt-10 max-w-2xl border-t border-slate-200 pt-6 text-center text-xs text-slate-500">
         <p>© 2026 Dream Neighborhood. All rights reserved.</p>
+        {!parentsOnly && (
+          <p className="mx-auto mt-1 max-w-xl text-[10px] leading-relaxed text-slate-400">
+            Third-party names and logos (e.g. GreatSchools®, Niche™) are trademarks of their
+            respective owners and do not imply affiliation or endorsement.
+          </p>
+        )}
         <div className="mt-2 flex flex-wrap items-center justify-center gap-5">
           {!parentsOnly && (
             <>

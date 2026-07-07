@@ -196,6 +196,15 @@ function DetailBody({
   const greatSchoolsUrl = `https://www.greatschools.org/search/search.page?q=${encodeURIComponent(gsQuery)}`;
   const niche = detail.niche ?? null;
   const nicheSpecific = Boolean(niche?.specific);
+  // Our own full profile (opens the School Explorer for this school's area) and a
+  // Google Maps reviews link for the school.
+  const dnsUrl = `https://www.dreamneighborhoodschools.com/?address=${encodeURIComponent(
+    mapQuery || gsQuery
+  )}`;
+  const schoolMapsQuery = [detail.name, c.street, c.city, c.state].filter(Boolean).join(", ");
+  const schoolMapsUrl = schoolMapsQuery
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(schoolMapsQuery)}`
+    : undefined;
 
   // Split out of the old "Contact & details" dropdown. School details are useful
   // (especially for private schools, where we have little else), so they get a
@@ -557,8 +566,8 @@ function DetailBody({
             </h3>
             <p className="text-[12px] leading-relaxed text-slate-500">
               {isPrivate
-                ? "Private schools report limited federal data. For tuition, admissions, parent reviews & more, see these independent sites:"
-                : "For tuition, parent reviews & more detail, see these independent sites:"}
+                ? "Private schools report limited federal data. For tuition, admissions, parent reviews & more, see these sites:"
+                : "For tuition, parent reviews & more detail, see these sites:"}
             </p>
             <div className="mt-2.5 flex flex-wrap gap-2">
               {/* Niche first for private schools — that's where its depth (tuition,
@@ -570,7 +579,7 @@ function DetailBody({
                   rel="noopener noreferrer nofollow"
                   className="inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700 shadow-sm transition hover:bg-brand-100"
                 >
-                  View on Niche
+                  View on Niche&trade;
                   <span aria-hidden>↗</span>
                 </a>
               )}
@@ -580,7 +589,7 @@ function DetailBody({
                 rel="noopener noreferrer nofollow"
                 className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
               >
-                GreatSchools
+                GreatSchools&reg;
                 <span aria-hidden className="text-slate-400">↗</span>
               </a>
               {!isPrivate && nicheSpecific && (
@@ -590,7 +599,27 @@ function DetailBody({
                   rel="noopener noreferrer nofollow"
                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
                 >
-                  View on Niche
+                  View on Niche&trade;
+                  <span aria-hidden className="text-slate-400">↗</span>
+                </a>
+              )}
+              <a
+                href={dnsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700 shadow-sm transition hover:bg-brand-100"
+              >
+                Dream Neighborhood Schools
+                <span aria-hidden>↗</span>
+              </a>
+              {schoolMapsUrl && (
+                <a
+                  href={schoolMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
+                >
+                  Google Maps&trade; reviews
                   <span aria-hidden className="text-slate-400">↗</span>
                 </a>
               )}

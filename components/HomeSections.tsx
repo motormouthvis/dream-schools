@@ -116,7 +116,7 @@ export function HomeSections({
             ],
             [
               "Save $100-$800 per month",
-              "Versus GreatSchools or Niche - free forever, no ads, and your brand stays on your site.",
+              "Versus GreatSchools® or Niche™ - free forever, no ads, and your brand stays on your site.",
             ],
             [
               "Make your site more valuable to buyers",
@@ -128,7 +128,7 @@ export function HomeSections({
             ],
             [
               "Keep traffic and leads on your site",
-              "School data lives inside your website instead of sending buyers to Zillow, GreatSchools, or other third-party sites.",
+              "School data lives inside your website instead of sending buyers to Zillow®, GreatSchools, or other third-party sites.",
             ],
             [
               "Super easy upgrade path",

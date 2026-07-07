@@ -211,7 +211,7 @@ const REMINDER_REQUEST_PREVIEW_LIMIT = 5;
 const CUSTOMER_REMINDER_INTRO =
   "Your website visitors are asking for the full Neighborhood Explorer — home prices, commute, walkability, safety, dining and 38+ hyperlocal insights.";
 const OLD_CUSTOMER_REMINDER_INTRO =
-  "Your website visitors are asking for the full Neighborhood Explorer — home prices, commute, walkability, safety, dining and 38+ hyperlocal insights. Give them the complete picture on YOUR site (instead of losing them to Zillow or Realtor.com™) and become the hero for your clients.";
+  "Your website visitors are asking for the full Neighborhood Explorer — home prices, commute, walkability, safety, dining and 38+ hyperlocal insights. Give them the complete picture on YOUR site (instead of losing them to Zillow® or Realtor.com™) and become the hero for your clients.";
 
 const DEFAULT_TEMPLATES: Record<string, Omit<UpgradeEmailTemplate, "updatedAt">> = {
   soft_nudge: {
@@ -228,7 +228,7 @@ const DEFAULT_TEMPLATES: Record<string, Omit<UpgradeEmailTemplate, "updatedAt">>
     label: "Strong upgrade sales pitch",
     subject: "Your visitors are leaving for neighborhood answers — keep them on your site",
     intro:
-      "People leave real-estate sites for Zillow and realtor.com because they want richer neighborhood answers. Dream Neighborhood gives them a more complete picture directly on your website — keeping them engaged with you.",
+      "People leave real-estate sites for Zillow® and Realtor.com™ because they want richer neighborhood answers. Dream Neighborhood gives them a more complete picture directly on your website — keeping them engaged with you.",
     ctaText: "Upgrade to Neighborhood Explorer",
     ctaUrl: SIGNUP_URL,
   },
@@ -1254,7 +1254,7 @@ function reminderHtml(opts: {
          <div style="background:#ffffff;border:1px solid #dcebd5;border-radius:20px;padding:16px;margin:0 0 16px">
            <div style="font-size:14px;font-weight:900;color:#0f5132;margin:0 0 8px">Why this matters for your business</div>
            <ul style="color:#334155;font-size:13px;line-height:1.65;padding-left:18px;margin:0">
-             <li>Keep buyers on your site instead of bouncing to Zillow or Realtor.com&trade;</li>
+             <li>Keep buyers on your site instead of bouncing to Zillow&reg; or Realtor.com&trade;</li>
              <li>38+ hyperlocal insights: prices, commute, walkability, safety, dining</li>
              <li>More time on page, better SEO, fewer showings, happier clients</li>
            </ul>
@@ -1366,7 +1366,7 @@ export async function sendCustomerReminder(
     `Learn More: ${LEARN_MORE_URL}`,
     `Sign up: ${SIGNUP_URL}`,
     "",
-    "Keep buyers on your site instead of bouncing to Zillow or Realtor.com(TM)",
+    "Keep buyers on your site instead of bouncing to Zillow(R) or Realtor.com(TM)",
     "38+ hyperlocal insights: prices, commute, walkability, safety, dining",
     "More time on page, better SEO, fewer showings, happier clients",
     "",
@@ -1588,7 +1588,7 @@ function partnerEmailHtml(opts: {
          <div style="background:#ffffff;border:1px solid #dcebd5;border-radius:20px;padding:16px;margin:0 0 16px">
            <div style="font-size:14px;font-weight:900;color:#0f5132;margin:0 0 8px">Why this matters for your realtors</div>
            <ul style="color:#334155;font-size:13px;line-height:1.65;padding-left:18px;margin:0">
-             <li>Help your realtors keep buyers on their sites instead of bouncing to Zillow or Realtor.com&trade;</li>
+             <li>Help your realtors keep buyers on their sites instead of bouncing to Zillow&reg; or Realtor.com&trade;</li>
              <li>38+ hyperlocal insights: prices, commute, walkability, safety, dining</li>
              <li>More time on page, better SEO, fewer showings, happier clients</li>
            </ul>

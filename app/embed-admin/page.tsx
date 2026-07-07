@@ -555,7 +555,7 @@ export default function EmbedAdmin() {
               />
               <div className="flex-1">
                 <div className="text-sm font-medium text-zinc-900">
-                  Show links to Niche &amp; GreatSchools on school detail
+                  Show links to Niche&trade; &amp; GreatSchools&reg; on school detail
                 </div>
                 <div className="text-[11px] text-zinc-500">
                   Adds a small &ldquo;More on this school&rdquo; row with outbound links

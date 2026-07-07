@@ -54,7 +54,7 @@ export default function InstallationPage() {
       <div className="mt-6">
         <ul className="grid gap-2.5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2">
           <Benefit>
-            <strong>Save $100-$800/month</strong> vs. GreatSchools or Niche - free forever, no ads.
+            <strong>Save $100-$800/month</strong> vs. GreatSchools&reg; or Niche&trade; - free forever, no ads.
           </Benefit>
           <Benefit>
             <strong>Installs in under 60 seconds</strong> - one line of code, any IDX or website, no redesign.
@@ -158,6 +158,10 @@ export default function InstallationPage() {
       {/* Footer */}
       <footer className="mx-auto mt-12 max-w-2xl border-t border-slate-200 pt-6 text-center text-xs text-slate-500">
         <p>© 2026 Dream Neighborhood. All rights reserved.</p>
+        <p className="mx-auto mt-1 max-w-xl text-[10px] leading-relaxed text-slate-400">
+          Third-party names and logos (e.g. GreatSchools®, Niche™) are trademarks of their
+          respective owners and do not imply affiliation or endorsement.
+        </p>
         <div className="mt-2 flex flex-wrap items-center justify-center gap-5">
           <a href="/" className="font-medium text-slate-600 transition hover:text-brand-700">Home</a>
           <a href="/realtors" className="font-medium text-slate-600 transition hover:text-brand-700">For realtors</a>

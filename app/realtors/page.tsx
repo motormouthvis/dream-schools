@@ -13,7 +13,7 @@ const NEIGHBORHOOD_DEMO_URL = "https://www.dreamneighborhood.com";
 const REASONS: [string, string][] = [
   [
     "Free forever - no monthly fees",
-    "Stop paying $100-$800/month to GreatSchools or Niche for school data that lives off your site. The School Explorer is free forever, with no ads and no credit card.",
+    "Stop paying $100-$800/month to GreatSchools® or Niche™ for school data that lives off your site. The School Explorer is free forever, with no ads and no credit card.",
   ],
   [
     "Installs with one line of code",
@@ -25,7 +25,7 @@ const REASONS: [string, string][] = [
   ],
   [
     "Your brand, on your site",
-    "Ratings, test scores, college readiness, and safety on every listing - under your brand, keeping buyers on your site instead of leaking to Zillow.",
+    "Ratings, test scores, college readiness, and safety on every listing - under your brand, keeping buyers on your site instead of leaking to Zillow®.",
   ],
   [
     "A built-in upgrade path",
@@ -130,6 +130,10 @@ export default function RealtorsPage() {
       {/* Footer */}
       <footer className="mx-auto mt-12 max-w-2xl border-t border-slate-200 pt-6 text-center text-xs text-slate-500">
         <p>© 2026 Dream Neighborhood. All rights reserved.</p>
+        <p className="mx-auto mt-1 max-w-xl text-[10px] leading-relaxed text-slate-400">
+          Third-party names and logos (e.g. GreatSchools®, Niche™) are trademarks of their
+          respective owners and do not imply affiliation or endorsement.
+        </p>
         <div className="mt-2 flex flex-wrap items-center justify-center gap-5">
           <a href="/" className="font-medium text-slate-600 transition hover:text-brand-700">Home</a>
           <a href="/installation" className="font-medium text-slate-600 transition hover:text-brand-700">Add to your site</a>

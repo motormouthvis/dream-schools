@@ -204,7 +204,7 @@ export default function EditPage() {
                     </Field>
                     <div className="rounded-xl border border-slate-200 bg-white p-3">
                       <div className="mb-2 text-xs font-bold text-slate-600">Extras</div>
-                      <Check checked={form.showExternalLinks} onChange={(v) => set("showExternalLinks", v)} label="Show Niche & GreatSchools links on school detail" />
+                      <Check checked={form.showExternalLinks} onChange={(v) => set("showExternalLinks", v)} label="Show Niche™ & GreatSchools® links on school detail" />
                     </div>
                   </div>
                 </fieldset>
