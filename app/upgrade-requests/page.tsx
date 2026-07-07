@@ -964,7 +964,18 @@ function UpgradeRequests({ isOwner, isPartner, email }: { isOwner: boolean; isPa
                 min={1}
                 max={reminderMaxDays}
                 value={reminderDays}
-                onChange={(e) => setReminderDays(e.target.value)}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw === "") {
+                    setReminderDays("");
+                    return;
+                  }
+                  const n = Math.floor(Number(raw));
+                  if (Number.isNaN(n)) return;
+                  // Hard-cap at the allowed maximum (30 days unless upgraded) so the
+                  // reminder cadence can never be stretched beyond it.
+                  setReminderDays(String(Math.min(Math.max(1, n), reminderMaxDays)));
+                }}
                 className="w-16 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm"
               />
               <span className="text-sm font-semibold text-slate-500">days</span>
