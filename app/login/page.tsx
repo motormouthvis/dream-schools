@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SchoolhouseMark } from "@/components/Logo";
 import { Turnstile } from "@/components/app/Turnstile";
 
 type Mode = "signup" | "login" | "reset";
+type Partner = { id: string; name: string };
 
 export default function LoginPage() {
   const [mode, setMode] = useState<Mode>("signup");
@@ -12,6 +13,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [partner, setPartner] = useState("");
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [partnerSearch, setPartnerSearch] = useState("");
+  const [partnerOpen, setPartnerOpen] = useState(false);
   const [captcha, setCaptcha] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +28,29 @@ export default function LoginPage() {
       setMode("signup");
     }
   }, []);
+
+  // Load the public list of partners for the signup dropdown.
+  useEffect(() => {
+    fetch("/api/auth/partners")
+      .then((r) => r.json())
+      .then((j) => setPartners(Array.isArray(j.partners) ? j.partners : []))
+      .catch(() => {});
+  }, []);
+
+  // When partners load, reflect a partner selected via a ?partner= link in the box.
+  useEffect(() => {
+    if (partner && !partnerSearch) {
+      const match = partners.find((p) => p.id === partner);
+      if (match) setPartnerSearch(match.name);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partners]);
+
+  const filteredPartners = useMemo(() => {
+    const q = partnerSearch.trim().toLowerCase();
+    const base = q ? partners.filter((p) => p.name.toLowerCase().includes(q)) : partners;
+    return base.slice(0, 50);
+  }, [partners, partnerSearch]);
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -103,11 +130,6 @@ export default function LoginPage() {
       <p className="mt-1 text-center text-[13px] text-slate-500">
         Free forever · <strong className="font-extrabold text-brand-700">No Credit Card — Ever</strong>
       </p>
-      {partner && mode === "signup" && (
-        <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-center text-[12px] font-semibold text-brand-700">
-          Partner signup link applied.
-        </p>
-      )}
 
       {mode !== "reset" && (
         <div className="mt-5 inline-flex w-full rounded-full bg-slate-100 p-0.5 text-sm font-semibold">
@@ -176,6 +198,77 @@ export default function LoginPage() {
               </div>
             )}
           </>
+        )}
+
+        {mode === "signup" && (
+          <div className="mt-3">
+            <label className="block text-xs font-bold text-slate-600">
+              Real estate company or partner{" "}
+              <span className="font-normal text-slate-400">(optional)</span>
+            </label>
+            <div className="relative mt-1">
+              <input
+                type="text"
+                value={partnerSearch}
+                onChange={(e) => {
+                  setPartnerSearch(e.target.value);
+                  setPartnerOpen(true);
+                  setPartner(""); // clear the selection until they pick from the list
+                }}
+                onFocus={() => setPartnerOpen(true)}
+                onBlur={() => setTimeout(() => setPartnerOpen(false), 150)}
+                placeholder="Search for your company…"
+                autoComplete="off"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-8 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+              />
+              {partnerSearch && (
+                <button
+                  type="button"
+                  aria-label="Clear"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setPartner("");
+                    setPartnerSearch("");
+                    setPartnerOpen(false);
+                  }}
+                  className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                >
+                  <span aria-hidden className="text-base leading-none">×</span>
+                </button>
+              )}
+              {partnerOpen && (
+                <ul className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                  {filteredPartners.length === 0 ? (
+                    <li className="px-3 py-2 text-xs text-slate-400">
+                      No matching partners — leave blank if none.
+                    </li>
+                  ) : (
+                    filteredPartners.map((p) => (
+                      <li key={p.id}>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setPartner(p.id);
+                            setPartnerSearch(p.name);
+                            setPartnerOpen(false);
+                          }}
+                          className={`flex w-full items-center px-3 py-2 text-left text-sm transition hover:bg-brand-50 ${
+                            partner === p.id ? "bg-brand-50 font-semibold text-brand-800" : "text-slate-700"
+                          }`}
+                        >
+                          {p.name}
+                        </button>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              )}
+            </div>
+            <p className="mt-1 text-[11px] text-slate-400">
+              Referred by a real estate company or website provider? Select them here.
+            </p>
+          </div>
         )}
 
         <Turnstile onToken={setCaptcha} />
