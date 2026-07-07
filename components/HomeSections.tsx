@@ -103,7 +103,7 @@ export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
           {[
             [
               "Installs in under 60 seconds",
-              "Paste one line of code and the Explorer goes live site-wide on any website or IDX platform - no redesign, no maintenance.",
+              "Paste one line of code and the Explorer goes live site-wide on any website or IDX platform - no website redesign with our exclusive popup technology.",
             ],
             [
               "Save $100-$800 per month",
