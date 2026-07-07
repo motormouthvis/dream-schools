@@ -92,39 +92,38 @@ export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
           For realtors & brokerages
         </span>
         <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-ink-900 sm:text-3xl">
-          Add our Free School Explorer for Every Listing
+          Add our Free School Explorer to Every Listing
         </h2>
         <p className="mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-slate-700 sm:text-base">
-          One line of code. Zero website redesign. Our unique popup technology puts accurate school
-          data on every listing and <strong className="text-ink-900">saves you $100-$800/month</strong>{" "}
-          versus GreatSchools or Niche - free forever, no ads, your brand.
+          One line of code. Zero website redesign. Make your website instantly more valuable to
+          homebuyers, increase time on site, and improve SEO - all for free.
         </p>
 
         <ul className="mt-5 grid gap-3 sm:grid-cols-2">
           {[
             [
-              "Installs in under 60 seconds",
-              "Paste a single line of code and the Explorer goes live site-wide on any Website or IDX platform - no redesign, no maintenance.",
+              "Make your site more valuable to buyers",
+              "Give them instant access to school ratings, test scores, college readiness, and safety on every listing without leaving your site.",
             ],
             [
-              "Save $100-$800 per month",
-              "Versus our competitors - free forever, no ads, and your brand stays on your site.",
+              "Increase dwell time and engagement",
+              "Buyers stay longer exploring schools and neighborhoods, which helps SEO and keeps them on your website.",
             ],
             [
-              "Automatic address detection",
-              "The Explorer reads each listing's address right off the page, so the correct nearby schools appear everywhere automatically.",
+              "Position yourself as the neighborhood expert",
+              "Stand out by offering useful, professional school data that buyers actually want.",
             ],
             [
-              "Keep buyers on your site",
-              "Rich school data on every listing keeps buyers with you instead of leaking to Zillow, GreatSchools, and Niche.",
+              "Add real value to your clients at zero cost",
+              "Upgrade every listing with helpful school information that makes your site more attractive to buyers and sellers.",
             ],
             [
-              "School data on every listing",
-              "Ratings, test scores, college readiness, and safety - nationwide, on every property page instantly.",
+              "Keep traffic and leads on your site",
+              "School data lives inside your website instead of sending buyers to Zillow, GreatSchools, or other third-party sites.",
             ],
             [
-              "One-click upgrade path",
-              "Buyers can upgrade inside the popup to the full Dream Neighborhood widget - market trends, commute, demographics, walkability, and more.",
+              "Super easy upgrade path",
+              "If your clients want the full neighborhood data later.",
             ],
           ].map(([title, body]) => (
             <li
