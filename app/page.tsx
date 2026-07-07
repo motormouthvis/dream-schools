@@ -223,6 +223,10 @@ export default function Home() {
               Real ratings, test scores &amp; safety for any address —{" "}
               <span className="font-bold text-brand-700">free.</span>
             </p>
+            <p className="mt-2 max-w-[17rem] text-[11px] font-semibold leading-snug text-slate-600 sm:max-w-md">
+              <span className="font-extrabold text-ink-900">119,000+</span> schools across the United
+              States · Data for every address · <span className="text-brand-700">Free forever</span>
+            </p>
           </div>
         </div>
       ) : (
@@ -231,19 +235,6 @@ export default function Home() {
           <h1 className="text-xl font-extrabold tracking-tight text-ink-900 sm:text-2xl">
             Find Your Dream School
           </h1>
-        </div>
-      )}
-
-      {/* Trust / stats bar — sits between the hero text and the search bar. */}
-      {!data && (
-        <div className="relative z-10 mx-auto -mt-7 flex max-w-2xl flex-wrap items-center justify-center gap-x-3 gap-y-1.5 rounded-2xl border border-brand-200 bg-white px-4 py-3 text-center shadow-lg ring-1 ring-black/5 backdrop-blur sm:-mt-8">
-          <span className="text-sm text-slate-600">
-            <span className="font-extrabold text-ink-900">119,000+</span> schools across the United States
-          </span>
-          <span aria-hidden className="hidden text-brand-300 sm:inline">•</span>
-          <span className="text-sm font-semibold text-slate-600">Data for every address</span>
-          <span aria-hidden className="hidden text-brand-300 sm:inline">•</span>
-          <span className="text-sm font-bold text-brand-700">Free forever</span>
         </div>
       )}
 
@@ -317,7 +308,7 @@ export default function Home() {
           showSearch ? "flex" : "hidden"
         } ${
           !data
-            ? "mt-3 rounded-2xl bg-white/95 p-2 shadow-lg ring-1 ring-black/5 backdrop-blur"
+            ? "-mt-7 rounded-2xl bg-white/95 p-2 shadow-lg ring-1 ring-black/5 backdrop-blur sm:-mt-8"
             : "mt-4"
         }`}
       >
