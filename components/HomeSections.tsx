@@ -7,7 +7,13 @@ import { Check, ArrowRight, Handshake, Code2, Percent, Award, Search } from "luc
 //   2. Realtors & Brokerages - the dominant action area (below)
 //   3. Website developers & IDX providers - a lighter, secondary card (below)
 
-export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
+export function HomeSections({
+  onSearchNow,
+  parentsOnly = false,
+}: {
+  onSearchNow?: () => void;
+  parentsOnly?: boolean;
+}) {
   return (
     <div className="mt-2 space-y-6">
       {/* Section 1 - Parents & Home Buyers (warm, simple, complete) */}
@@ -83,6 +89,9 @@ export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
         </div>
       </section>
 
+      {/* Sections 2 & 3 are hidden on the parents-only view (/parents). */}
+      {!parentsOnly && (
+        <>
       {/* Section 2 - Realtors & Brokerages (primary action area) */}
       <section
         id="realtors"
@@ -234,6 +243,8 @@ export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
           </div>
         </div>
       </section>
+        </>
+      )}
     </div>
   );
 }

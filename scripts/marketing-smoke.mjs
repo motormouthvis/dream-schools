@@ -39,6 +39,30 @@ const PAGES = [
     mustExclude: ["Easy 1-line install for real estate professionals"],
   },
   {
+    // Parents-only locked-down view: same top as home, no realtor/partner sections,
+    // and no marketing navigation away.
+    path: "/parents",
+    placeholderIncludes: "Search, by any US address, city or zip code",
+    mustInclude: [
+      "for parents & home buyers",
+      "School Explorer - Free",
+      "What you'll see",
+      "Why families love it",
+      "How it works",
+      "Search now",
+    ],
+    mustExclude: [
+      "For realtors & brokerages",
+      "Add our Free School Explorer to Every Listing",
+      "See Partnership Details",
+      "Revenue-share partner program",
+      "Featured partner",
+      "Add to My Site - Free",
+      "Add to your site",
+    ],
+    mustExcludeChars: ["—", "–"],
+  },
+  {
     path: "/realtors",
     mustInclude: [
       "For realtors & brokerages",
