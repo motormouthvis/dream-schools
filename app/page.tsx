@@ -220,12 +220,13 @@ export default function Home() {
               School Explorer
             </h1>
             <p className="mt-2 max-w-[17rem] text-xs font-semibold leading-snug text-slate-700 sm:max-w-md sm:text-sm">
-              Real ratings, test scores &amp; safety for any address —{" "}
-              <span className="font-bold text-brand-700">free.</span>
+              Real ratings, test scores &amp; safety for any US address.
             </p>
-            <p className="mt-2 max-w-[17rem] text-[11px] font-semibold leading-snug text-slate-600 sm:max-w-md">
-              <span className="font-extrabold text-ink-900">119,000+</span> schools across the United
-              States · Data for every address · <span className="text-brand-700">Free forever</span>
+            {/* Data points = total non-null values across schools, districts,
+                safety & graduation tables (measured 2026-07-07). */}
+            <p className="mt-2.5 max-w-[17rem] text-[11px] font-semibold leading-snug text-slate-600 sm:max-w-md">
+              <span className="font-extrabold text-ink-900">119,000+</span> schools,{" "}
+              <span className="font-extrabold text-ink-900">6,180,295</span> data points
             </p>
           </div>
         </div>
