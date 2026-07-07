@@ -25,7 +25,7 @@ const PAGES = [
       "Search now",
       "Add our Free School Explorer to Every Listing",
       "Add to My Site - Free",
-      "Position yourself as the neighborhood expert",
+      "Installs in under 60 seconds",
       "real estate website developer, IDX provider, or PropTech",
       "Up to 40% recurring revenue",
       "See Partnership Details",

@@ -95,12 +95,20 @@ export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
           Add our Free School Explorer to Every Listing
         </h2>
         <p className="mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-slate-700 sm:text-base">
-          One line of code. Zero website redesign. Make your website instantly more valuable to
-          homebuyers, increase time on site, and improve SEO - all for free.
+          One line of code. Zero website redesign. Installs site-wide in under 60 seconds and makes
+          your website more valuable to buyers - all for free.
         </p>
 
         <ul className="mt-5 grid gap-3 sm:grid-cols-2">
           {[
+            [
+              "Installs in under 60 seconds",
+              "Paste one line of code and the Explorer goes live site-wide on any website or IDX platform - no redesign, no maintenance.",
+            ],
+            [
+              "Save $100-$800 per month",
+              "Versus GreatSchools or Niche - free forever, no ads, and your brand stays on your site.",
+            ],
             [
               "Make your site more valuable to buyers",
               "Give them instant access to school ratings, test scores, college readiness, and safety on every listing without leaving your site.",
@@ -110,20 +118,12 @@ export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
               "Buyers stay longer exploring schools and neighborhoods, which helps SEO and keeps them on your website.",
             ],
             [
-              "Position yourself as the neighborhood expert",
-              "Stand out by offering useful, professional school data that buyers actually want.",
-            ],
-            [
-              "Add real value to your clients at zero cost",
-              "Upgrade every listing with helpful school information that makes your site more attractive to buyers and sellers.",
-            ],
-            [
               "Keep traffic and leads on your site",
               "School data lives inside your website instead of sending buyers to Zillow, GreatSchools, or other third-party sites.",
             ],
             [
               "Super easy upgrade path",
-              "If your clients want the full neighborhood data later.",
+              "If your clients want more neighborhood data later, they can upgrade inside the popup with one click.",
             ],
           ].map(([title, body]) => (
             <li
