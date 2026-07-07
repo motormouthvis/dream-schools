@@ -204,7 +204,7 @@ export default function Home() {
             className="h-[230px] w-full object-cover object-right sm:h-[260px]"
           />
           {/* Stronger scrim on mobile (text wraps to more lines) so the tagline stays readable. */}
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/30 sm:via-white/75 sm:to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/40 sm:via-white/85 sm:to-white/35" />
           {/* Gentle sky/cloud wash in the top-left corner so the image box stays
               visible on light websites. */}
           <div
@@ -219,9 +219,9 @@ export default function Home() {
             <h1 className="mt-2 max-w-md text-2xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-4xl">
               School Explorer
             </h1>
-            <p className="mt-2 max-w-[18rem] text-xs font-semibold leading-snug text-slate-700 sm:max-w-lg sm:text-sm">
-              Dream ratings for over 119,000 schools with test scores, student to teacher ratios,
-              safety/disciplinary records, and more, for any US address.
+            <p className="mt-2 max-w-[15rem] text-xs font-semibold leading-snug text-slate-700 sm:max-w-sm sm:text-sm">
+              Ratings for over 119,000 schools with test scores, student to teacher ratios, safety,
+              and more, for any US address.
             </p>
           </div>
         </div>
