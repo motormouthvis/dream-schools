@@ -30,7 +30,8 @@ const PAGES = [
       "Zero cost to white-label",
       "Up to 40% recurring revenue",
       "See Partnership Details",
-      "Featured Partner: RealtyCandy",
+      "Featured partner",
+      "RealtyCandy",
     ],
     // No long dashes should remain on the homepage.
     mustExcludeChars: ["—", "–"],

@@ -157,55 +157,81 @@ export function HomeSections({ onSearchNow }: { onSearchNow?: () => void }) {
       {/* Section 3 - Website developers & IDX providers (lighter, secondary card) */}
       <section
         id="partners-teaser"
-        className="rounded-3xl border border-brand-200 bg-brand-50/50 p-6 shadow-sm sm:p-7"
+        className="relative overflow-hidden rounded-3xl border border-brand-200/70 bg-gradient-to-br from-white via-brand-50/50 to-lime-50/40 p-6 shadow-sm sm:p-8"
       >
-        <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-600/15">
-          <Handshake className="h-3.5 w-3.5" /> For website developers & IDX providers
-        </span>
-        <p className="mt-3 max-w-2xl text-base font-semibold leading-relaxed text-ink-900 sm:text-lg">
-          White-label the free School Explorer across every client site - and earn up to 40%
-          recurring revenue when they upgrade.
-        </p>
-
-        <div className="mt-5 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            {
-              Icon: Handshake,
-              title: "Zero cost to white-label",
-              body: "Offer the School Explorer free to every client site. No fees, no minimums, no ongoing costs.",
-            },
-            {
-              Icon: Percent,
-              title: "Up to 40% recurring revenue",
-              body: "Earn recurring revenue on every client that upgrades to the full Neighborhood Explorer.",
-            },
-            {
-              Icon: Code2,
-              title: "Easy 1-line install",
-              body: "Push one line of code site-wide across all your client websites in under 60 seconds.",
-            },
-            {
-              Icon: Award,
-              title: "A real competitive edge",
-              body: "Differentiate your platform with school data that most competitors charge extra for.",
-            },
-          ].map(({ Icon, title, body }) => (
-            <div key={title} className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-inset ring-brand-600/10">
-              <Icon className="h-4 w-4 text-brand-600" />
-              <p className="mt-1.5 text-sm font-bold text-ink-900">{title}</p>
-              <p className="mt-0.5 text-[12px] leading-snug text-slate-500">{body}</p>
+        {/* Soft brand glow for a premium feel */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full"
+          style={{ background: "radial-gradient(circle, rgba(31,165,95,0.10), rgba(31,165,95,0) 70%)" }}
+        />
+        <div className="relative lg:grid lg:grid-cols-5 lg:gap-8">
+          {/* Left — pitch, CTA, featured partner */}
+          <div className="lg:col-span-2">
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-700 shadow-sm ring-1 ring-inset ring-brand-600/15">
+              <Handshake className="h-3.5 w-3.5" /> Revenue-share partner program
+            </span>
+            <h3 className="mt-3 text-xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-2xl">
+              Built for real estate website developers, IDX providers &amp; technology companies
+            </h3>
+            <p className="mt-2.5 text-sm leading-relaxed text-slate-600">
+              White-label the free School Explorer across every client site - and earn up to{" "}
+              <strong className="text-ink-900">40% recurring revenue</strong> when they upgrade.
+            </p>
+            <a
+              href="/partners"
+              className="mt-5 inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-7 py-3.5 text-base font-extrabold text-white shadow-md transition hover:bg-brand-700"
+            >
+              See Partnership Details
+            </a>
+            <div className="mt-5 flex items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                Featured partner
+              </span>
+              <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-brand-700 shadow-sm ring-1 ring-inset ring-brand-600/15">
+                RealtyCandy
+              </span>
             </div>
-          ))}
-        </div>
+          </div>
 
-        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <a
-            href="/partners"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-7 py-3.5 text-base font-extrabold text-white shadow-md transition hover:bg-brand-700"
-          >
-            See Partnership Details
-          </a>
-          <p className="text-xs font-semibold text-slate-500">Featured Partner: RealtyCandy</p>
+          {/* Right — elegant 2×2 benefit grid with icon chips */}
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:col-span-3 lg:mt-0">
+            {[
+              {
+                Icon: Handshake,
+                title: "Zero cost to white-label",
+                body: "Offer the School Explorer free to every client site. No fees, no minimums, no ongoing costs.",
+              },
+              {
+                Icon: Percent,
+                title: "Up to 40% recurring revenue",
+                body: "Earn recurring revenue on every client that upgrades to the full Neighborhood Explorer.",
+              },
+              {
+                Icon: Code2,
+                title: "Easy 1-line install",
+                body: "Push one line of code site-wide across all your client websites in under 60 seconds.",
+              },
+              {
+                Icon: Award,
+                title: "A real competitive edge",
+                body: "Differentiate your platform with school data that most competitors charge extra for.",
+              },
+            ].map(({ Icon, title, body }) => (
+              <div
+                key={title}
+                className="flex items-start gap-3 rounded-2xl bg-white/80 p-4 shadow-sm ring-1 ring-inset ring-brand-600/10 backdrop-blur-sm transition hover:shadow-md"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-bold text-ink-900">{title}</p>
+                  <p className="mt-0.5 text-[13px] leading-snug text-slate-600">{body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
     </div>
