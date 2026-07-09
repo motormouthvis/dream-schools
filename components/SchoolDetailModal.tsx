@@ -200,7 +200,7 @@ function DetailBody({
   // Google Maps reviews link for the school.
   const dnsUrl = `https://www.dreamneighborhoodschools.com/parents?address=${encodeURIComponent(
     mapQuery || gsQuery
-  )}`;
+  )}&school=${encodeURIComponent(detail.ncesId)}`;
   const schoolMapsQuery = [detail.name, c.street, c.city, c.state].filter(Boolean).join(", ");
   const schoolMapsUrl = schoolMapsQuery
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(schoolMapsQuery)}`

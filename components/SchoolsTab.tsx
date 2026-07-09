@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { ScoreGauge } from "./ScoreGauge";
 import { to10, rating10Hex, rating10Word } from "./score";
@@ -28,6 +28,7 @@ export function SchoolsTab({
   onViewChange,
   onOpenSchool,
   listColumns = 1,
+  initialSchoolId,
 }: {
   data: LookupResult;
   nationwide?: boolean;
@@ -42,10 +43,22 @@ export function SchoolsTab({
   onOpenSchool?: (ncesId: string) => void;
   /** 2 = two-column list on wide screens (embed popup); 1 = single column. */
   listColumns?: 1 | 2;
+  /** Auto-open this school's detail once on load (e.g. deep link from a link). */
+  initialSchoolId?: string;
 }) {
   const { district, categories } = data;
   const [openId, setOpenId] = useState<string | null>(null);
   const selectSchool = onOpenSchool ?? setOpenId;
+
+  // Deep link: open the requested school's detail exactly once on mount.
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (initialSchoolId && !autoOpenedRef.current) {
+      autoOpenedRef.current = true;
+      selectSchool(initialSchoolId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSchoolId]);
   const [showArea, setShowArea] = useState(false);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);

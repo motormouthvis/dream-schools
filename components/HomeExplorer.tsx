@@ -77,6 +77,8 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
   const [recents, setRecents] = useState<RecentSearch[]>([]);
   const [focused, setFocused] = useState(false);
   const [changing, setChanging] = useState(false);
+  // Deep link: ?school=<ncesId> auto-opens that school's detail once results load.
+  const [initialSchoolId, setInitialSchoolId] = useState<string | undefined>(undefined);
   const fairHousing = audience === "fairhousing";
   const showSearch = !data || changing;
 
@@ -87,6 +89,8 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
       .then((j) => setNationwide(Boolean(j.nationwide)))
       .catch(() => {});
     const params = new URLSearchParams(window.location.search);
+    const school = params.get("school");
+    if (school) setInitialSchoolId(school);
     const initial = params.get("address");
     if (initial) {
       setAddress(initial);
@@ -452,6 +456,7 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
             view={view}
             onViewChange={setView}
             listColumns={2}
+            initialSchoolId={initialSchoolId}
           />
         )}
 
