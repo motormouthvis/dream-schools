@@ -198,7 +198,7 @@ function DetailBody({
   const nicheSpecific = Boolean(niche?.specific);
   // Our own full profile (opens the School Explorer for this school's area) and a
   // Google Maps reviews link for the school.
-  const dnsUrl = `https://www.dreamneighborhoodschools.com/?address=${encodeURIComponent(
+  const dnsUrl = `https://www.dreamneighborhoodschools.com/parents?address=${encodeURIComponent(
     mapQuery || gsQuery
   )}`;
   const schoolMapsQuery = [detail.name, c.street, c.city, c.state].filter(Boolean).join(", ");
@@ -569,60 +569,65 @@ function DetailBody({
                 ? "Private schools report limited federal data. For tuition, admissions, parent reviews & more, see these sites:"
                 : "For tuition, parent reviews & more detail, see these sites:"}
             </p>
-            <div className="mt-2.5 flex flex-wrap gap-2">
-              {/* Niche first for private schools — that's where its depth (tuition,
-                  reviews, admissions) actually helps. Only shown when verified. */}
-              {isPrivate && nicheSpecific && (
+            <div className="mt-2.5 space-y-2">
+              {/* Row 1 — third-party school-data sites. Niche first for private
+                  schools (that's where its tuition/reviews depth helps). */}
+              <div className="flex flex-wrap gap-2">
+                {isPrivate && nicheSpecific && (
+                  <a
+                    href={niche!.url}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700 shadow-sm transition hover:bg-brand-100"
+                  >
+                    View on Niche&trade;
+                    <span aria-hidden>↗</span>
+                  </a>
+                )}
                 <a
-                  href={niche!.url}
+                  href={greatSchoolsUrl}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
+                >
+                  GreatSchools&reg;
+                  <span aria-hidden className="text-slate-400">↗</span>
+                </a>
+                {!isPrivate && nicheSpecific && (
+                  <a
+                    href={niche!.url}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
+                  >
+                    View on Niche&trade;
+                    <span aria-hidden className="text-slate-400">↗</span>
+                  </a>
+                )}
+              </div>
+              {/* Row 2 — Google reviews + our own full profile. */}
+              <div className="flex flex-wrap gap-2">
+                {schoolMapsUrl && (
+                  <a
+                    href={schoolMapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
+                  >
+                    Google Maps&trade; reviews
+                    <span aria-hidden className="text-slate-400">↗</span>
+                  </a>
+                )}
+                <a
+                  href={dnsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700 shadow-sm transition hover:bg-brand-100"
                 >
-                  View on Niche&trade;
+                  Dream Neighborhood Schools
                   <span aria-hidden>↗</span>
                 </a>
-              )}
-              <a
-                href={greatSchoolsUrl}
-                target="_blank"
-                rel="noopener noreferrer nofollow"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
-              >
-                GreatSchools&reg;
-                <span aria-hidden className="text-slate-400">↗</span>
-              </a>
-              {!isPrivate && nicheSpecific && (
-                <a
-                  href={niche!.url}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
-                >
-                  View on Niche&trade;
-                  <span aria-hidden className="text-slate-400">↗</span>
-                </a>
-              )}
-              <a
-                href={dnsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700 shadow-sm transition hover:bg-brand-100"
-              >
-                Dream Neighborhood Schools
-                <span aria-hidden>↗</span>
-              </a>
-              {schoolMapsUrl && (
-                <a
-                  href={schoolMapsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
-                >
-                  Google Maps&trade; reviews
-                  <span aria-hidden className="text-slate-400">↗</span>
-                </a>
-              )}
+              </div>
             </div>
             <p className="mt-2 text-[10px] leading-relaxed text-slate-500">
               Independent services — not affiliated with Dream Neighborhood.

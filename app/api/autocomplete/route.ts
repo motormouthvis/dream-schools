@@ -68,7 +68,7 @@ async function fromMapbox(q: string, bias?: { lat: number; lon: number }): Promi
     `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?${params.toString()}`,
     2500
   );
-  if (!json) return [];
+  if (!json) return null; // request failed (throttle/error/timeout) — signal fallback
   const out: Suggestion[] = [];
   for (const f of json.features ?? []) {
     const [lon, lat] = f.center ?? [];
@@ -94,7 +94,7 @@ async function fromGeoapify(q: string, bias?: { lat: number; lon: number }): Pro
   });
   if (bias) params.set("bias", `proximity:${bias.lon},${bias.lat}`);
   const json = await fetchJson(`https://api.geoapify.com/v1/geocode/autocomplete?${params.toString()}`, 2500);
-  if (!json) return [];
+  if (!json) return null; // request failed (throttle/error/timeout) — signal fallback
   const out: Suggestion[] = [];
   for (const r of json.results ?? []) {
     if (typeof r.lat !== "number" || typeof r.lon !== "number") continue;
@@ -374,17 +374,18 @@ export async function GET(request: Request) {
   // synthesized house-numbered streets (so the number is always honored); fall
   // back to bare streets only if nothing house-numbered surfaced. Without a
   // house number: exact Census → street suggestions.
-  const premium = (await premiumPromise) ?? [];
+  const premiumRaw = await premiumPromise;
+  const premium = premiumRaw ?? [];
 
-  // If a premium provider is configured but returned nothing while the free
-  // sources DID find matches, we've effectively fallen back — record it so the
-  // owner can tell when the paid provider is throttling / over quota.
-  if (premiumConfigured && premium.length === 0 && census.length + photon.length > 0) {
+  // Only a genuine fallback: the premium provider CALL FAILED (throttle / error /
+  // timeout → null), not merely "no match for a partial query" (an empty array is
+  // normal mid-typing). This avoids false alerts on partial addresses.
+  if (premiumConfigured && premiumRaw === null && census.length + photon.length > 0) {
     logBackendEventAsync(
       "autocomplete_fallback",
-      `Premium autocomplete returned 0 results for "${q}" while free sources returned ${
+      `Premium autocomplete request FAILED for "${q}" (throttled, errored, or timed out) while free sources returned ${
         census.length + photon.length
-      }. Geoapify/Mapbox may be throttled or over daily quota.`
+      }. Geoapify/Mapbox may be throttled, over daily quota, or down.`
     );
   }
 
