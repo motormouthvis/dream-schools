@@ -156,7 +156,19 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
     setLoading(true);
     setError(null);
     try {
-      const coords = picked ? `&lat=${picked.lat}&lon=${picked.lon}&zip=${encodeURIComponent(picked.zip)}` : "";
+      // Reuse stored coordinates for a previously-searched address (they persist
+      // in the recents cookie/localStorage) so re-typing the same place skips the
+      // geocode round-trip and its external call.
+      let coordsSrc = picked;
+      if (!coordsSrc) {
+        const hit = recents.find(
+          (r) => r.label.toLowerCase().trim() === q.toLowerCase() && r.lat != null && r.lon != null
+        );
+        if (hit) coordsSrc = { label: hit.label, lat: hit.lat as number, lon: hit.lon as number, zip: hit.zip ?? "" };
+      }
+      const coords = coordsSrc
+        ? `&lat=${coordsSrc.lat}&lon=${coordsSrc.lon}&zip=${encodeURIComponent(coordsSrc.zip)}`
+        : "";
       const res = await fetch(`/api/lookup?address=${encodeURIComponent(q)}${coords}`);
       const json = await res.json();
       if (!res.ok) {

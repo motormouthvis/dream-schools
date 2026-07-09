@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
+import { TtlCache } from "@/lib/lruCache";
+import { logBackendEventAsync } from "@/lib/backendLog";
 
 export const dynamic = "force-dynamic";
+
+// Cache resolved suggestions for a short window so repeat queries (very common:
+// people search the same cities, or backspace/retype) are instant and don't
+// re-hit the external providers. A miss behaves exactly like before.
+const autocompleteCache = new TtlCache<Suggestion[]>(2000, 5 * 60 * 1000);
 
 // Free address autocomplete. We merge two no-API-key sources for much better US
 // coverage than either alone:
@@ -263,6 +270,14 @@ export async function GET(request: Request) {
   const bias =
     Number.isFinite(latN) && Number.isFinite(lonN) && latN !== 0 ? { lat: latN, lon: lonN } : undefined;
 
+  // Short-lived cache: serve repeat queries instantly without re-hitting the
+  // external providers. Key on the query + a coarse (0.1°) location bias.
+  const cacheKey = `${q.toLowerCase()}|${bias ? `${bias.lat.toFixed(1)},${bias.lon.toFixed(1)}` : ""}`;
+  const cached = autocompleteCache.get(cacheKey);
+  if (cached) return NextResponse.json({ suggestions: cached });
+
+  const premiumConfigured = Boolean(process.env.GEOAPIFY_API_KEY || process.env.MAPBOX_TOKEN);
+
   // Premium provider (if a key is set) runs in parallel and is preferred; the
   // free Census + Photon pipeline below still runs as fallback/coverage.
   const premiumPromise = fromPremium(q, bias);
@@ -361,6 +376,18 @@ export async function GET(request: Request) {
   // house number: exact Census → street suggestions.
   const premium = (await premiumPromise) ?? [];
 
+  // If a premium provider is configured but returned nothing while the free
+  // sources DID find matches, we've effectively fallen back — record it so the
+  // owner can tell when the paid provider is throttling / over quota.
+  if (premiumConfigured && premium.length === 0 && census.length + photon.length > 0) {
+    logBackendEventAsync(
+      "autocomplete_fallback",
+      `Premium autocomplete returned 0 results for "${q}" while free sources returned ${
+        census.length + photon.length
+      }. Geoapify/Mapbox may be throttled or over daily quota.`
+    );
+  }
+
   let ordered: Suggestion[];
   if (houseNo) {
     ordered = [...premium, ...census, ...enriched, ...synthesized];
@@ -379,5 +406,6 @@ export async function GET(request: Request) {
     suggestions.push({ ...s, label });
     if (suggestions.length >= 7) break;
   }
+  autocompleteCache.set(cacheKey, suggestions);
   return NextResponse.json({ suggestions });
 }

@@ -1,4 +1,5 @@
 import { ZIPCODES, zipInfo } from "@/lib/data";
+import { logBackendEventAsync } from "@/lib/backendLog";
 import type { GeocodeResult } from "@/lib/types";
 
 // We use the free U.S. Census Geocoder (no API key required) as the primary
@@ -120,9 +121,18 @@ async function photonGeocode(address: string): Promise<GeocodeResult | null> {
 export async function geocode(address: string): Promise<GeocodeResult | null> {
   // Census is best for US street addresses; Photon covers gaps; zip-centroid is
   // the last resort for the offline demo.
-  return (
-    (await censusGeocode(address)) ??
-    (await photonGeocode(address)) ??
-    zipFallback(address)
-  );
+  const viaCensus = await censusGeocode(address);
+  if (viaCensus) return viaCensus;
+  const viaPhoton = await photonGeocode(address);
+  if (viaPhoton) return viaPhoton;
+  // Both real geocoders failed — record it (they may be throttled/down) before
+  // returning the coarse zip-centroid approximation.
+  const zc = zipFallback(address);
+  if (zc) {
+    logBackendEventAsync(
+      "geocode_fallback",
+      `Census + Photon both failed to geocode "${address}"; used approximate zip-centroid. Geocoders may be throttled or down.`
+    );
+  }
+  return zc;
 }
