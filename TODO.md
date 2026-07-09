@@ -13,13 +13,15 @@ A living backlog. Check items off as they ship; add new ones at the bottom.
     timestamp** in a cookie, and re-prompt if it's cleared or expired.
 
 ### Scale readiness before a big push (from the Jul 9, 2026 infra deep-dive)
-- [ ] **Wire in a real geocoding/autocomplete provider (P0).** `GEOAPIFY_API_KEY` is
-      set on Heroku but is **not referenced anywhere in code** — geocoding
-      (`lib/geocode.ts`) and autocomplete (`app/api/autocomplete/route.ts`) rely only
-      on the free, keyless **US Census geocoder + Photon/OSM**, which have no SLA and
-      will throttle/fail under load. Make Geoapify (or Mapbox) the primary provider
-      with Census/Photon as fallback. A marketing push will blow past Geoapify's
-      3,000/day free tier, so budget a paid plan.
+- [ ] **Geocoding/autocomplete provider hardening (P0).** Autocomplete
+      (`app/api/autocomplete/route.ts`) ALREADY uses Geoapify as the **primary** source
+      when `GEOAPIFY_API_KEY` is set (it is, on prod), with US Census + Photon/OSM as
+      automatic fallback — so it already survives Geoapify throttling. Open items:
+      (a) decide priority — Geoapify-primary (current) vs. free-primary + Geoapify
+      fallback-only (conserves the 3k/day free quota); (b) the *lookup* geocoder that
+      resolves the picked address (`lib/geocode.ts`) still uses only Census → Photon →
+      zip-centroid (no Geoapify) — consider adding Geoapify there too; (c) budget a paid
+      Geoapify (or Mapbox) plan since a campaign will exceed 3,000 req/day.
 - [ ] **Add caching (P0).** There is no caching on `/api/autocomplete`, `/api/lookup`,
       or `/api/school`. Add an in-memory LRU (per dyno) — and optionally Redis — for
       autocomplete (short TTL) and geocode/lookup results (longer TTL, keyed by
