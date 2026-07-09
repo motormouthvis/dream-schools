@@ -2,6 +2,41 @@
 
 A living backlog. Check items off as they ship; add new ones at the bottom.
 
+## Marketing launch (priority)
+- [ ] **Enhance the marketing-site hamburger (settings) menu.**
+  - Remove the default **Map / List** view toggle for schools from the menu.
+  - Rename **"Data Display"** to **"Demographics"**.
+  - Default to **Limited** demographics. If the user chooses **Full data**, show a
+    warning that they must comply with all applicable laws and **Fair Housing**
+    requirements (no steering/redlining, etc.).
+  - Require an **"I agree"** checkbox to enable Full data; store the choice **plus a
+    timestamp** in a cookie, and re-prompt if it's cleared or expired.
+
+### Scale readiness before a big push (from the Jul 9, 2026 infra deep-dive)
+- [ ] **Wire in a real geocoding/autocomplete provider (P0).** `GEOAPIFY_API_KEY` is
+      set on Heroku but is **not referenced anywhere in code** — geocoding
+      (`lib/geocode.ts`) and autocomplete (`app/api/autocomplete/route.ts`) rely only
+      on the free, keyless **US Census geocoder + Photon/OSM**, which have no SLA and
+      will throttle/fail under load. Make Geoapify (or Mapbox) the primary provider
+      with Census/Photon as fallback. A marketing push will blow past Geoapify's
+      3,000/day free tier, so budget a paid plan.
+- [ ] **Add caching (P0).** There is no caching on `/api/autocomplete`, `/api/lookup`,
+      or `/api/school`. Add an in-memory LRU (per dyno) — and optionally Redis — for
+      autocomplete (short TTL) and geocode/lookup results (longer TTL, keyed by
+      normalized address / rounded lat-lon / zip) to cut external API calls and DB load.
+- [ ] **Add rate limiting (P1)** on the public endpoints (autocomplete/lookup/school)
+      to prevent abuse and external-API exhaustion. (Auth endpoints already limited.)
+- [ ] **Scale web dynos (P1).** Currently **1 Basic dyno** — a throughput bottleneck
+      and single point of failure with no autoscaling. Move to Standard-1x/2x, run ≥2
+      for redundancy, and enable autoscaling (Performance tier) for spikes.
+- [ ] **Upgrade Postgres (P1).** Currently `essential-1` (158 MB used of 10 GB, ~20
+      connection limit, **no high-availability / fast failover**). Move to Standard-0
+      (HA, ~120 connections, metrics, point-in-time recovery) before heavy traffic;
+      add PgBouncer if the dyno count pushes connections past the limit (pool is
+      max=5/dyno). Data size + indexes are healthy today.
+- [ ] **Monitoring:** add error tracking (Sentry), uptime checks, and Heroku metrics
+      alerts so launch-day issues surface fast.
+
 ## Priority
 - [ ] **Server-side pagination for the Upgrade Requests list.** Today the list is
       loaded into the browser with a `LIMIT` (currently 2,000) and sorted/filtered
