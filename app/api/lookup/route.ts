@@ -2,13 +2,20 @@ import { NextResponse } from "next/server";
 import { lookupAddress } from "@/lib/lookup";
 import { lookupAddressDb } from "@/lib/lookupDb";
 import { hasDatabase } from "@/lib/db";
+import { recordSearchAsync, bumpMetric } from "@/lib/metrics";
 import type { GeocodeResult } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
+function clientIp(request: Request): string {
+  const fwd = request.headers.get("x-forwarded-for") || "";
+  return fwd.split(",")[0].trim() || request.headers.get("x-real-ip") || "";
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const address = (searchParams.get("address") ?? "").trim();
+  const ip = clientIp(request);
 
   if (!address) {
     return NextResponse.json(
@@ -46,6 +53,7 @@ export async function GET(request: Request) {
           { status: 404 }
         );
       }
+      recordSearchAsync(ip, result.geocode?.zip || result.district?.name || address);
       return NextResponse.json(result);
     }
 
@@ -71,9 +79,11 @@ export async function GET(request: Request) {
         { status: 422 }
       );
     }
+    recordSearchAsync(ip, result.geocode?.zip || address);
     return NextResponse.json(result);
   } catch (err) {
     console.error(err);
+    bumpMetric("lookup_errors");
     return NextResponse.json(
       { error: "Internal error performing lookup." },
       { status: 500 }

@@ -1,5 +1,6 @@
 import { ZIPCODES, zipInfo } from "@/lib/data";
 import { logBackendEventAsync } from "@/lib/backendLog";
+import { bumpMetric } from "@/lib/metrics";
 import type { GeocodeResult } from "@/lib/types";
 
 // We use the free U.S. Census Geocoder (no API key required) as the primary
@@ -129,6 +130,7 @@ export async function geocode(address: string): Promise<GeocodeResult | null> {
   // returning the coarse zip-centroid approximation.
   const zc = zipFallback(address);
   if (zc) {
+    bumpMetric("geocode_fallback");
     logBackendEventAsync(
       "geocode_fallback",
       `Census + Photon both failed to geocode "${address}"; used approximate zip-centroid. Geocoders may be throttled or down.`

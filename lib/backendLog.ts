@@ -87,10 +87,10 @@ async function maybeNotify(kind: string, detail: string): Promise<void> {
     `<h1 style="font-size:18px;margin:0 0 8px">Backend fallback in use</h1>
      <p style="color:#475569;font-size:14px;margin:0 0 12px">${htmlEscape(detail)}</p>
      <p style="color:#475569;font-size:13px;margin:0 0 14px">Event type: <strong>${htmlEscape(kind)}</strong></p>
-     <a href="${appUrl}/health" style="display:inline-block;background:#12854c;color:#fff;font-weight:700;text-decoration:none;padding:10px 18px;border-radius:10px;font-size:14px">View backend health →</a>
+     <a href="${appUrl}/server" style="display:inline-block;background:#12854c;color:#fff;font-weight:700;text-decoration:none;padding:10px 18px;border-radius:10px;font-size:14px">Open Server Management →</a>
      <p style="color:#94a3b8;font-size:12px;margin-top:16px">You'll get at most one alert per day per event type. If this is the Geoapify fallback, it may be time to upgrade the Geoapify plan.</p>`
   );
-  const text = `Backend fallback in use.\n\n${detail}\nEvent type: ${kind}\n\nView backend health: ${appUrl}/health\n(At most one alert per day per event type.)`;
+  const text = `Backend fallback in use.\n\n${detail}\nEvent type: ${kind}\n\nOpen Server Management: ${appUrl}/server\n(At most one alert per day per event type.)`;
   await Promise.all(to.map((addr) => sendTransactionalEmail({ to: addr, subject, html, text })));
 
   // Mark the most recent event of this kind as notified (so the 24h window starts now).

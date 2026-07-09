@@ -20,7 +20,7 @@ export function AppShell({
   active,
   children,
 }: {
-  active: "home" | "edit" | "help" | "owner" | "account" | "contact" | "upgradeRequests" | "health";
+  active: "home" | "edit" | "help" | "owner" | "account" | "contact" | "upgradeRequests" | "server";
   children: (me: Me) => React.ReactNode;
 }) {
   const [me, setMe] = useState<Me | null>(null);
@@ -127,7 +127,7 @@ export function AppShell({
           {link("account", "Account Settings", "/account")}
           {link("help", "Help", "/help")}
           {link("contact", "Contact us", "/contact")}
-          {me.isOwner && link("health", "Backend Health", "/health")}
+          {me.isOwner && link("server", "Server Management", "/server")}
         </nav>
 
         {/* Legal + copyright (small, bottom) */}

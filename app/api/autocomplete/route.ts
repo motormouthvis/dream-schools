@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { TtlCache } from "@/lib/lruCache";
 import { logBackendEventAsync } from "@/lib/backendLog";
+import { bumpMetric } from "@/lib/metrics";
 
 export const dynamic = "force-dynamic";
 
@@ -274,7 +275,13 @@ export async function GET(request: Request) {
   // external providers. Key on the query + a coarse (0.1°) location bias.
   const cacheKey = `${q.toLowerCase()}|${bias ? `${bias.lat.toFixed(1)},${bias.lon.toFixed(1)}` : ""}`;
   const cached = autocompleteCache.get(cacheKey);
-  if (cached) return NextResponse.json({ suggestions: cached });
+  if (cached) {
+    bumpMetric("autocomplete_calls");
+    bumpMetric("autocomplete_cache_hits");
+    return NextResponse.json({ suggestions: cached });
+  }
+  bumpMetric("autocomplete_calls");
+  bumpMetric("autocomplete_cache_misses");
 
   const premiumConfigured = Boolean(process.env.GEOAPIFY_API_KEY || process.env.MAPBOX_TOKEN);
 
@@ -381,6 +388,7 @@ export async function GET(request: Request) {
   // timeout → null), not merely "no match for a partial query" (an empty array is
   // normal mid-typing). This avoids false alerts on partial addresses.
   if (premiumConfigured && premiumRaw === null && census.length + photon.length > 0) {
+    bumpMetric("autocomplete_fallback");
     logBackendEventAsync(
       "autocomplete_fallback",
       `Premium autocomplete request FAILED for "${q}" (throttled, errored, or timed out) while free sources returned ${

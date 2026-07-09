@@ -20,7 +20,7 @@ const ADMIN_PATH = "/embed-admin";
 const APP_ORIGIN = "https://app.dreamneighborhoodschools.com";
 
 // Account-app routes served on the app subdomain.
-const APP_PAGES = ["/login", "/onboarding", "/dashboard", "/edit", "/owner", "/upgrade-requests", "/account", "/reset", "/help", "/contact", "/health"];
+const APP_PAGES = ["/login", "/onboarding", "/dashboard", "/edit", "/owner", "/upgrade-requests", "/account", "/reset", "/help", "/contact", "/server"];
 
 function isAppHost(host: string): boolean {
   return host.split(":")[0].toLowerCase().startsWith("app.");
