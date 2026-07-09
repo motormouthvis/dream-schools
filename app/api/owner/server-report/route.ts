@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/owner";
-import { getTodayStats, listReports, getReport, generateReport } from "@/lib/metrics";
+import { getTodayStats, listReports, getReport, generateReport, deleteReport } from "@/lib/metrics";
 
 export const dynamic = "force-dynamic";
 
@@ -41,5 +41,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ report });
   } catch {
     return NextResponse.json({ error: "Failed to generate report." }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  const owner = await requireOwner(request);
+  if (!owner) return NextResponse.json({ error: "Owner access required." }, { status: 403 });
+  const id = new URL(request.url).searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Missing report id." }, { status: 400 });
+  try {
+    const ok = await deleteReport(id);
+    return NextResponse.json({ ok });
+  } catch {
+    return NextResponse.json({ error: "Failed to delete report." }, { status: 500 });
   }
 }

@@ -155,7 +155,7 @@ export async function getStats(fromDay: string, toDay: string): Promise<Stats> {
   const ips = await pool.query(
     `SELECT ip, COUNT(*)::int AS n FROM app_search_log
        WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day') AND ip <> ''
-       GROUP BY ip ORDER BY n DESC LIMIT 10`,
+       GROUP BY ip ORDER BY n DESC LIMIT 50`,
     [fromDay, toDay]
   );
   const uniq = await pool.query(
@@ -166,7 +166,7 @@ export async function getStats(fromDay: string, toDay: string): Promise<Stats> {
   const areas = await pool.query(
     `SELECT area, COUNT(*)::int AS n FROM app_search_log
        WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day') AND area <> ''
-       GROUP BY area ORDER BY n DESC LIMIT 10`,
+       GROUP BY area ORDER BY n DESC LIMIT 50`,
     [fromDay, toDay]
   );
 
@@ -233,6 +233,13 @@ export async function listReports(limit = 100): Promise<Omit<ReportRow, "data">[
     [limit]
   );
   return rows.map((r: any) => ({ id: r.id, type: r.type, label: r.label, generatedAt: r.generated_at }));
+}
+
+export async function deleteReport(id: string): Promise<boolean> {
+  if (!hasDatabase()) return false;
+  await ensureTables();
+  const res = await getPool().query(`DELETE FROM app_reports WHERE id=$1`, [id]);
+  return (res.rowCount ?? 0) > 0;
 }
 
 export async function getReport(id: string): Promise<ReportRow | null> {

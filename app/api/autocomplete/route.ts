@@ -10,6 +10,16 @@ export const dynamic = "force-dynamic";
 // re-hit the external providers. A miss behaves exactly like before.
 const autocompleteCache = new TtlCache<Suggestion[]>(2000, 5 * 60 * 1000);
 
+// Only raise a health event on SUSTAINED premium HTTP errors (not a one-off blip).
+// Per-dyno rolling window.
+let premiumErrTimes: number[] = [];
+function premiumErrorsSustained(): boolean {
+  const now = Date.now();
+  premiumErrTimes = premiumErrTimes.filter((t) => now - t < 10 * 60 * 1000);
+  premiumErrTimes.push(now);
+  return premiumErrTimes.length >= 3;
+}
+
 // Free address autocomplete. We merge two no-API-key sources for much better US
 // coverage than either alone:
 //   1. U.S. Census geocoder — authoritative US street addresses (TIGER), great
@@ -40,16 +50,19 @@ function stripCountry(label: string): string {
     .trim();
 }
 
-async function fetchJson(url: string, ms: number): Promise<any | null> {
+// Returns the HTTP status (0 = timeout/abort/network) and parsed json. This lets
+// callers tell a real provider error (e.g. 429 over-quota) apart from the request
+// simply being too slow and getting aborted by our timeout (status 0).
+async function fetchJson(url: string, ms: number): Promise<{ status: number; json: any | null }> {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ms);
     const res = await fetch(url, { signal: controller.signal, headers: { Accept: "application/json" } });
     clearTimeout(timer);
-    if (!res.ok) return null;
-    return await res.json();
+    if (!res.ok) return { status: res.status, json: null };
+    return { status: res.status, json: await res.json().catch(() => null) };
   } catch {
-    return null;
+    return { status: 0, json: null }; // timeout / abort / network — NOT a provider error
   }
 }
 
@@ -65,11 +78,12 @@ async function fromMapbox(q: string, bias?: { lat: number; lon: number }): Promi
     access_token: token,
   });
   if (bias) params.set("proximity", `${bias.lon},${bias.lat}`);
-  const json = await fetchJson(
+  const { status, json } = await fetchJson(
     `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?${params.toString()}`,
     2500
   );
-  if (!json) return null; // request failed (throttle/error/timeout) — signal fallback
+  if (status >= 400) return null; // real provider error (e.g. 429 over-quota) — signal fallback
+  if (!json) return []; // timeout / slow / network blip — premium just didn't answer in time
   const out: Suggestion[] = [];
   for (const f of json.features ?? []) {
     const [lon, lat] = f.center ?? [];
@@ -94,8 +108,9 @@ async function fromGeoapify(q: string, bias?: { lat: number; lon: number }): Pro
     apiKey: key,
   });
   if (bias) params.set("bias", `proximity:${bias.lon},${bias.lat}`);
-  const json = await fetchJson(`https://api.geoapify.com/v1/geocode/autocomplete?${params.toString()}`, 2500);
-  if (!json) return null; // request failed (throttle/error/timeout) — signal fallback
+  const { status, json } = await fetchJson(`https://api.geoapify.com/v1/geocode/autocomplete?${params.toString()}`, 2500);
+  if (status >= 400) return null; // real provider error (e.g. 429 over-quota) — signal fallback
+  if (!json) return []; // timeout / slow / network blip — premium just didn't answer in time
   const out: Suggestion[] = [];
   for (const r of json.results ?? []) {
     if (typeof r.lat !== "number" || typeof r.lon !== "number") continue;
@@ -387,14 +402,16 @@ export async function GET(request: Request) {
   // Only a genuine fallback: the premium provider CALL FAILED (throttle / error /
   // timeout → null), not merely "no match for a partial query" (an empty array is
   // normal mid-typing). This avoids false alerts on partial addresses.
+  // premiumRaw === null now means a real HTTP error (429/5xx) — a timeout/slow
+  // response returns [] and is NOT treated as a failure.
   if (premiumConfigured && premiumRaw === null && census.length + photon.length > 0) {
     bumpMetric("autocomplete_fallback");
-    logBackendEventAsync(
-      "autocomplete_fallback",
-      `Premium autocomplete request FAILED for "${q}" (throttled, errored, or timed out) while free sources returned ${
-        census.length + photon.length
-      }. Geoapify/Mapbox may be throttled, over daily quota, or down.`
-    );
+    if (premiumErrorsSustained()) {
+      logBackendEventAsync(
+        "autocomplete_fallback",
+        `Premium autocomplete returned HTTP errors repeatedly (>=3 in 10 min); latest for "${q}". Free sources are covering. Geoapify/Mapbox is likely rate-limited (429) or over daily quota.`
+      );
+    }
   }
 
   let ordered: Suggestion[];

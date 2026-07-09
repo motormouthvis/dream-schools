@@ -64,7 +64,7 @@ function StatsView({ stats }: { stats: Stats }) {
           {stats.topIps.length === 0 ? (
             <p className="mt-2 text-xs text-slate-400">No search activity yet.</p>
           ) : (
-            <ul className="mt-2 space-y-1 text-sm">
+            <ul className="mt-2 max-h-60 space-y-1 overflow-y-auto pr-1 text-sm">
               {stats.topIps.map((r) => (
                 <li key={r.ip} className="flex justify-between gap-3">
                   <span className="truncate font-mono text-[12px] text-slate-600">{r.ip}</span>
@@ -79,7 +79,7 @@ function StatsView({ stats }: { stats: Stats }) {
           {stats.topAreas.length === 0 ? (
             <p className="mt-2 text-xs text-slate-400">No search activity yet.</p>
           ) : (
-            <ul className="mt-2 space-y-1 text-sm">
+            <ul className="mt-2 max-h-60 space-y-1 overflow-y-auto pr-1 text-sm">
               {stats.topAreas.map((r) => (
                 <li key={r.area} className="flex justify-between gap-3">
                   <span className="truncate text-slate-600">{r.area}</span>
@@ -148,6 +148,18 @@ function ServerView() {
     if (json.report) setSelected(json.report);
   }
 
+  async function removeReport(id: string) {
+    if (!window.confirm("Delete this report? This can't be undone.")) return;
+    setError(null);
+    const res = await fetch(`/api/owner/server-report?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!res.ok) {
+      setError("Failed to delete report.");
+      return;
+    }
+    if (selected?.id === id) setSelected(null);
+    await load();
+  }
+
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -186,15 +198,24 @@ function ServerView() {
           {reports.length === 0 ? (
             <p className="p-4 text-sm text-slate-400">No reports yet. Generate one above.</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="max-h-[460px] divide-y divide-slate-100 overflow-y-auto">
               {reports.map((r) => (
-                <li key={r.id}>
+                <li key={r.id} className="group flex items-center gap-1">
                   <button type="button" onClick={() => openReport(r.id)}
-                    className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition hover:bg-slate-50 ${
+                    className={`min-w-0 flex-1 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-slate-50 ${
                       selected?.id === r.id ? "bg-brand-50 font-semibold text-brand-800" : "text-slate-700"
                     }`}>
                     <span className="block truncate">{r.label}</span>
                     <span className="block text-[11px] text-slate-400">{fmt(r.generatedAt)}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeReport(r.id)}
+                    aria-label="Delete report"
+                    title="Delete report"
+                    className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                  >
+                    <span aria-hidden className="text-base leading-none">×</span>
                   </button>
                 </li>
               ))}
