@@ -2,7 +2,43 @@
 
 A living backlog. Check items off as they ship; add new ones at the bottom.
 
-## Marketing launch (priority)
+## Ship to first big customer (production readiness) — TOP PRIORITY
+
+Assumption: **low volume at start**; keep current Heroku size and **upgrade dynos/DB
+as traffic grows**.
+
+### Must do before go-live
+- [ ] **End-to-end funnel smoke** — `docs/SMOKE_TEST_PLAN.md` + `scripts/smoke-e2e.mjs`.
+      Roles: smoke admin (`/test`, no password), partner + 2 realtors, independent
+      realtor. Three dummy listing sites (popup + embed), USA address matrix, usage
+      tracking, reminder/offer emails, delete/re-enable, email/password/domain changes.
+- [ ] Manual spot-check: signup partner dropdown, `/parents` school deep link.
+- [ ] **Email deliverability:** SPF/DKIM; real reminder/offer to a customer mailbox.
+- [ ] **Auth on app host:** Turnstile + login/signup/reset on
+      `app.dreamneighborhoodschools.com`.
+- [ ] **Legal / Fair Housing:** Terms + Privacy; Limited demographics default (see
+      hamburger menu task) before Full data with this customer.
+- [ ] **Week-1 watch:** Server Management (`/server`) daily; short customer runbook.
+
+### Nice-to-have (not blockers at low volume)
+- [ ] Uptime check on www + app; optional Sentry; Heroku 5xx/memory alerts.
+- [ ] Light rate limits on public autocomplete/lookup/school.
+- [ ] Lookup/school result caching (autocomplete cache already shipped).
+
+### Scale when volume grows (do NOT block first ship)
+- [ ] Dynos: Basic → Standard-1x → ≥2 dynos; autoscaling only if spikes demand it.
+- [ ] Postgres: essential-1 → Standard-0 (HA) when connections/backups hurt; PgBouncer
+      if multi-dyno.
+- [ ] Paid Geoapify when free 3k/day is hit (keep Geoapify primary / Option A).
+- [ ] Redis when >1 dyno needs shared cache; upgrade-requests server pagination for
+      high-volume partners; scheduled Server Management digests.
+
+### Already done
+- [x] Geoapify primary autocomplete + Census/Photon fallback; autocomplete TTL cache.
+- [x] Server Management + sustained fallback alerts.
+- [x] Smoke harness: `/test` admin, `/api/auth/smoke`, 3 dummy realtor sites, plan + e2e script.
+
+## Marketing launch
 - [ ] **Enhance the marketing-site hamburger (settings) menu.**
   - Remove the default **Map / List** view toggle for schools from the menu.
   - Rename **"Data Display"** to **"Demographics"**.
@@ -11,33 +47,6 @@ A living backlog. Check items off as they ship; add new ones at the bottom.
     requirements (no steering/redlining, etc.).
   - Require an **"I agree"** checkbox to enable Full data; store the choice **plus a
     timestamp** in a cookie, and re-prompt if it's cleared or expired.
-
-### Scale readiness before a big push (from the Jul 9, 2026 infra deep-dive)
-- [ ] **Geocoding/autocomplete provider hardening (P0).** Autocomplete
-      (`app/api/autocomplete/route.ts`) ALREADY uses Geoapify as the **primary** source
-      when `GEOAPIFY_API_KEY` is set (it is, on prod), with US Census + Photon/OSM as
-      automatic fallback — so it already survives Geoapify throttling. Open items:
-      (a) decide priority — Geoapify-primary (current) vs. free-primary + Geoapify
-      fallback-only (conserves the 3k/day free quota); (b) the *lookup* geocoder that
-      resolves the picked address (`lib/geocode.ts`) still uses only Census → Photon →
-      zip-centroid (no Geoapify) — consider adding Geoapify there too; (c) budget a paid
-      Geoapify (or Mapbox) plan since a campaign will exceed 3,000 req/day.
-- [ ] **Add caching (P0).** There is no caching on `/api/autocomplete`, `/api/lookup`,
-      or `/api/school`. Add an in-memory LRU (per dyno) — and optionally Redis — for
-      autocomplete (short TTL) and geocode/lookup results (longer TTL, keyed by
-      normalized address / rounded lat-lon / zip) to cut external API calls and DB load.
-- [ ] **Add rate limiting (P1)** on the public endpoints (autocomplete/lookup/school)
-      to prevent abuse and external-API exhaustion. (Auth endpoints already limited.)
-- [ ] **Scale web dynos (P1).** Currently **1 Basic dyno** — a throughput bottleneck
-      and single point of failure with no autoscaling. Move to Standard-1x/2x, run ≥2
-      for redundancy, and enable autoscaling (Performance tier) for spikes.
-- [ ] **Upgrade Postgres (P1).** Currently `essential-1` (158 MB used of 10 GB, ~20
-      connection limit, **no high-availability / fast failover**). Move to Standard-0
-      (HA, ~120 connections, metrics, point-in-time recovery) before heavy traffic;
-      add PgBouncer if the dyno count pushes connections past the limit (pool is
-      max=5/dyno). Data size + indexes are healthy today.
-- [ ] **Monitoring:** add error tracking (Sentry), uptime checks, and Heroku metrics
-      alerts so launch-day issues surface fast.
 
 ## Priority
 - [ ] **Server-side pagination for the Upgrade Requests list.** Today the list is

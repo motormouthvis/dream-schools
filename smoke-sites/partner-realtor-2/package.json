@@ -1,0 +1,11 @@
+{
+  "name": "dn-smoke-partner-realtor-2",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": "22.x"
+  }
+}
