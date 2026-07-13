@@ -105,29 +105,37 @@ async function main() {
     await page.screenshot({ path: join(shotDir, `${site.key}-home.png`), fullPage: true });
     record(`${site.key} home popup launcher`, hasLauncher || configHits.popup > 0, `hits=${JSON.stringify(configHits)} bubbleish=${bubble}`);
 
-    // Click launcher if present and wait for iframe
+    // Click the DSE bubble and wait for explorer iframe
     try {
-      const fixed = page.locator("div").filter({ has: page.locator("text=/school/i") }).first();
-      // Try clicking the last fixed element (bubble)
-      await page.evaluate(() => {
-        const candidates = [...document.querySelectorAll("div,button")].filter((n) => getComputedStyle(n).position === "fixed");
-        const el = candidates[candidates.length - 1];
-        if (el) el.click();
-      });
-      await page.waitForTimeout(2000);
-      const iframeCount = await page.locator("iframe[src*='embed']").count();
+      await page.waitForSelector("#dse-root .dse-bubble", { timeout: 15000 });
+      await page.click("#dse-root .dse-bubble");
+      await page.waitForSelector("#dse-root iframe", { timeout: 15000 });
+      const iframeCount = await page.locator("#dse-root iframe").count();
       record(`${site.key} popup opens iframe`, iframeCount > 0, `iframes=${iframeCount}`);
       if (iframeCount > 0) {
-        const frame = page.frameLocator("iframe[src*='embed']").first();
-        // Try searching an address inside the explorer
-        const input = frame.locator('input[type="search"], input[type="text"], input').first();
-        if (await input.count()) {
-          await input.fill("Austin, TX");
+        const frame = page.frameLocator("#dse-root iframe").first();
+        // Default address auto-loads schools; "Change" reveals the search field.
+        let searched = false;
+        try {
+          const changeBtn = frame.getByRole("button", { name: /change/i }).first();
+          if (await changeBtn.count()) await changeBtn.click({ timeout: 5000 }).catch(() => {});
+          await page.waitForTimeout(500);
+          const input = frame.locator('input[placeholder*="address" i], input[placeholder*="Address" i], input').first();
+          await input.waitFor({ timeout: 8000 });
+          await input.fill("301 W 4th Street, Austin, TX 78701");
           await input.press("Enter").catch(() => {});
-          await page.waitForTimeout(3000);
+          await page.waitForTimeout(4500);
+          searched = true;
+        } catch {
+          /* fall through — still pass if schools already rendered */
         }
+        const hasSchools = await frame.getByText(/Schools near you|Dream Rating|Elementary|High School/i).count().catch(() => 0);
+        record(
+          `${site.key} popup explorer usable`,
+          searched || hasSchools > 0,
+          searched ? "searched Austin" : `schoolsVisible=${hasSchools}`
+        );
         await page.screenshot({ path: join(shotDir, `${site.key}-popup-open.png`) });
-        record(`${site.key} popup explorer interacted`, true);
       }
     } catch (e) {
       record(`${site.key} popup opens iframe`, false, e.message);

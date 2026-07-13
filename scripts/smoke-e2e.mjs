@@ -172,6 +172,27 @@ async function setConfig(jar, domain, extras = {}) {
   return data;
 }
 
+/** Clear a hostname from any other smoke account so authorize is idempotent. */
+async function releaseHostFromOtherSmokeAccounts(host, keepEmail) {
+  const admin = await smokeAdminLogin();
+  const { data } = await jarFetch(admin.jar, `${APP}/api/owner/customers`);
+  for (const c of data?.customers || []) {
+    const email = String(c.email || "");
+    if (!email.startsWith("smoke-") || email === keepEmail) continue;
+    const domain = c.authorizedDomain || c.domain || "";
+    if (domain !== host) continue;
+    try {
+      const sess = await loginAs(email);
+      await jarFetch(sess.jar, `${APP}/api/app/config`, {
+        method: "POST",
+        json: { authorizedDomain: "", enabled: false },
+      });
+    } catch (e) {
+      console.log("  release host skip", email, e.message);
+    }
+  }
+}
+
 async function hitEmbedConfig(siteHost, surface) {
   const url = `${WWW}/api/embed/config?host=${encodeURIComponent(siteHost)}&widget_number=1&surface=${surface}&_=${Date.now()}`;
   const res = await fetch(url, { headers: { "Cache-Control": "no-cache" } });
@@ -282,6 +303,7 @@ async function main() {
     ["p2", EMAILS.p2, hosts.p2, "#8a3b12"],
   ]) {
     try {
+      await releaseHostFromOtherSmokeAccounts(host, email);
       const { jar } = await loginAs(email);
       await setConfig(jar, host, { accentColor: accent });
       const cfg = await hitEmbedConfig(host, "popup");
@@ -458,6 +480,7 @@ async function main() {
   // --- E: lifecycle on independent ---
   {
     let { jar } = await loginAs(EMAILS.ind);
+    let indId = ind.id;
 
     // change password
     const cp = await jarFetch(jar, `${APP}/api/auth/change-password`, {
@@ -466,27 +489,25 @@ async function main() {
     });
     record("E1 change password", cp.status === 200, JSON.stringify(cp.data).slice(0, 120));
 
-    // reprovision resets password for later — but first try login-as still works
     ({ jar } = await loginAs(EMAILS.ind));
 
-    // change email
+    // change email to a unique address so re-runs don't collide
+    const altEmail = `smoke-realtor-ind-${Date.now()}@dreamneighborhoodschools.com`;
     const ce = await jarFetch(jar, `${APP}/api/auth/change-email`, {
       method: "POST",
-      json: { newEmail: EMAILS.indAlt, password: PASSWORD2 },
+      json: { newEmail: altEmail, password: PASSWORD2 },
     });
-    // If change-email requires old password and we changed it, use PASSWORD2.
-    // If fail because password was not updated (turnstile path), try PASSWORD.
     let emailNow = EMAILS.ind;
     if (ce.status === 200) {
-      emailNow = EMAILS.indAlt;
+      emailNow = altEmail;
       record("E2 change email", true, emailNow);
     } else {
       const ce2 = await jarFetch(jar, `${APP}/api/auth/change-email`, {
         method: "POST",
-        json: { newEmail: EMAILS.indAlt, password: PASSWORD },
+        json: { newEmail: altEmail, password: PASSWORD },
       });
       if (ce2.status === 200) {
-        emailNow = EMAILS.indAlt;
+        emailNow = altEmail;
         record("E2 change email", true, emailNow);
       } else {
         record("E2 change email", false, JSON.stringify(ce.data || ce2.data));
@@ -495,47 +516,53 @@ async function main() {
 
     // Change domain to a temp host then back
     ({ jar } = await loginAs(emailNow));
-    const tempHost = `temp-${hosts.ind}`;
-    // temp host won't resolve DNS but authorization should still save
+    const meBefore = await jarFetch(jar, `${APP}/api/auth/me`);
+    indId = meBefore.data?.user?.id || meBefore.data?.id || indId;
     try {
       await setConfig(jar, `example-smoke-temp-${Date.now()}.example`);
       record("E3 change domain to temp", true);
+      await releaseHostFromOtherSmokeAccounts(hosts.ind, emailNow);
       await setConfig(jar, hosts.ind);
       record("E4 restore domain", true, hosts.ind);
     } catch (e) {
       record("E3/E4 domain change", false, e.message);
     }
 
-    // Self delete
+    // Self delete (account that owns the domain)
     ({ jar } = await loginAs(emailNow));
     const del = await jarFetch(jar, `${APP}/api/app/delete-account`, { method: "POST" });
     record("E5 self-delete account", del.status === 200, JSON.stringify(del.data).slice(0, 120));
 
-    // Embed should disable
     const afterDel = await hitEmbedConfig(hosts.ind, "popup");
     record("E6 embed disabled after delete", afterDel.data?.enabled !== true, JSON.stringify(afterDel.data).slice(0, 120));
 
-    // Admin restore
     admin = await smokeAdminLogin();
-    // Need user id — from earlier ind, or lookup customers including deleted?
     const restore = await jarFetch(admin.jar, `${APP}/api/owner/customers`, {
       method: "PATCH",
-      json: { id: ind.id, action: "restore", reason: "smoke-e2e" },
+      json: { id: indId, action: "restore", reason: "smoke-e2e" },
     });
     record("E7 admin restore", restore.status === 200 && restore.data?.restored !== false, JSON.stringify(restore.data).slice(0, 120));
 
-    // Re-login and re-enable domain
-    // After email change, provision may need to target new email — login-as by emailNow
     try {
-      ({ jar } = await loginAs(emailNow));
-      await setConfig(jar, hosts.ind);
       const re = await hitEmbedConfig(hosts.ind, "popup");
-      record("E8 re-enable domain after restore", re.data?.enabled === true, hosts.ind);
+      record("E8 embed on after restore", re.data?.enabled === true, hosts.ind);
+      // Normalize back to canonical independent email for future runs
+      if (emailNow !== EMAILS.ind) {
+        await jarFetch(admin.jar, `${APP}/api/owner/customers`, {
+          method: "PATCH",
+          json: { id: indId, email: EMAILS.ind },
+        });
+        // Ensure password known again
+        ind = await provision("independent", EMAILS.ind, { businessName: "Lone Star Independent Realty" });
+        await releaseHostFromOtherSmokeAccounts(hosts.ind, EMAILS.ind);
+        const sess = await loginAs(EMAILS.ind);
+        await setConfig(sess.jar, hosts.ind);
+      }
     } catch (e) {
-      // If email changed, re-provision independent on original email for cleanliness
-      record("E8 re-enable after restore", false, e.message);
+      record("E8 embed on after restore", false, e.message);
       try {
         ind = await provision("independent", EMAILS.ind, { businessName: "Lone Star Independent Realty" });
+        await releaseHostFromOtherSmokeAccounts(hosts.ind, EMAILS.ind);
         const sess = await loginAs(EMAILS.ind);
         await setConfig(sess.jar, hosts.ind);
         record("E8b reprovision independent + domain", true);

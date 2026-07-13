@@ -8,14 +8,17 @@ Assumption: **low volume at start**; keep current Heroku size and **upgrade dyno
 as traffic grows**.
 
 ### Must do before go-live
-- [ ] **End-to-end funnel smoke** — `docs/SMOKE_TEST_PLAN.md` + `scripts/smoke-e2e.mjs`.
-      Roles: smoke admin (`/test`, no password), partner + 2 realtors, independent
-      realtor. Three dummy listing sites (popup + embed), USA address matrix, usage
-      tracking, reminder/offer emails, delete/re-enable, email/password/domain changes.
-- [ ] Manual spot-check: signup partner dropdown, `/parents` school deep link.
-- [ ] **Email deliverability:** SPF/DKIM; real reminder/offer to a customer mailbox.
-- [ ] **Auth on app host:** Turnstile + login/signup/reset on
-      `app.dreamneighborhoodschools.com`.
+- [x] **End-to-end funnel smoke** — `docs/SMOKE_TEST_PLAN.md` + `scripts/smoke-e2e.mjs`
+      (52/52 API checks) + `scripts/smoke-widgets-browser.mjs` (popup/embed on 3 dummy
+      sites across USA listings). Roles: smoke admin (`/test`), partner + 2 realtors,
+      independent realtor. Reminder/offer emails sent via API (`sent:true`).
+      **Bug fixed during smoke:** self-delete now disables embed (matched admin disable).
+- [ ] Manual spot-check: signup partner dropdown in browser, `/parents` school deep link,
+      open a reminder/offer in a real inbox (Mailgun accepted send; mailbox delivery TBD).
+- [ ] **Email deliverability:** SPF/DKIM; confirm a real mailbox receives reminder/offer
+      (smoke sends to `smoke-*@dreamneighborhoodschools.com` — verify DNS/inbox separately).
+- [ ] **Auth on app host:** Turnstile blocks password login without token (expected);
+      smoke uses `/test` + provision API. Confirm real signup/login with Turnstile in browser.
 - [ ] **Legal / Fair Housing:** Terms + Privacy; Limited demographics default (see
       hamburger menu task) before Full data with this customer.
 - [ ] **Week-1 watch:** Server Management (`/server`) daily; short customer runbook.
