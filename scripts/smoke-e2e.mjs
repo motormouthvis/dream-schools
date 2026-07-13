@@ -220,7 +220,8 @@ async function main() {
   // me endpoint
   {
     const { status, data } = await jarFetch(admin.jar, `${APP}/api/auth/me`);
-    record("A2 /api/auth/me isOwner", status === 200 && data?.isOwner === true, JSON.stringify(data));
+    const me = data?.user || data;
+    record("A2 /api/auth/me isOwner", status === 200 && me?.isOwner === true, JSON.stringify(data));
   }
 
   // --- B: provision accounts ---

@@ -342,6 +342,11 @@ export async function disableOwnAccount(userId: string): Promise<boolean> {
     [userId]
   );
   if ((res.rowCount ?? 0) === 0) return false;
+  // Match admin disable: turn off the widget so deleted accounts stop serving
+  // embed/popup traffic immediately (re-enable on admin restore when domain set).
+  await pool
+    .query(`UPDATE embed_partners SET enabled = FALSE, updated_at = NOW() WHERE partner_id = $1`, [userId])
+    .catch(() => {});
   await pool.query(`DELETE FROM app_sessions WHERE user_id = $1`, [userId]).catch(() => {});
   return true;
 }
