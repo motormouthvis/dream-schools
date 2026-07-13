@@ -2,7 +2,79 @@
 
 A living backlog. Check items off as they ship; add new ones at the bottom.
 
-## Marketing launch (priority)
+## Ship to first big customer (production readiness) — TOP PRIORITY
+
+Assumption: **low volume at start**; keep current Heroku size and **upgrade dynos/DB
+as traffic grows**. Do not block first customer on Standard dynos or HA Postgres.
+
+### Must do before go-live with the customer
+- [ ] **End-to-end customer funnel smoke test** (on production hosts):
+      signup → partner dropdown → configure authorized domain → install embed/popup
+      on a test page → search schools → upgrade prompt → reminder email →
+      `/parents?address=…&school=…` deep link opens the right school.
+- [ ] **Onboard the partner record correctly:** set `company_name` (so they appear in
+      signup partner search), create admin/realtor accounts as needed, authorize their
+      real domain(s), and walk them through `/installation` or `/installation/partners`.
+- [ ] **Email deliverability:** confirm Mailgun SPF/DKIM/DMARC for the sending domain;
+      send a real reminder + special-offer to a customer mailbox and verify inbox
+      (not spam). Confirm `OWNER_EMAILS` receives Server Management alerts.
+- [ ] **Auth / bot protection on app host:** Turnstile works on
+      `app.dreamneighborhoodschools.com`; `ADMIN_ENFORCE_HOST` / `APP_URL` match the
+      live app subdomain; login/signup/password-reset all work.
+- [ ] **Legal / compliance for first ship:** Terms + Privacy linked and accurate;
+      Fair Housing posture clear for demographics (see hamburger menu task below —
+      at least Limited default before Full data goes live with this customer).
+- [ ] **Owner watchlist for week 1:** use **Server Management** (`/server`) daily —
+      searches, top areas, Geoapify fallback events, saved daily reports. Escalate if
+      fallback alerts fire or autocomplete quality drops.
+- [ ] **Customer runbook (short doc or email):** how to install, authorize domains,
+      where usage/upgrade requests appear, who to contact, and how revenue share works
+      for partners.
+
+### Nice-to-have before / during first customer (not blockers if volume stays low)
+- [ ] **Uptime + error visibility:** simple uptime check (e.g. UptimeRobot) on
+      `www` + `app` + one public API; optional Sentry for uncaught errors.
+- [ ] **Heroku alerts:** dyno memory / 5xx / response-time thresholds so outages
+      email you without waiting for the customer.
+- [ ] **Public API rate limits (light):** soft limits on `/api/autocomplete`,
+      `/api/lookup`, `/api/school` to blunt scrapers (auth routes already limited).
+- [ ] **Lookup/school result caching:** autocomplete already has in-memory TTL cache;
+      extend similar caching to geocode lookup + hot school payloads if Server
+      Management shows repeated hits.
+- [ ] **Hamburger Fair Housing gate** (marketing site) — see Marketing launch below.
+      Prefer shipping this with the first customer rather than deferring.
+
+### Scale when volume grows (upgrade path — do NOT require for first ship)
+Current prod baseline: **1× Basic web dyno**, Postgres **essential-1** (~158 MB used,
+healthy indexes), Geoapify **free tier** primary + Census/Photon fallback, in-memory
+autocomplete cache, Server Management metrics/alerts.
+
+- [ ] **Upgrade web dynos when needed:** Basic → Standard-1x, then ≥2 dynos for
+      redundancy; Performance + autoscaling only if spikes demand it.
+- [ ] **Upgrade Postgres when needed:** essential-1 → Standard-0 (HA, more
+      connections, PITR) when connection limits, backup needs, or write load hurt;
+      add PgBouncer if multi-dyno connection count approaches the plan limit.
+- [ ] **Paid Geoapify (or Mapbox) when free 3k/day is hit.** Keep Geoapify as
+      primary (Option A). Server Management fallback alerts are the early warning.
+      Optional later: add Geoapify to `lib/geocode.ts` lookup path (today Census →
+      Photon → zip-centroid).
+- [ ] **Shared cache across dynos (Redis)** once you run >1 dyno and want cache
+      hit-rate to survive restarts / share across instances.
+- [ ] **Server-side pagination for Upgrade Requests** before high-volume partners
+      (list is client-side today with a hard LIMIT) — see Priority below.
+- [ ] **Scheduled digests / auto daily report snapshot** (Heroku Scheduler) so
+      Server Management history builds without manual "generate report."
+
+### Already done (keep checked for context)
+- [x] Geoapify primary autocomplete + Census/Photon fallback (Option A).
+- [x] In-memory TTL cache on autocomplete; recents reuse lat/lon (skip geocode).
+- [x] Sustained Geoapify fallback alerts (real HTTP errors only) → owner email + `/server`.
+- [x] Server Management page: today stats, daily/monthly reports, top visitors/areas,
+      backend event log, delete reports.
+- [x] Public marketing site + `/parents` explorer + partner/realtor install paths.
+- [x] App on `app.dreamneighborhoodschools.com`; Mailgun + owner alerts wired.
+
+## Marketing launch
 - [ ] **Enhance the marketing-site hamburger (settings) menu.**
   - Remove the default **Map / List** view toggle for schools from the menu.
   - Rename **"Data Display"** to **"Demographics"**.
@@ -11,33 +83,6 @@ A living backlog. Check items off as they ship; add new ones at the bottom.
     requirements (no steering/redlining, etc.).
   - Require an **"I agree"** checkbox to enable Full data; store the choice **plus a
     timestamp** in a cookie, and re-prompt if it's cleared or expired.
-
-### Scale readiness before a big push (from the Jul 9, 2026 infra deep-dive)
-- [ ] **Geocoding/autocomplete provider hardening (P0).** Autocomplete
-      (`app/api/autocomplete/route.ts`) ALREADY uses Geoapify as the **primary** source
-      when `GEOAPIFY_API_KEY` is set (it is, on prod), with US Census + Photon/OSM as
-      automatic fallback — so it already survives Geoapify throttling. Open items:
-      (a) decide priority — Geoapify-primary (current) vs. free-primary + Geoapify
-      fallback-only (conserves the 3k/day free quota); (b) the *lookup* geocoder that
-      resolves the picked address (`lib/geocode.ts`) still uses only Census → Photon →
-      zip-centroid (no Geoapify) — consider adding Geoapify there too; (c) budget a paid
-      Geoapify (or Mapbox) plan since a campaign will exceed 3,000 req/day.
-- [ ] **Add caching (P0).** There is no caching on `/api/autocomplete`, `/api/lookup`,
-      or `/api/school`. Add an in-memory LRU (per dyno) — and optionally Redis — for
-      autocomplete (short TTL) and geocode/lookup results (longer TTL, keyed by
-      normalized address / rounded lat-lon / zip) to cut external API calls and DB load.
-- [ ] **Add rate limiting (P1)** on the public endpoints (autocomplete/lookup/school)
-      to prevent abuse and external-API exhaustion. (Auth endpoints already limited.)
-- [ ] **Scale web dynos (P1).** Currently **1 Basic dyno** — a throughput bottleneck
-      and single point of failure with no autoscaling. Move to Standard-1x/2x, run ≥2
-      for redundancy, and enable autoscaling (Performance tier) for spikes.
-- [ ] **Upgrade Postgres (P1).** Currently `essential-1` (158 MB used of 10 GB, ~20
-      connection limit, **no high-availability / fast failover**). Move to Standard-0
-      (HA, ~120 connections, metrics, point-in-time recovery) before heavy traffic;
-      add PgBouncer if the dyno count pushes connections past the limit (pool is
-      max=5/dyno). Data size + indexes are healthy today.
-- [ ] **Monitoring:** add error tracking (Sentry), uptime checks, and Heroku metrics
-      alerts so launch-day issues surface fast.
 
 ## Priority
 - [ ] **Server-side pagination for the Upgrade Requests list.** Today the list is
