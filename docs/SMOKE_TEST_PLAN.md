@@ -1,5 +1,7 @@
 # Production smoke test plan — Dream Neighborhood Schools
 
+**Operator runbook (how to re-run + manual checks):** see root [`smoketest.md`](../smoketest.md).
+
 Goal: prove the product is ready for a first big customer at **low volume**.
 Roles exercised: **smoke admin**, **partner** (with 2 realtor customers), **independent realtor**.
 
