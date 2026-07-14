@@ -193,10 +193,9 @@ sensitive demographics hide on school detail.
 Deep link opens the right school; Fair Housing mode actually hides protected-class
 demographics; (later) agree-gate works.
 
-**Status (Jul 14, 2026):** Verified on production for
-`/parents?address=1500 N 23RD ST, FORT PIERCE, FL, 34950&school=120177001932`
-(Lincoln Park Academy): deep link opens detail, Fair Housing hides race UI + uses
-`/api/school?fh=1`, Full restores demographics. **I-agree gate still TODO.**
+**Status (Jul 14, 2026):** Verified deep link + Limited/Full Fair Housing toggle on
+production. **I-agree cookie gate shipped** (hamburger Demographics + school-detail
+“Show race & gender…” next to Diversity Index; website only).
 
 ---
 
