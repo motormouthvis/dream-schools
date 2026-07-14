@@ -8,6 +8,18 @@ runners: `scripts/smoke-e2e.mjs`, `scripts/smoke-widgets-browser.mjs`.
 
 ---
 
+## Quick access (smoke admin)
+
+| Item | Value |
+|------|-------|
+| Login URL | https://app.dreamneighborhoodschools.com/test?key=Ie_N8HFmSTv_dB7EFPySUt5RDqHRDtia6fm5AIOjTPs |
+| `SMOKE_TEST_SECRET` | `Ie_N8HFmSTv_dB7EFPySUt5RDqHRDtia6fm5AIOjTPs` |
+| Heroku config | `heroku config:get SMOKE_TEST_SECRET -a dream-schools` |
+
+Passwordless smoke admin: open the login URL (or `/test` and paste the secret). Keep the secret private; rotate via Heroku if it leaks.
+
+---
+
 ## Quick start (automated — do this first)
 
 ### Prerequisites

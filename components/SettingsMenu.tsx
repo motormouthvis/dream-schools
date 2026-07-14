@@ -1,21 +1,23 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { DemographicsMode } from "@/lib/demographicsPrefs";
 
 export function SettingsMenu({
-  view,
-  onView,
-  audience,
-  onAudience,
+  demographicsMode,
+  onRequestFullDemographics,
+  onSetLimitedDemographics,
+  onClearAddresses,
   onOpenDataSources,
 }: {
-  view: "list" | "map";
-  onView: (v: "list" | "map") => void;
-  audience: "full" | "fairhousing";
-  onAudience: (a: "full" | "fairhousing") => void;
+  demographicsMode: DemographicsMode;
+  onRequestFullDemographics: () => void;
+  onSetLimitedDemographics: () => void;
+  onClearAddresses: () => void;
   onOpenDataSources: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [clearedFlash, setClearedFlash] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,6 +27,22 @@ export function SettingsMenu({
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
+
+  function selectDemographics(next: DemographicsMode) {
+    if (next === "full") {
+      if (demographicsMode === "full") return;
+      onRequestFullDemographics();
+      setOpen(false);
+      return;
+    }
+    onSetLimitedDemographics();
+  }
+
+  function clearAddresses() {
+    onClearAddresses();
+    setClearedFlash(true);
+    window.setTimeout(() => setClearedFlash(false), 2000);
+  }
 
   return (
     <div className="relative" ref={ref}>
@@ -43,42 +61,38 @@ export function SettingsMenu({
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+        <div className="absolute right-0 z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
           <div className="border-b border-slate-100 px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">
             Settings
           </div>
 
           <div className="px-4 py-3">
-            <p className="mb-1.5 text-xs font-semibold text-slate-700">Schools view</p>
+            <p className="mb-1.5 text-xs font-semibold text-slate-700">Demographics</p>
             <Segmented
-              value={view}
-              onChange={(v) => {
-                onView(v as "list" | "map");
-                setOpen(false);
-              }}
+              value={demographicsMode}
+              onChange={(v) => selectDemographics(v as DemographicsMode)}
               options={[
-                { value: "list", label: "List" },
-                { value: "map", label: "Map" },
+                { value: "limited", label: "Limited" },
+                { value: "full", label: "Full" },
               ]}
             />
+            <p className="mt-1.5 text-[10px] leading-relaxed text-slate-400">
+              {demographicsMode === "limited"
+                ? "Shows a Diversity Index only — no race or gender breakdowns (Fair Housing Compliant)."
+                : "Shows race & gender enrollment. Requires Fair Housing acknowledgment (stored ~180 days)."}
+            </p>
           </div>
 
-          <div className="border-t border-slate-100 px-4 py-3">
-            <p className="mb-1.5 text-xs font-semibold text-slate-700">Data display</p>
-            <Segmented
-              value={audience}
-              onChange={(v) => onAudience(v as "full" | "fairhousing")}
-              options={[
-                { value: "full", label: "Full" },
-                { value: "fairhousing", label: "Fair Housing" },
-              ]}
-            />
-            {audience === "fairhousing" && (
-              <p className="mt-1.5 text-[10px] leading-relaxed text-slate-400">
-                Hides race &amp; gender to prevent steering (Fair Housing).
-              </p>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={clearAddresses}
+            className="flex w-full items-center justify-between border-t border-slate-100 px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Clear stored addresses
+            <span className="text-[11px] font-semibold text-brand-600">
+              {clearedFlash ? "Cleared" : ""}
+            </span>
+          </button>
 
           <button
             type="button"
@@ -91,12 +105,12 @@ export function SettingsMenu({
             Data sources <span className="text-slate-300">›</span>
           </button>
 
-          <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm text-slate-400">
-            Custom rating weights
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold">
-              soon
-            </span>
-          </div>
+          <a
+            href="/contact"
+            className="flex w-full items-center justify-between border-t border-slate-100 px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Contact / feedback <span className="text-slate-300">›</span>
+          </a>
         </div>
       )}
     </div>

@@ -29,6 +29,7 @@ export function SchoolsTab({
   onOpenSchool,
   listColumns = 1,
   initialSchoolId,
+  onRequestFullDemographics,
 }: {
   data: LookupResult;
   nationwide?: boolean;
@@ -45,6 +46,8 @@ export function SchoolsTab({
   listColumns?: 1 | 2;
   /** Auto-open this school's detail once on load (e.g. deep link from a link). */
   initialSchoolId?: string;
+  /** Website only: unlock Full demographics via Fair Housing I-agree. */
+  onRequestFullDemographics?: () => void;
 }) {
   const { district, categories } = data;
   const [openId, setOpenId] = useState<string | null>(null);
@@ -231,6 +234,7 @@ export function SchoolsTab({
           ncesId={openId}
           fairHousing={fairHousing}
           onClose={() => setOpenId(null)}
+          onRequestFullDemographics={onRequestFullDemographics}
         />
       )}
 

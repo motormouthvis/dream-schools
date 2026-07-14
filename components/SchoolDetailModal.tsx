@@ -13,6 +13,7 @@ export function SchoolDetailModal({
   embed = false,
   backLabel = "Back to schools",
   showExternalLinks = false,
+  onRequestFullDemographics,
 }: {
   ncesId: string;
   onClose: () => void;
@@ -37,6 +38,11 @@ export function SchoolDetailModal({
    * website to avoid Fair Housing steering concerns on partner listing sites.
    */
   embed?: boolean;
+  /**
+   * Website only: open the Fair Housing "I agree" gate to unlock Full demographics.
+   * Omitted on embed/popup.
+   */
+  onRequestFullDemographics?: () => void;
 }) {
   const [detail, setDetail] = useState<SchoolDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +95,7 @@ export function SchoolDetailModal({
             embed={embed}
             backLabel={backLabel}
             showExternalLinks={showExternalLinks}
+            onRequestFullDemographics={onRequestFullDemographics}
           />
         )}
       </div>
@@ -122,6 +129,7 @@ export function SchoolDetailModal({
             fairHousing={fairHousing}
             embed={embed}
             showExternalLinks={showExternalLinks}
+            onRequestFullDemographics={onRequestFullDemographics}
           />
         )}
       </div>
@@ -137,6 +145,7 @@ function DetailBody({
   embed = false,
   backLabel = "Back to schools",
   showExternalLinks = false,
+  onRequestFullDemographics,
 }: {
   detail: SchoolDetail;
   onClose: () => void;
@@ -145,6 +154,7 @@ function DetailBody({
   embed?: boolean;
   backLabel?: string;
   showExternalLinks?: boolean;
+  onRequestFullDemographics?: () => void;
 }) {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const pkRef = useRef<HTMLParagraphElement>(null);
@@ -530,31 +540,37 @@ function DetailBody({
 
         <Reviews ncesId={detail.ncesId} />
 
-        {/* Diversity (embed/real-estate) — a single 0–10 index, no race data.
-            Race/gender breakdowns are shown only on the main website. */}
+        {/* Diversity + demographics.
+            Embed/popup: diversity index only (never race/gender bars).
+            Website: diversity index always; race/gender only in Full mode
+            (after Fair Housing I-agree). Limited mode offers unlock control. */}
         {embed ? (
-          <DiversitySection byRace={detail.demographics?.byRace ?? []} />
-        ) : fairHousing ? (
-          <Section title="Race & gender">
-            <p className="col-span-full text-xs text-slate-500">
-              Hidden in <strong>Fair Housing Compliant</strong> mode so it can&apos;t be used to
-              steer buyers, per Fair Housing guidance.
-            </p>
-          </Section>
+          <DiversitySection
+            byRace={detail.demographics?.byRace ?? []}
+            diversityIndex={detail.diversityIndex}
+          />
         ) : (
-          detail.demographics && (
-            <Section title="Race & gender">
-              <div className="col-span-full space-y-3">
-                {detail.demographics.byRace.length > 0 && (
-                  <DemoBars title="By race / ethnicity" data={detail.demographics.byRace} />
-                )}
-                {detail.demographics.byGender.length > 0 && (
-                  <DemoBars title="By gender" data={detail.demographics.byGender} />
-                )}
-                <Note>Source: NCES CCD 2023-24 enrollment.</Note>
-              </div>
-            </Section>
-          )
+          <>
+            <DiversitySection
+              byRace={detail.demographics?.byRace ?? []}
+              diversityIndex={detail.diversityIndex}
+              websiteLimited={fairHousing}
+              onRequestFullDemographics={onRequestFullDemographics}
+            />
+            {!fairHousing && detail.demographics && (
+              <Section title="Race & gender">
+                <div className="col-span-full space-y-3">
+                  {detail.demographics.byRace.length > 0 && (
+                    <DemoBars title="By race / ethnicity" data={detail.demographics.byRace} />
+                  )}
+                  {detail.demographics.byGender.length > 0 && (
+                    <DemoBars title="By gender" data={detail.demographics.byGender} />
+                  )}
+                  <Note>Source: NCES CCD 2023-24 enrollment.</Note>
+                </div>
+              </Section>
+            )}
+          </>
         )}
 
         {/* More on this school — outbound links to independent sites */}
@@ -902,8 +918,22 @@ function diversityWord(v: number): string {
   return "Lower diversity";
 }
 
-function DiversitySection({ byRace }: { byRace: { pct: number }[] }) {
-  const idx = diversityIndex10(byRace);
+function DiversitySection({
+  byRace,
+  diversityIndex,
+  websiteLimited = false,
+  onRequestFullDemographics,
+}: {
+  byRace: { pct: number }[];
+  diversityIndex?: number | null;
+  /** Website Limited mode: show Fair Housing unlock next to the index. */
+  websiteLimited?: boolean;
+  onRequestFullDemographics?: () => void;
+}) {
+  const idx =
+    diversityIndex != null && Number.isFinite(diversityIndex)
+      ? Math.max(0, Math.min(10, Math.round(diversityIndex)))
+      : diversityIndex10(byRace);
   return (
     <Section title="Diversity Index">
       {idx == null ? (
@@ -912,7 +942,7 @@ function DiversitySection({ byRace }: { byRace: { pct: number }[] }) {
         </p>
       ) : (
         <div className="col-span-full">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div
               className="flex shrink-0 items-baseline justify-center rounded-xl font-extrabold text-white"
               style={{ backgroundColor: rating10Color(idx), width: 52, height: 52 }}
@@ -920,13 +950,29 @@ function DiversitySection({ byRace }: { byRace: { pct: number }[] }) {
               <span style={{ fontSize: 22 }}>{idx}</span>
               <span className="text-[10px] font-semibold opacity-80">/10</span>
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="text-sm font-bold leading-tight text-slate-900">{diversityWord(idx)}</div>
               <div className="text-[11px] leading-tight text-slate-500">
                 Higher = a more even mix of student backgrounds.
               </div>
             </div>
+            {websiteLimited && onRequestFullDemographics && (
+              <button
+                type="button"
+                onClick={onRequestFullDemographics}
+                className="shrink-0 rounded-lg border border-brand-300 bg-brand-50 px-2.5 py-1.5 text-[11px] font-bold text-brand-800 transition hover:bg-brand-100"
+              >
+                Show race &amp; gender…
+              </button>
+            )}
           </div>
+          {websiteLimited && (
+            <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+              Race and gender breakdowns are hidden in <strong>Limited</strong> (Fair Housing
+              Compliant) mode. Unlock Full demographics only if you agree to comply with Fair
+              Housing law.
+            </p>
+          )}
           <Note>
             The Diversity Index is the chance that two randomly chosen students come from different
             racial/ethnic backgrounds, scaled 0–10. Source: NCES CCD enrollment.

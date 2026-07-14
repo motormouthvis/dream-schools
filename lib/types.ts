@@ -134,6 +134,11 @@ export interface SchoolDetail {
     byRace: DemographicSlice[];
     byGender: DemographicSlice[];
   } | null;
+  /**
+   * Simpson diversity index 0–10 from race enrollment. Always safe to show
+   * (no protected-class breakdown). Present even in Fair Housing mode.
+   */
+  diversityIndex?: number | null;
   district: { districtId: string; name: string };
   scores: { overall: number; academic: number; safety: number; scale: number };
   // GreatSchools-style 1-10 ratings + profile sections

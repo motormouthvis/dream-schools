@@ -35,14 +35,13 @@ as traffic grows**.
 - [x] Smoke harness: `/test` admin, `/api/auth/smoke`, 3 dummy realtor sites, plan + e2e script.
 
 ## Marketing launch
-- [ ] **Enhance the marketing-site hamburger (settings) menu.**
-  - Remove the default **Map / List** view toggle for schools from the menu.
-  - Rename **"Data Display"** to **"Demographics"**.
-  - Default to **Limited** demographics. If the user chooses **Full data**, show a
-    warning that they must comply with all applicable laws and **Fair Housing**
-    requirements (no steering/redlining, etc.).
-  - Require an **"I agree"** checkbox to enable Full data; store the choice **plus a
-    timestamp** in a cookie, and re-prompt if it's cleared or expired.
+- [x] **Enhance the marketing-site hamburger (settings) menu.**
+  - Removed Map / List from the menu (List/Map stays on the schools results toolbar).
+  - Renamed to **Demographics**: **Limited** (default) vs **Full**.
+  - Full requires Fair Housing warning + **I agree** (cookie + timestamp, ~180 days).
+  - Same unlock control on school detail next to the Diversity Index (website only; not embed/popup).
+  - Clear stored addresses; expanded Data sources with attribution; removed custom-weights “soon”.
+- [ ] Optional later: font-size / accessibility in hamburger; Terms & Privacy shortcuts.
 
 ## Priority
 - [ ] **Server-side pagination for the Upgrade Requests list.** Today the list is

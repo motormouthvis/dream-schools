@@ -6,7 +6,14 @@ import { Logo, SchoolhouseMark } from "@/components/Logo";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { DataSourcesModal } from "@/components/DataSourcesModal";
 import { HomeSections } from "@/components/HomeSections";
-import { getRecent, addRecent, removeRecent, type RecentSearch } from "@/lib/recent";
+import { getRecent, addRecent, removeRecent, clearRecent, type RecentSearch } from "@/lib/recent";
+import {
+  getDemographicsPrefs,
+  setDemographicsFullAgreed,
+  setDemographicsLimited,
+  type DemographicsMode,
+} from "@/lib/demographicsPrefs";
+import { FairHousingAgreeDialog } from "@/components/FairHousingAgreeDialog";
 import { TERMS_URL, PRIVACY_URL } from "@/lib/legalLinks";
 import type { LookupResult } from "@/lib/types";
 
@@ -71,7 +78,8 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
   // null until /api/health resolves - avoids briefly flashing the demo-coverage
   // note on production (which is nationwide).
   const [nationwide, setNationwide] = useState<boolean | null>(null);
-  const [audience, setAudience] = useState<"full" | "fairhousing">("full");
+  const [audience, setAudience] = useState<DemographicsMode>("limited");
+  const [showAgree, setShowAgree] = useState(false);
   const [view, setView] = useState<"list" | "map">("list");
   const [showDataSources, setShowDataSources] = useState(false);
   const [recents, setRecents] = useState<RecentSearch[]>([]);
@@ -79,11 +87,12 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
   const [changing, setChanging] = useState(false);
   // Deep link: ?school=<ncesId> auto-opens that school's detail once results load.
   const [initialSchoolId, setInitialSchoolId] = useState<string | undefined>(undefined);
-  const fairHousing = audience === "fairhousing";
+  const fairHousing = audience === "limited";
   const showSearch = !data || changing;
 
   useEffect(() => {
     setRecents(getRecent());
+    setAudience(getDemographicsPrefs().mode);
     fetch("/api/health")
       .then((r) => r.json())
       .then((j) => setNationwide(Boolean(j.nationwide)))
@@ -98,6 +107,26 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function requestFullDemographics() {
+    setShowAgree(true);
+  }
+
+  function agreeFullDemographics() {
+    setDemographicsFullAgreed();
+    setAudience("full");
+    setShowAgree(false);
+  }
+
+  function setLimitedDemographics() {
+    setDemographicsLimited();
+    setAudience("limited");
+  }
+
+  function clearStoredAddresses() {
+    clearRecent();
+    setRecents([]);
+  }
 
   // Debounced address autocomplete (free, via Photon/OSM).
   useEffect(() => {
@@ -208,10 +237,10 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
           <Logo />
         </a>
         <SettingsMenu
-          view={view}
-          onView={setView}
-          audience={audience}
-          onAudience={setAudience}
+          demographicsMode={audience}
+          onRequestFullDemographics={requestFullDemographics}
+          onSetLimitedDemographics={setLimitedDemographics}
+          onClearAddresses={clearStoredAddresses}
           onOpenDataSources={() => setShowDataSources(true)}
         />
       </div>
@@ -457,6 +486,7 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
             onViewChange={setView}
             listColumns={2}
             initialSchoolId={initialSchoolId}
+            onRequestFullDemographics={requestFullDemographics}
           />
         )}
 
@@ -522,6 +552,9 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
       </footer>
 
       {showDataSources && <DataSourcesModal onClose={() => setShowDataSources(false)} />}
+      {showAgree && (
+        <FairHousingAgreeDialog onAgree={agreeFullDemographics} onCancel={() => setShowAgree(false)} />
+      )}
     </main>
   );
 }

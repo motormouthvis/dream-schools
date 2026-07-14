@@ -80,16 +80,24 @@ Pipelines that load this data live in `pipeline/`:
 - **Used for:** turning the address you type into a map point (primary geocoder),
   and as a source for address **autocomplete** suggestions.
 
-## 7. Photon (OpenStreetMap) — autocomplete + geocode fallback
+## 7. Geoapify — primary autocomplete
+- **What:** Commercial geocoding / place autocomplete API.
+- **How accessed:** Geoapify Places API with `GEOAPIFY_API_KEY` (free tier; paid upgrade when volume grows).
+- **Used for:** Primary address **autocomplete** when the key is set; Census + Photon cover fallbacks.
+- **Attribution:** © Geoapify — https://www.geoapify.com/
+
+## 8. Photon (OpenStreetMap) — autocomplete + geocode fallback
 - **What:** Free OSM-based geocoder/typeahead.
 - **How accessed:** `https://photon.komoot.io/api/` (no key).
 - **Used for:** address **autocomplete** suggestions and a **fallback** geocoder
   when the Census geocoder has no match.
+- **Attribution:** © OpenStreetMap contributors (ODbL); Photon by Komoot.
 
-## 8. OpenStreetMap — map tiles
+## 9. OpenStreetMap — map tiles
 - **What:** Base map imagery.
 - **How accessed:** `https://tile.openstreetmap.org/{z}/{x}/{y}.png` (no key).
 - **Used for:** the **map view** background.
+- **Attribution:** © OpenStreetMap contributors, https://www.openstreetmap.org/copyright
 
 ---
 
@@ -107,8 +115,9 @@ a third-party rating.
 | NCES PSS (private) | Direct CSV download | No | Free |
 | Census district boundaries | Direct shapefile download | No | Free |
 | Census Geocoder | HTTP API | No | Free |
+| Geoapify | HTTP API | Yes (`GEOAPIFY_API_KEY`) | Free tier / paid |
 | Photon | HTTP API | No | Free |
 | OpenStreetMap tiles | Tile server | No | Free |
 
-All sources are public domain or open data. Refresh cadence: CCD annual; CRDC and
+All federal sources are public domain or open data. Refresh cadence: CCD annual; CRDC and
 PSS biennial; EDFacts annual; Census boundaries annual.
