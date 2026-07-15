@@ -43,6 +43,17 @@ interface Suggestion {
   zip: string;
 }
 
+/** Sync peek of ?address / ?lat so we can skip the home search flash on auto-load. */
+function peekAutoTarget(): { address: string; hasTarget: boolean } {
+  if (typeof window === "undefined") return { address: "", hasTarget: false };
+  const p = new URLSearchParams(window.location.search);
+  const address = (p.get("address") || "").trim();
+  const lat = parseFloat(p.get("lat") ?? "");
+  const lon = parseFloat(p.get("lng") ?? p.get("lon") ?? "");
+  const hasCoords = Number.isFinite(lat) && Number.isFinite(lon);
+  return { address, hasTarget: Boolean(address || hasCoords) };
+}
+
 function readParams(): EmbedParams {
   const p = new URLSearchParams(window.location.search);
   const num = (v: string | null) => {
@@ -114,9 +125,14 @@ const PIN_SVG = (
 );
 
 export default function EmbedExplorer() {
+  // Gate rendering until client mount so SSR never paints the home search UI
+  // into the iframe (that was the ½–1s flash before auto-lookup finished).
+  const [mounted, setMounted] = useState(false);
   const [params, setParams] = useState<EmbedParams | null>(null);
   const [data, setData] = useState<LookupResult | null>(null);
   const [loading, setLoading] = useState(false);
+  /** True while we auto-lookup from URL address/coords — never show the home search UI. */
+  const [autoBoot, setAutoBoot] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nationwide, setNationwide] = useState(false);
   const [view, setView] = useState<"list" | "map">("list");
@@ -272,7 +288,12 @@ export default function EmbedExplorer() {
       markUpgradeDismissed(params.upgradeRequestSuppressDays);
     }
   }
-  const screen: "home" | "results" = data ? "results" : "home";
+  // home = empty search; boot = auto-detected address loading; results = schools ready
+  const screen: "home" | "boot" | "results" = data
+    ? "results"
+    : autoBoot
+      ? "boot"
+      : "home";
 
   // Height coordination with the SDK:
   //  • Inline: report the exact content height so the iframe grows to fit
@@ -281,6 +302,7 @@ export default function EmbedExplorer() {
   //    iframe height and collapsed it). Instead announce which screen we're on;
   //    the SDK uses two fixed sizes — a "home" size tall enough to show the
   //    recent-searches dropdown, and a viewport-sized "expanded" size for results.
+  //    Auto-boot uses "expanded" so the panel doesn't flash home→results size.
   useEffect(() => {
     if (isInline) {
       // Measure the FULL page including the recents/autocomplete dropdowns, which
@@ -304,12 +326,17 @@ export default function EmbedExplorer() {
       };
     }
     window.parent?.postMessage?.(
-      { type: "dse:screen", screen: screen === "home" ? "home" : "expanded" },
+      {
+        type: "dse:screen",
+        // Prefer expanded when an address was passed in the iframe URL so the
+        // popup doesn't flash the smaller "home" size during auto-boot.
+        screen: screen === "home" && !peekAutoTarget().hasTarget ? "home" : "expanded",
+      },
       "*"
     );
   }, [isInline, screen, selected, loading, view, error, focused, showSuggest, address, recents.length]);
 
-  const runLookup = useCallback(async (query: string, picked?: Suggestion) => {
+  const runLookup = useCallback(async (query: string, picked?: Suggestion, opts?: { fromAuto?: boolean }) => {
     const q = query.trim();
     const hasCoords = picked && Number.isFinite(picked.lat) && Number.isFinite(picked.lon);
     if (!q && !hasCoords) return;
@@ -326,10 +353,13 @@ export default function EmbedExplorer() {
       if (!res.ok) {
         setError(json.error ?? "Something went wrong.");
         setData(null);
+        // Fall back to the home search UI if the auto-detected address failed.
+        if (opts?.fromAuto) setAutoBoot(false);
       } else {
         const result = json as LookupResult;
         setData(result);
         setChanging(false);
+        setAutoBoot(false);
         setRecents(
           addRecent({
             label: result.geocode.matchedAddress || q,
@@ -342,6 +372,7 @@ export default function EmbedExplorer() {
     } catch {
       setError("Network error.");
       setData(null);
+      if (opts?.fromAuto) setAutoBoot(false);
     } finally {
       setLoading(false);
     }
@@ -355,6 +386,7 @@ export default function EmbedExplorer() {
   }, []);
 
   useEffect(() => {
+    setMounted(true);
     const parsed = readParams();
     setParams(parsed);
     setRecents(getRecent());
@@ -363,11 +395,17 @@ export default function EmbedExplorer() {
       .then((j) => setNationwide(Boolean(j.nationwide)))
       .catch(() => {});
     if (parsed.address || (parsed.lat != null && parsed.lon != null)) {
+      if (parsed.address) setAddress(parsed.address);
+      setAutoBoot(true);
+      setLoading(true);
       const picked =
         parsed.lat != null && parsed.lon != null
           ? { label: parsed.address, lat: parsed.lat, lon: parsed.lon, zip: "" }
           : undefined;
-      runLookup(parsed.address, picked);
+      runLookup(parsed.address, picked, { fromAuto: true });
+    } else {
+      setAutoBoot(false);
+      setLoading(false);
     }
   }, [runLookup]);
 
@@ -443,6 +481,7 @@ export default function EmbedExplorer() {
     setSelected(null);
     setError(null);
     setChanging(false);
+    setAutoBoot(false);
     setAddress("");
     setSuggestions([]);
     setShowSuggest(false);
@@ -458,6 +497,9 @@ export default function EmbedExplorer() {
   }
 
   const resolvedCityState = data ? cityState(data.geocode.matchedAddress, data.district.state) : "";
+  const bootLabel = address.trim()
+    ? `Looking up schools near ${address.split(",")[0].trim()}…`
+    : "Looking up schools…";
 
   const SearchField = (
     <div className="relative flex-1">
@@ -554,6 +596,60 @@ export default function EmbedExplorer() {
       )}
     </div>
   );
+
+  // Don't SSR the home search UI — that HTML flashes inside the iframe before
+  // client auto-lookup runs. Until mount (and during auto-boot), show a neutral
+  // loader — never the search-bar home screen.
+  if (!mounted || screen === "boot") {
+    const peek = !mounted ? peekAutoTarget() : { address, hasTarget: autoBoot };
+    const label = (peek.address || address).trim()
+      ? `Looking up schools near ${(peek.address || address).split(",")[0].trim()}…`
+      : "Looking up schools…";
+    const showBoot = peek.hasTarget || screen === "boot";
+
+    return (
+      <main
+        className={`flex flex-col bg-white ${mounted && !isInline ? "h-screen overflow-hidden" : "min-h-[220px]"}`}
+        aria-busy="true"
+      >
+        {mounted && isInline && (
+          <header
+            className="flex shrink-0 items-center gap-2 px-4 py-1.5 text-white"
+            style={{ background: accent }}
+          >
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20">
+              {PIN_SVG}
+            </span>
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <p
+                className="overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-bold leading-tight"
+                title={headerTitle}
+              >
+                {headerTitle}
+              </p>
+            </div>
+          </header>
+        )}
+        {showBoot ? (
+          <div className={`mx-auto flex w-full max-w-5xl flex-col px-3 pt-3 sm:px-4 ${mounted && !isInline ? "min-h-0 flex-1" : ""}`}>
+            {(peek.address || address).trim() ? (
+              <div className="mb-3 flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+                <p className="min-w-0 truncate text-sm font-bold text-slate-900">
+                  <span className="mr-1">📍</span>
+                  {peek.address || address}
+                </p>
+              </div>
+            ) : null}
+            <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
+              {label}
+            </div>
+          </div>
+        ) : (
+          <div className="min-h-[180px] flex-1 bg-white" />
+        )}
+      </main>
+    );
+  }
 
   return (
     <main className={`flex flex-col bg-white ${isInline ? "" : "h-screen overflow-hidden"}`}>
