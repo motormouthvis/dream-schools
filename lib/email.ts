@@ -128,22 +128,43 @@ function escapeHtml(s: string): string {
 
 const SUPPORT_TO = process.env.SUPPORT_EMAIL || "support@dreamneighborhood.com";
 
-// A contact-form message from a signed-in user, sent to support with the
-// sender set as Reply-To so support can reply directly.
+// A contact/feedback form message. Reply-To = sender so support can reply.
 export async function sendContactMessage(
   fromEmail: string,
   message: string,
-  phone?: string
+  phone?: string,
+  options?: {
+    subject?: string;
+    kind?: string;
+    extraLines?: string[];
+  }
 ): Promise<void> {
+  const kind = options?.kind || "contact";
+  const subject =
+    options?.subject ||
+    (kind === "feedback"
+      ? `School Explorer feedback — ${fromEmail}`
+      : kind === "data-error"
+        ? `School Explorer data correction — ${fromEmail}`
+        : `School Explorer contact — ${fromEmail}`);
+  const extras = (options?.extraLines || []).filter(Boolean);
+  const textExtras = extras.length ? `\n${extras.join("\n")}\n` : "";
+  const htmlExtras = extras.length
+    ? extras
+        .map((line) => `<p style="color:#475569;font-size:13px;margin:0 0 4px">${escapeHtml(line)}</p>`)
+        .join("")
+    : "";
   await send({
     to: SUPPORT_TO,
     replyTo: fromEmail,
-    subject: `School Explorer contact — ${fromEmail}`,
-    text: `From: ${fromEmail}\nPhone: ${phone || "-"}\n\n${message}`,
+    subject,
+    text: `From: ${fromEmail}\nPhone: ${phone || "-"}\nKind: ${kind}${textExtras}\n${message}`,
     html: shell(
-      `<h1 style="font-size:18px;margin:0 0 8px">New contact message</h1>
+      `<h1 style="font-size:18px;margin:0 0 8px">New ${escapeHtml(kind)} message</h1>
        <p style="color:#475569;font-size:13px;margin:0 0 4px"><strong>From:</strong> ${escapeHtml(fromEmail)}</p>
-       ${phone ? `<p style="color:#475569;font-size:13px;margin:0 0 12px"><strong>Phone:</strong> ${escapeHtml(phone)}</p>` : ""}
+       ${phone ? `<p style="color:#475569;font-size:13px;margin:0 0 4px"><strong>Phone:</strong> ${escapeHtml(phone)}</p>` : ""}
+       <p style="color:#475569;font-size:13px;margin:0 0 12px"><strong>Kind:</strong> ${escapeHtml(kind)}</p>
+       ${htmlExtras}
        <p style="color:#0f172a;font-size:14px;white-space:pre-wrap;margin-top:12px">${escapeHtml(message)}</p>`
     ),
   });

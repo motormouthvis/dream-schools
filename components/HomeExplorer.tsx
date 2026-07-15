@@ -487,6 +487,7 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
             listColumns={2}
             initialSchoolId={initialSchoolId}
             onRequestFullDemographics={requestFullDemographics}
+            onHideDemographics={setLimitedDemographics}
           />
         )}
 

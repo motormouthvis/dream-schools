@@ -14,6 +14,7 @@ export function SchoolDetailModal({
   backLabel = "Back to schools",
   showExternalLinks = false,
   onRequestFullDemographics,
+  onHideDemographics,
 }: {
   ncesId: string;
   onClose: () => void;
@@ -43,6 +44,8 @@ export function SchoolDetailModal({
    * Omitted on embed/popup.
    */
   onRequestFullDemographics?: () => void;
+  /** Website only: return to Limited demographics (Hide on Race & gender). */
+  onHideDemographics?: () => void;
 }) {
   const [detail, setDetail] = useState<SchoolDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +99,7 @@ export function SchoolDetailModal({
             backLabel={backLabel}
             showExternalLinks={showExternalLinks}
             onRequestFullDemographics={onRequestFullDemographics}
+            onHideDemographics={onHideDemographics}
           />
         )}
       </div>
@@ -130,6 +134,7 @@ export function SchoolDetailModal({
             embed={embed}
             showExternalLinks={showExternalLinks}
             onRequestFullDemographics={onRequestFullDemographics}
+            onHideDemographics={onHideDemographics}
           />
         )}
       </div>
@@ -146,6 +151,7 @@ function DetailBody({
   backLabel = "Back to schools",
   showExternalLinks = false,
   onRequestFullDemographics,
+  onHideDemographics,
 }: {
   detail: SchoolDetail;
   onClose: () => void;
@@ -155,6 +161,7 @@ function DetailBody({
   backLabel?: string;
   showExternalLinks?: boolean;
   onRequestFullDemographics?: () => void;
+  onHideDemographics?: () => void;
 }) {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const pkRef = useRef<HTMLParagraphElement>(null);
@@ -172,10 +179,11 @@ function DetailBody({
   const isCombo = servesHigh && lowG != null && lowG <= 6;
   const hsNote = isCombo ? "Reflects high-school grades only." : null;
   const reportHref =
-    `mailto:corrections@dreamneighborhood.com` +
-    `?subject=${encodeURIComponent(`Data correction: ${detail.name} (NCES ${detail.ncesId})`)}` +
-    `&body=${encodeURIComponent(
-      `School: ${detail.name}\nNCES ID: ${detail.ncesId}\n\nWhat is incorrect, and what should it be?\n`
+    `/feedback?topic=data-error` +
+    `&ncesId=${encodeURIComponent(detail.ncesId)}` +
+    `&schoolName=${encodeURIComponent(detail.name)}` +
+    `&address=${encodeURIComponent(
+      [c.street, c.city, c.state, c.zip].filter(Boolean).join(", ")
     )}`;
   const addressLine = [c.street, [c.city, c.state].filter(Boolean).join(", "), c.zip]
     .filter(Boolean)
@@ -558,7 +566,20 @@ function DetailBody({
               onRequestFullDemographics={onRequestFullDemographics}
             />
             {!fairHousing && detail.demographics && (
-              <Section title="Race & gender">
+              <Section
+                title="Race & gender"
+                action={
+                  onHideDemographics ? (
+                    <button
+                      type="button"
+                      onClick={onHideDemographics}
+                      className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                    >
+                      Hide
+                    </button>
+                  ) : null
+                }
+              >
                 <div className="col-span-full space-y-3">
                   {detail.demographics.byRace.length > 0 && (
                     <DemoBars title="By race / ethnicity" data={detail.demographics.byRace} />
@@ -983,12 +1004,23 @@ function DiversitySection({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+  action,
+}: {
+  title: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
   return (
     <div className="mt-4 rounded-xl bg-slate-50/70 p-3.5 sm:p-4">
-      <h3 className="mb-2.5 flex items-center gap-2 text-sm font-bold text-slate-900">
-        <span className="h-4 w-1.5 rounded-full bg-brand-500" />
-        {title}
+      <h3 className="mb-2.5 flex items-center justify-between gap-2 text-sm font-bold text-slate-900">
+        <span className="flex items-center gap-2">
+          <span className="h-4 w-1.5 rounded-full bg-brand-500" />
+          {title}
+        </span>
+        {action}
       </h3>
       <dl className="grid grid-cols-1 gap-y-1.5">{children}</dl>
     </div>

@@ -30,6 +30,7 @@ export function SchoolsTab({
   listColumns = 1,
   initialSchoolId,
   onRequestFullDemographics,
+  onHideDemographics,
 }: {
   data: LookupResult;
   nationwide?: boolean;
@@ -48,6 +49,8 @@ export function SchoolsTab({
   initialSchoolId?: string;
   /** Website only: unlock Full demographics via Fair Housing I-agree. */
   onRequestFullDemographics?: () => void;
+  /** Website only: Hide Full demographics (back to Limited). */
+  onHideDemographics?: () => void;
 }) {
   const { district, categories } = data;
   const [openId, setOpenId] = useState<string | null>(null);
@@ -235,6 +238,7 @@ export function SchoolsTab({
           fairHousing={fairHousing}
           onClose={() => setOpenId(null)}
           onRequestFullDemographics={onRequestFullDemographics}
+          onHideDemographics={onHideDemographics}
         />
       )}
 

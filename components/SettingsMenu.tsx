@@ -109,7 +109,14 @@ export function SettingsMenu({
             href="/contact"
             className="flex w-full items-center justify-between border-t border-slate-100 px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
-            Contact / feedback <span className="text-slate-300">›</span>
+            Contact us <span className="text-slate-300">›</span>
+          </a>
+
+          <a
+            href="/feedback"
+            className="flex w-full items-center justify-between border-t border-slate-100 px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Feedback <span className="text-slate-300">›</span>
           </a>
         </div>
       )}
