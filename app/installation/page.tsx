@@ -140,6 +140,20 @@ export default function InstallationPage() {
           </a>
         </section>
 
+        <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-base font-extrabold tracking-tight text-ink-900">See it on a fake brokerage site</h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+            Tour a demo real-estate site with listings (popup) and neighborhoods (popup + embed) —
+            same School Explorer your buyers will see.
+          </p>
+          <a
+            href="/realestatewebsitedemo"
+            className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-brand-700 hover:text-brand-800"
+          >
+            Open the real-estate website demo <ArrowRight className="h-4 w-4" />
+          </a>
+        </section>
+
         {/* Cross-link for the other audience (no revenue details shown here). */}
         <div className="mt-8 flex flex-col items-start justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center">
           <p className="text-sm text-slate-600">

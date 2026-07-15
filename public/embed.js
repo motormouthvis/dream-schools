@@ -499,6 +499,14 @@
     return !!document.querySelector(INLINE_SELECTORS.join(",") + ",.dse-inline-iframe");
   }
 
+  /** Pages that intentionally show popup + inline together (e.g. neighborhood demos). */
+  function allowPopupWithInline() {
+    var el = document.querySelector(INLINE_SELECTORS.join(","));
+    if (!el) return false;
+    var v = (el.getAttribute("data-with-popup") || "").trim().toLowerCase();
+    return v === "1" || v === "true" || v === "yes";
+  }
+
   // Detect the (paid) Dream Neighborhood "Neighborhood Explorer" on the page —
   // either its floating popup or an inline/embedded snippet — so the free School
   // Explorer popup can step aside.
@@ -538,7 +546,9 @@
   // The School popup should never appear when the explorer is already on the page
   // as an inline/embedded snippet, or when the paid Neighborhood Explorer is present.
   function popupShouldStepAside() {
-    return inlinePresent() || neighborhoodExplorerPresent();
+    if (neighborhoodExplorerPresent()) return true;
+    if (inlinePresent() && !allowPopupWithInline()) return true;
+    return false;
   }
 
   // -------------------------------------------------------------------------
@@ -765,8 +775,13 @@
     resolveConfig(anchor, apiBase).then(function (config) {
       if (!config) return;
       if (config.disabledReason) { console.info("[Dream Schools Explorer] Disabled by server (" + config.disabledReason + ")."); return; }
-      if (container) initInline(container, config);
-      else initPopup(config);
+      if (container) {
+        initInline(container, config);
+        // Showcase / partner pages can opt into popup + embed on the same page.
+        if (allowPopupWithInline()) initPopup(config);
+      } else {
+        initPopup(config);
+      }
     }).catch(function (err) {
       console.warn("[Dream Schools Explorer] Failed to initialize.", err);
     });

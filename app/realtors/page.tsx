@@ -117,10 +117,16 @@ export default function RealtorsPage() {
             Install on My Site
           </a>
           <a
+            href="/realestatewebsitedemo"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-brand-600 px-6 py-3 text-sm font-bold text-brand-700 transition hover:bg-brand-50"
+          >
+            See School Explorer on a demo site
+          </a>
+          <a
             href={NEIGHBORHOOD_DEMO_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-brand-600 px-6 py-3 text-sm font-bold text-brand-700 transition hover:bg-brand-50"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
           >
             See the Neighborhood Explorer in Action
           </a>

@@ -44,6 +44,8 @@ as traffic grows**.
   - Full requires Fair Housing warning + **I agree** (cookie + timestamp, ~180 days).
   - Same unlock control on school detail next to the Diversity Index (website only; not embed/popup).
   - Clear stored addresses; expanded Data sources with attribution; removed custom-weights “soon”.
+- [x] **Fake brokerage demo site** — `/realestatewebsitedemo` (listings with popup;
+      neighborhoods with popup + embed), using DN Realty sample data.
 - [ ] Optional later: font-size / accessibility in hamburger; Terms & Privacy shortcuts.
 
 ## Priority
