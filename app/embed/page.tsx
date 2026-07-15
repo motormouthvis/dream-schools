@@ -497,9 +497,6 @@ export default function EmbedExplorer() {
   }
 
   const resolvedCityState = data ? cityState(data.geocode.matchedAddress, data.district.state) : "";
-  const bootLabel = address.trim()
-    ? `Looking up schools near ${address.split(",")[0].trim()}…`
-    : "Looking up schools…";
 
   const SearchField = (
     <div className="relative flex-1">
