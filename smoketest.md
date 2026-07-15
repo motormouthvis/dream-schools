@@ -223,25 +223,18 @@ Look for:
 Escalate if fallback alerts fire, 5xx spikes, or autocomplete quality drops.
 
 **B. Short customer runbook**  
-A one-pager (email or Notion is fine) you hand the customer so they are not stuck.
-Minimum contents:
-
-1. App login URL: `https://app.dreamneighborhoodschools.com/login`  
-2. How to authorize their domain (Configure Explorer)  
-3. Install snippets (popup + embed) — from `/installation` or `/installation/partners`  
-4. Where to see usage / upgrade requests  
-5. Who to contact (you) if embed shows disabled or domains conflict  
-6. Partners only: how revenue share / realtor invites work  
+Handout lives in the repo: **`CUSTOMER_RUNBOOK.md`**.  
+Copy/paste into email or Notion on Day 0. Covers login, authorize domain, install
+snippets, usage / Upgrade Requests, and who to contact if the embed is disabled.
 
 **How to do it (ops checklist)**
 
-Day 0 (go-live): send runbook; open `/server` once after first traffic.  
+Day 0 (go-live): send `CUSTOMER_RUNBOOK.md`; open `/server` once after first traffic.  
 Days 1–7: open `/server` once/day; note anything odd.  
 After week 1: drop to as-needed unless alerts fire.
 
 **Pass**  
-You have a runbook ready to send, and you know `/server` is the health pane for
-week 1.
+Runbook sent (or ready), and you know `/server` is the health pane for week 1.
 
 ---
 

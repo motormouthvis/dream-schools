@@ -14,7 +14,10 @@ as traffic grows**.
       independent realtor. Reminder/offer emails sent via API (`sent:true`).
       **Bug fixed during smoke:** self-delete now disables embed (matched admin disable).
 - [ ] Manual spot-checks in `smoketest.md`: real-inbox email, Turnstile signup/login,
-      `/parents` deep link + Fair Housing hamburger, week-1 `/server` + customer runbook.
+      week-1 `/server` watch.
+- [x] Customer runbook one-pager — `CUSTOMER_RUNBOOK.md` (login, authorize domain,
+      install snippets, usage/upgrade requests, who to ping if embed is disabled).
+- [x] `/parents` deep link + Fair Housing hamburger (I-agree gate) — verified / shipped.
 
 ### Nice-to-have (not blockers at low volume)
 - [ ] Uptime check on www + app; optional Sentry; Heroku 5xx/memory alerts.
