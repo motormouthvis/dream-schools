@@ -1,0 +1,50 @@
+/**
+ * The 38 hyperlocal Neighborhood Explorer insights.
+ * Shared by the admin upsell card and the popup/embed upgrade overlay.
+ */
+export const NEIGHBORHOOD_INSIGHTS = [
+  "Neighborhood Map",
+  "Median Home Price",
+  "Median Rent",
+  "Price / Sq Ft",
+  "Housing Inventory",
+  "Days on Market",
+  "Home Price Trend",
+  "Homeownership Rate",
+  "High-Density Housing %",
+  "Mobile Homes %",
+  "Household Income",
+  "Per Capita Income",
+  "Employment Rate",
+  "HS Graduation Rate",
+  "College Degree %",
+  "Neighborhood Population",
+  "City Population",
+  "Median Age",
+  "% Under 18",
+  "Gender Mix",
+  "% Born in USA",
+  "English Fluency",
+  "Walk Score",
+  "Bike Score",
+  "Commute Calculator",
+  "Drive Commute Times",
+  "Transit Commute Times",
+  "Walk Commute Times",
+  "Bike Commute Times",
+  "Schools",
+  "Grocery Stores",
+  "Restaurants",
+  "Shopping Centers",
+  "Cafes",
+  "Nightlife",
+  "Gyms",
+  "Parks",
+  "Hospitals",
+] as const;
+
+export const INSIGHT_ROWS = [
+  NEIGHBORHOOD_INSIGHTS.filter((_, i) => i % 3 === 0),
+  NEIGHBORHOOD_INSIGHTS.filter((_, i) => i % 3 === 1),
+  NEIGHBORHOOD_INSIGHTS.filter((_, i) => i % 3 === 2),
+];

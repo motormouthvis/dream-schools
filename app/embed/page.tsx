@@ -4,8 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SchoolsTab } from "@/components/SchoolsTab";
 import { SchoolDetailModal } from "@/components/SchoolDetailModal";
 import { SchoolhouseMark } from "@/components/Logo";
+import { InsightsMarquee } from "@/components/InsightsMarquee";
 import { getRecent, addRecent, removeRecent, type RecentSearch } from "@/lib/recent";
 import { TERMS_URL, PRIVACY_URL } from "@/lib/legalLinks";
+import { NEIGHBORHOOD_INSIGHTS } from "@/lib/neighborhoodInsights";
 import type { LookupResult } from "@/lib/types";
 
 // Chrome-less "Dream Neighborhood School Explorer" served for the embeddable
@@ -898,13 +900,24 @@ function UpgradePrompt({
   onRequest: () => void;
 }) {
   const buttonText = providerName ? `Request full access from ${providerName}` : "Request full access";
+  const count = NEIGHBORHOOD_INSIGHTS.length;
   return (
     <div className="fixed inset-0 z-50 flex bg-white">
       <div className="flex min-h-0 w-full flex-col">
-        <header className="flex shrink-0 items-center justify-between px-4 py-2 text-white" style={{ backgroundColor: accent }}>
+        <header
+          className="flex shrink-0 items-center justify-between px-4 py-2.5 text-white"
+          style={{ backgroundColor: accent }}
+        >
           <div className="flex min-w-0 items-center gap-2">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20">{PIN_SVG}</span>
-            <span className="truncate text-sm font-bold">Neighborhood Explorer</span>
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20">
+              {PIN_SVG}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold leading-tight">Neighborhood Explorer</p>
+              <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-white/80">
+                Upgrade · the full picture
+              </p>
+            </div>
           </div>
           <button
             onClick={onDismiss}
@@ -914,53 +927,79 @@ function UpgradePrompt({
             ×
           </button>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-b from-white via-lime-50/40 to-white px-5 py-5">
-          <div className="relative overflow-hidden rounded-3xl ring-1 ring-inset ring-brand-600/10">
+
+        <div className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-b from-brand-50/80 via-white to-lime-50/50">
+          {/* Hero */}
+          <div className="relative overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/hero-banner.png" alt="Neighborhood homes near schools" className="h-[180px] w-full object-cover object-right" />
-            <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/35" />
+            <img
+              src="/hero-banner.png"
+              alt="Neighborhood homes near schools"
+              className="h-[150px] w-full object-cover object-right sm:h-[170px]"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-white via-white/92 to-white/30" />
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0"
-              style={{ background: "radial-gradient(220px 170px at top left, rgba(180,220,100,0.25), rgba(180,220,100,0) 72%)" }}
+              style={{
+                background:
+                  "radial-gradient(240px 180px at top left, rgba(180,220,100,0.28), rgba(180,220,100,0) 70%)",
+              }}
             />
-            <div className="absolute inset-0 flex flex-col justify-center px-6">
-              <h2 className="max-w-xs text-2xl font-extrabold leading-tight text-ink-900">
+            <div className="absolute inset-0 flex flex-col justify-center px-5 sm:px-6">
+              <span className="inline-flex w-fit items-center gap-1 rounded-full bg-brand-600/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-800 ring-1 ring-inset ring-brand-600/20">
+                ★ {count} hyperlocal insights
+              </span>
+              <h2 className="mt-2 max-w-[16rem] text-xl font-extrabold leading-tight tracking-tight text-ink-900 sm:max-w-sm sm:text-2xl">
                 There&apos;s more to this neighborhood
               </h2>
-              <p className="mt-2 max-w-xs text-sm font-semibold leading-snug text-slate-700">
-                Schools are just the start — see 38 hyperlocal insights.
+              <p className="mt-1.5 max-w-xs text-xs font-semibold leading-snug text-slate-700 sm:text-sm">
+                Schools are just the start. Unlock the full Neighborhood Explorer on this listing.
               </p>
             </div>
           </div>
 
-          <div className="mt-5 space-y-2.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            {[
-              "Home prices & market trends",
-              "Commute times & walkability",
-              "Safety, dining & lifestyle",
-            ].map((t) => (
-              <div key={t} className="flex items-start gap-2 text-sm text-slate-700">
-                <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ backgroundColor: accent }}>
-                  ✓
-                </span>
-                <span>{t}</span>
-              </div>
-            ))}
+          {/* Rolling insights — same motion language as the admin upsell card */}
+          <div className="px-0 pb-1 pt-4">
+            <p className="mb-2.5 px-5 text-[11px] font-bold uppercase tracking-[0.14em] text-brand-800/80">
+              Everything buyers ask about
+            </p>
+            <InsightsMarquee compact className="px-0" />
           </div>
 
-          <div className="mt-5 space-y-2">
-            <button
-              onClick={onRequest}
-              disabled={requested}
-              className="w-full rounded-xl px-4 py-3 text-sm font-extrabold text-white shadow-sm transition disabled:opacity-70"
-              style={{ backgroundColor: accent }}
-            >
-              {requested ? "Request sent" : buttonText}
-            </button>
-            <button onClick={onDismiss} className="w-full py-2 text-xs font-semibold text-slate-400 hover:text-slate-600">
-              Maybe later
-            </button>
+          <div className="space-y-4 px-5 pb-6 pt-4">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {[
+                { value: String(count), label: "Insights" },
+                { value: "1 click", label: "On every listing" },
+                { value: "Stay", label: "On your site" },
+              ].map((s) => (
+                <div
+                  key={s.label}
+                  className="rounded-2xl border border-brand-200/80 bg-white/90 px-2 py-2.5 shadow-sm"
+                >
+                  <p className="text-sm font-extrabold text-brand-800">{s.value}</p>
+                  <p className="text-[10px] font-semibold text-slate-500">{s.label}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-2">
+              <button
+                onClick={onRequest}
+                disabled={requested}
+                className="w-full rounded-xl px-4 py-3 text-sm font-extrabold text-white shadow-md transition disabled:opacity-70"
+                style={{ backgroundColor: accent }}
+              >
+                {requested ? "Request sent — thank you!" : buttonText}
+              </button>
+              <button
+                onClick={onDismiss}
+                className="w-full py-2 text-xs font-semibold text-slate-400 hover:text-slate-600"
+              >
+                Maybe later
+              </button>
+            </div>
           </div>
         </div>
       </div>
