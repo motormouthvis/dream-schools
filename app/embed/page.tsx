@@ -899,105 +899,82 @@ function UpgradePrompt({
   onDismiss: () => void;
   onRequest: () => void;
 }) {
-  const buttonText = providerName ? `Request full access from ${providerName}` : "Request full access";
+  // Buyer-facing CTA — avoid repeating long provider/admin names in the button.
+  const buttonText = providerName
+    ? `Ask ${shortProviderName(providerName)} for full access`
+    : "Request full access";
   const count = NEIGHBORHOOD_INSIGHTS.length;
+
   return (
-    <div className="fixed inset-0 z-50 flex bg-white">
-      <div className="flex min-h-0 w-full flex-col">
-        <header
-          className="flex shrink-0 items-center justify-between px-4 py-2.5 text-white"
-          style={{ backgroundColor: accent }}
+    <div className="fixed inset-0 z-50 flex bg-[#f7faf6]">
+      <div className="relative flex min-h-0 w-full flex-col">
+        {/* Single close control — no second brand header (popup chrome already brands it). */}
+        <button
+          onClick={onDismiss}
+          aria-label="Close"
+          className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-xl leading-none text-slate-500 shadow-sm ring-1 ring-slate-200/80 transition hover:bg-white hover:text-slate-800"
         >
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20">
-              {PIN_SVG}
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold leading-tight">Neighborhood Explorer</p>
-              <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-white/80">
-                Upgrade · the full picture
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onDismiss}
-            aria-label="Close and return to the page"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/25 text-2xl leading-none ring-1 ring-inset ring-white/40 hover:bg-white/40"
-          >
-            ×
-          </button>
-        </header>
+          ×
+        </button>
 
-        <div className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-b from-brand-50/80 via-white to-lime-50/50">
-          {/* Hero */}
-          <div className="relative overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/hero-banner.png"
-              alt="Neighborhood homes near schools"
-              className="h-[150px] w-full object-cover object-right sm:h-[170px]"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-white via-white/92 to-white/30" />
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0"
-              style={{
-                background:
-                  "radial-gradient(240px 180px at top left, rgba(180,220,100,0.28), rgba(180,220,100,0) 70%)",
-              }}
-            />
-            <div className="absolute inset-0 flex flex-col justify-center px-5 sm:px-6">
-              <span className="inline-flex w-fit items-center gap-1 rounded-full bg-brand-600/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-800 ring-1 ring-inset ring-brand-600/20">
-                ★ {count} hyperlocal insights
-              </span>
-              <h2 className="mt-2 max-w-[16rem] text-xl font-extrabold leading-tight tracking-tight text-ink-900 sm:max-w-sm sm:text-2xl">
-                There&apos;s more to this neighborhood
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto flex min-h-full max-w-md flex-col px-5 pb-6 pt-5 sm:px-6 sm:pt-6">
+            {/* Compact hero — brand once, one headline, one line */}
+            <div className="pr-10">
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#2f6b3a]">
+                Neighborhood Explorer
+              </p>
+              <h2 className="mt-2 text-[1.65rem] font-extrabold leading-[1.15] tracking-tight text-ink-900 sm:text-3xl">
+                See the full picture before you tour
               </h2>
-              <p className="mt-1.5 max-w-xs text-xs font-semibold leading-snug text-slate-700 sm:text-sm">
-                Schools are just the start. Unlock the full Neighborhood Explorer on this listing.
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Schools are just the start. Get{" "}
+                <strong className="font-bold text-slate-800">{count} neighborhood insights</strong>{" "}
+                for this area — prices, commute, walkability, lifestyle, and more.
               </p>
             </div>
-          </div>
 
-          {/* Rolling insights — same motion language as the admin upsell card */}
-          <div className="px-0 pb-1 pt-4">
-            <p className="mb-2.5 px-5 text-[11px] font-bold uppercase tracking-[0.14em] text-brand-800/80">
-              Everything buyers ask about
-            </p>
-            <InsightsMarquee compact className="px-0" />
-          </div>
-
-          <div className="space-y-4 px-5 pb-6 pt-4">
-            <div className="grid grid-cols-3 gap-2 text-center">
-              {[
-                { value: String(count), label: "Insights" },
-                { value: "1 click", label: "On every listing" },
-                { value: "Stay", label: "On your site" },
-              ].map((s) => (
-                <div
-                  key={s.label}
-                  className="rounded-2xl border border-brand-200/80 bg-white/90 px-2 py-2.5 shadow-sm"
-                >
-                  <p className="text-sm font-extrabold text-brand-800">{s.value}</p>
-                  <p className="text-[10px] font-semibold text-slate-500">{s.label}</p>
-                </div>
-              ))}
+            {/* Contained marquee — not full-bleed */}
+            <div className="mt-5 overflow-hidden rounded-2xl border border-[#d7e4c8] bg-white p-3 shadow-sm sm:p-3.5">
+              <p className="mb-2.5 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-[#49660f]/80">
+                {count} insights included
+              </p>
+              <InsightsMarquee compact fadeEdges />
             </div>
 
-            <div className="space-y-2">
+            {/* Buyer benefits — not realtor marketing */}
+            <ul className="mt-5 space-y-2.5">
+              {[
+                "Compare home prices and market trends on this block",
+                "Check commute times to work, school, and errands",
+                "Explore walkability, parks, dining, and everyday conveniences",
+              ].map((t) => (
+                <li key={t} className="flex items-start gap-2.5 text-sm leading-snug text-slate-700">
+                  <span
+                    className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                    style={{ backgroundColor: accent }}
+                  >
+                    ✓
+                  </span>
+                  <span>{t}</span>
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-auto space-y-2 pt-6">
               <button
                 onClick={onRequest}
                 disabled={requested}
-                className="w-full rounded-xl px-4 py-3 text-sm font-extrabold text-white shadow-md transition disabled:opacity-70"
+                className="w-full rounded-xl px-4 py-3.5 text-sm font-extrabold text-white shadow-md transition hover:brightness-105 disabled:opacity-70"
                 style={{ backgroundColor: accent }}
               >
                 {requested ? "Request sent — thank you!" : buttonText}
               </button>
               <button
                 onClick={onDismiss}
-                className="w-full py-2 text-xs font-semibold text-slate-400 hover:text-slate-600"
+                className="w-full py-2 text-xs font-semibold text-slate-400 transition hover:text-slate-600"
               >
-                Maybe later
+                Continue with schools only
               </button>
             </div>
           </div>
@@ -1005,4 +982,18 @@ function UpgradePrompt({
       </div>
     </div>
   );
+}
+
+/** Shorten noisy provider labels like "Dream Neighborhood Admin" for the CTA. */
+function shortProviderName(name: string): string {
+  const cleaned = name.replace(/\s+/g, " ").trim();
+  if (!cleaned) return "your agent";
+  // Drop trailing role words that read oddly in “Ask X for full access”
+  const withoutRole = cleaned.replace(/\s+(Admin|Administrator|Owner)$/i, "").trim();
+  if (!withoutRole || /^(dream\s*neighborhood(\s*schools)?)$/i.test(withoutRole)) {
+    return "your agent";
+  }
+  // Keep it short for the button
+  if (withoutRole.length > 28) return `${withoutRole.slice(0, 26).trim()}…`;
+  return withoutRole;
 }

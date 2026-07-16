@@ -10,20 +10,23 @@ export function InsightsMarquee({
   className = "",
   pillClassName,
   compact = false,
+  fadeEdges = false,
 }: {
   className?: string;
   /** Override pill styling (defaults match admin lime pills). */
   pillClassName?: string;
   compact?: boolean;
+  /** Soft left/right fades so the strip doesn't feel wall-to-wall. */
+  fadeEdges?: boolean;
 }) {
   const pill =
     pillClassName ||
     (compact
-      ? "mr-1.5 shrink-0 rounded-full bg-lime2-400/30 px-2 py-0.5 text-[10px] font-semibold text-[#3f5a0c] ring-1 ring-inset ring-lime2-500/30"
+      ? "mr-1.5 shrink-0 rounded-full bg-[#e8f0d4] px-2.5 py-1 text-[10px] font-semibold text-[#3f5a0c]"
       : "mr-1.5 shrink-0 rounded-full bg-lime2-400/25 px-2.5 py-1 text-[11px] font-semibold text-[#49660f] ring-1 ring-inset ring-lime2-500/25");
 
   return (
-    <div className={`space-y-1.5 ${className}`}>
+    <div className={`relative ${className}`}>
       <style>{`
         @keyframes dse-insights-marquee {
           from { transform: translateX(0); }
@@ -43,20 +46,34 @@ export function InsightsMarquee({
           .dse-insights-marquee-track { animation: none !important; }
         }
       `}</style>
-      {INSIGHT_ROWS.map((row, ri) => (
-        <div key={ri} className="dse-insights-marquee">
-          <div
-            className="dse-insights-marquee-track"
-            style={{ animationDuration: `${42 + ri * 8}s` }}
-          >
-            {[...row, ...row].map((t, i) => (
-              <span key={`${t}-${i}`} className={pill}>
-                {t}
-              </span>
-            ))}
+      <div className={`space-y-1.5 ${fadeEdges ? "overflow-hidden" : ""}`}>
+        {INSIGHT_ROWS.map((row, ri) => (
+          <div key={ri} className="dse-insights-marquee">
+            <div
+              className="dse-insights-marquee-track"
+              style={{ animationDuration: `${38 + ri * 7}s` }}
+            >
+              {[...row, ...row].map((t, i) => (
+                <span key={`${t}-${i}`} className={pill}>
+                  {t}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
+      {fadeEdges && (
+        <>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-white to-transparent sm:w-10"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white to-transparent sm:w-10"
+          />
+        </>
+      )}
     </div>
   );
 }
