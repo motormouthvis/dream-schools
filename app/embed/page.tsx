@@ -56,6 +56,11 @@ function peekAutoTarget(): { address: string; hasTarget: boolean } {
   return { address, hasTarget: Boolean(address || hasCoords) };
 }
 
+function peekIsInline(): boolean {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).get("mode") === "inline";
+}
+
 function readParams(): EmbedParams {
   const p = new URLSearchParams(window.location.search);
   const num = (v: string | null) => {
@@ -306,23 +311,27 @@ export default function EmbedExplorer() {
   //    recent-searches dropdown, and a viewport-sized "expanded" size for results.
   //    Auto-boot uses "expanded" so the panel doesn't flash home→results size.
   useEffect(() => {
-    if (isInline) {
+    const inline = isInline || peekIsInline();
+    if (inline) {
       // Measure the FULL page including the recents/autocomplete dropdowns, which
       // are absolutely positioned below the search box. We must NOT clip overflow
       // (that would drop the dropdown from scrollHeight); scrolling=no on the
       // iframe keeps it scrollbar-free while the SDK grows it to fit.
       const report = () => {
-        const h = Math.ceil(document.body.scrollHeight) + 2;
+        // Floor keeps the parent iframe from collapsing to a white sliver during auto-boot.
+        const h = Math.max(540, Math.ceil(document.body.scrollHeight) + 2);
         if (h > 0) window.parent?.postMessage?.({ type: "dse:height", height: h }, "*");
       };
       report();
       requestAnimationFrame(report);
       const t = setTimeout(report, 60);
+      const t2 = setTimeout(report, 400);
       const ro = new ResizeObserver(report);
       ro.observe(document.body);
       window.addEventListener("resize", report);
       return () => {
         clearTimeout(t);
+        clearTimeout(t2);
         ro.disconnect();
         window.removeEventListener("resize", report);
       };
@@ -606,9 +615,10 @@ export default function EmbedExplorer() {
       : "Looking up schools…";
     const showBoot = peek.hasTarget || screen === "boot";
 
+    const inlineBoot = isInline || peekIsInline();
     return (
       <main
-        className={`flex flex-col bg-white ${mounted && !isInline ? "h-screen overflow-hidden" : "min-h-[220px]"}`}
+        className={`flex flex-col bg-white ${mounted && !inlineBoot ? "h-screen overflow-hidden" : "min-h-[540px]"}`}
         aria-busy="true"
       >
         {mounted && isInline && (

@@ -127,13 +127,15 @@ export default async function NeighborhoodDetailPage({
         </section>
 
         <section className="dn-container pb-16">
-          <div className="overflow-hidden rounded-[1.75rem] border border-[rgba(15,28,25,0.08)] bg-white shadow-[var(--dn-shadow)]">
-            <h2 className="border-b border-[rgba(15,28,25,0.08)] bg-[rgba(243,246,245,0.9)] px-6 py-4 text-center font-[family-name:var(--font-dn-display)] text-xl text-[var(--dn-ink)] sm:text-2xl">
-              School Explorer — embedded
-            </h2>
-            <div className="p-3 sm:p-5">
-              <SchoolExplorerEmbed address={address} withPopup />
-            </div>
+          <h2 className="text-center font-[family-name:var(--font-dn-display)] text-2xl text-[var(--dn-ink)]">
+            School Explorer — embedded
+          </h2>
+          <p className="mx-auto mt-2 max-w-xl text-center text-sm text-[var(--dn-muted)]">
+            Inline embed for this neighborhood (popup is also available in the corner).
+          </p>
+          {/* Frameless: avoid a card-inside-a-card; the iframe supplies its own chrome. */}
+          <div className="mx-auto mt-6 max-w-[920px] overflow-hidden rounded-2xl border border-[rgba(15,28,25,0.08)] bg-white shadow-[var(--dn-shadow)]">
+            <SchoolExplorerEmbed address={address} withPopup frameless />
           </div>
         </section>
 

@@ -707,6 +707,24 @@
 
   function initInline(container, config) {
     if (!config.apiBase) return;
+    // Idempotent: React/Next client navigations may call ensureInline again.
+    if (container.getAttribute("data-dse-mounted") === "1") {
+      var existing = container.querySelector("iframe.dse-inline-iframe");
+      if (existing) {
+        var lat0 = floatAttr(container, "data-lat"), lng0 = floatAttr(container, "data-lng");
+        var addr0 = (container.getAttribute("data-address") || "").trim();
+        if (addr0 || (lat0 != null && lng0 != null)) {
+          var nextSrc = buildIframeUrl(config, { address: addr0, lat: lat0, lon: lng0 }, "inline");
+          // Compare path+query; browsers absolutize iframe.src.
+          var cur = existing.getAttribute("src") || "";
+          if (cur !== nextSrc && existing.src.indexOf(nextSrc) === -1) {
+            existing.src = nextSrc;
+          }
+        }
+      }
+      return;
+    }
+    container.setAttribute("data-dse-mounted", "1");
     if (!document.querySelector("style[data-dse-inline]")) {
       var style = document.createElement("style");
       style.setAttribute("data-dse-inline", "");
@@ -715,6 +733,7 @@
     }
     var lastUrl = location.href;
     var currentIframe = null;
+    var frameless = boolAttr(container, "data-frameless") === true;
 
     // The iframe reports its content height so we can size it to fit (short for
     // the home screen, capped with internal scroll for long lists).
@@ -723,7 +742,8 @@
       if (e.data && e.data.type === "dse:height") {
         var h = Math.max(200, Math.min(1400, parseInt(e.data.height, 10) || 0));
         currentIframe.style.height = h + "px";
-        currentIframe.style.minHeight = "0px";
+        // Keep a sensible floor so auto-boot loaders don't collapse to a white sliver.
+        currentIframe.style.minHeight = Math.max(h, 320) + "px";
       }
     });
 
@@ -736,24 +756,29 @@
       iframe.setAttribute("allowfullscreen", "");
       iframe.setAttribute("scrolling", "no");
       iframe.setAttribute("title", "Dream Neighborhood School Explorer");
-      iframe.setAttribute("loading", "lazy");
-      // Width: default caps at 1200px full-width; a partner can set
-      // data-max-width="720" (px) on the container to make it narrower.
+      // Eager: lazy deferral left the demo embed blank until scroll/hard refresh.
+      iframe.setAttribute("loading", "eager");
+      // Width: default caps at 840px; partner can set data-max-width="720" (px).
       var maxW = intAttr(container, "data-max-width", 280);
       var maxWidthCss = maxW != null ? maxW + "px" : "840px";
-      var base = "display:block;width:100%;max-width:" + maxWidthCss + ";margin:20px auto;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color-scheme:light;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.08)";
-      iframe.style.cssText = config.inlineMinHeightExplicit ? base + ";min-height:" + config.inlineMinHeight + "px" : base;
+      var chrome = frameless
+        ? "display:block;width:100%;max-width:" + maxWidthCss + ";margin:0;border:0;border-radius:0;background:#fff;color-scheme:light;overflow:hidden;box-shadow:none"
+        : "display:block;width:100%;max-width:" + maxWidthCss + ";margin:20px auto;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color-scheme:light;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.08)";
+      iframe.style.cssText = config.inlineMinHeightExplicit
+        ? chrome + ";min-height:" + config.inlineMinHeight + "px"
+        : chrome + ";min-height:" + DEFAULTS.inlineMinHeight + "px";
       container.appendChild(iframe);
 
       // data-address / data-lat / data-lng on the container bypass scraping.
       var lat = floatAttr(container, "data-lat"), lng = floatAttr(container, "data-lng");
       var dataAddr = (container.getAttribute("data-address") || "").trim();
-      if (lat != null && lng != null) {
+      // Set src immediately when the host page already knows the address — do not
+      // leave a blank iframe while geocode/scrape runs.
+      if (dataAddr || (lat != null && lng != null)) {
         iframe.src = buildIframeUrl(config, { address: dataAddr, lat: lat, lon: lng }, "inline");
         return;
       }
-      var cfg = dataAddr ? Object.assign({}, config, { defaultAddress: dataAddr }) : config;
-      geocodePage(cfg).then(function (coords) {
+      geocodePage(config).then(function (coords) {
         iframe.src = buildIframeUrl(config, coords, "inline");
       });
     }
@@ -775,12 +800,49 @@
     resolveConfig(anchor, apiBase).then(function (config) {
       if (!config) return;
       if (config.disabledReason) { console.info("[Dream Schools Explorer] Disabled by server (" + config.disabledReason + ")."); return; }
-      if (container) {
-        initInline(container, config);
-        // Showcase / partner pages can opt into popup + embed on the same page.
-        if (allowPopupWithInline()) initPopup(config);
-      } else {
+
+      var popupStarted = false;
+
+      function ensureInline() {
+        var el = findContainer();
+        if (!el) return false;
+        initInline(el, config);
+        return true;
+      }
+
+      function ensurePopup() {
+        if (popupStarted) return;
+        // Popup-only pages, or pages that opt into popup + embed together.
+        if (findContainer() && !allowPopupWithInline()) return;
+        popupStarted = true;
         initPopup(config);
+      }
+
+      if (findContainer()) {
+        ensureInline();
+        if (allowPopupWithInline()) ensurePopup();
+      } else {
+        ensurePopup();
+      }
+
+      // Next.js / SPA: script often boots on a page without #dream-schools-explorer,
+      // then the container appears after client navigation. Mount when it shows up.
+      var lateTimer = null;
+      function onMaybeInline() {
+        var el = findContainer();
+        if (!el) return;
+        if (el.querySelector("iframe.dse-inline-iframe")) return;
+        ensureInline();
+        if (allowPopupWithInline()) ensurePopup();
+      }
+      function scheduleMaybeInline() {
+        if (lateTimer) clearTimeout(lateTimer);
+        lateTimer = setTimeout(onMaybeInline, 50);
+      }
+      watchSpa(scheduleMaybeInline);
+      if (typeof MutationObserver !== "undefined") {
+        var mo = new MutationObserver(scheduleMaybeInline);
+        mo.observe(document.documentElement, { childList: true, subtree: true });
       }
     }).catch(function (err) {
       console.warn("[Dream Schools Explorer] Failed to initialize.", err);
