@@ -48,6 +48,7 @@ export default async function NeighborhoodDetailPage({
   if (!n) notFound();
 
   const address = neighborhoodAnchorAddress(n);
+  const useEmbed = n.explorerMode === "embed";
   const nearby = properties
     .filter(
       (p) =>
@@ -92,8 +93,8 @@ export default async function NeighborhoodDetailPage({
             </nav>
             <h1 className="mt-6 text-4xl text-[var(--dn-ink)] sm:text-5xl">{n.canonicalName}</h1>
             <p className="mt-3 max-w-2xl text-[var(--dn-ink-soft)]">
-              On-page neighborhood context plus School Explorer — floating popup in the corner and an
-              embedded panel below, anchored to {n.shortLabel}.
+              A closer look at living in {n.shortLabel} — lifestyle, character, and the schools that
+              shape daily life here.
             </p>
             <div className="mt-8 overflow-hidden rounded-[1.25rem] border border-[rgba(15,28,25,0.08)] shadow-[var(--dn-shadow)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -107,16 +108,7 @@ export default async function NeighborhoodDetailPage({
         </div>
 
         <section className="dn-container py-10">
-          <div className="dn-callout">
-            <p className="text-sm font-bold text-[var(--dn-forest)]">Popup + embed on this page</p>
-            <p className="mt-1 text-sm text-[var(--dn-ink-soft)]">
-              The corner button is the same popup used on listings. The panel below is the inline embed
-              (`#dream-schools-explorer`) with <code className="text-xs">data-address=&quot;{address}&quot;</code>{" "}
-              and <code className="text-xs">data-with-popup=&quot;true&quot;</code>.
-            </p>
-          </div>
-
-          <div className="mx-auto mt-10 max-w-3xl">
+          <div className="mx-auto max-w-3xl">
             <h2 className="text-2xl text-[var(--dn-ink)]">About this area</h2>
             <div className="mt-5 space-y-4 text-base leading-relaxed text-[var(--dn-ink-soft)]">
               {n.description.map((para) => (
@@ -126,18 +118,19 @@ export default async function NeighborhoodDetailPage({
           </div>
         </section>
 
-        <section className="dn-container pb-16">
-          <h2 className="text-center font-[family-name:var(--font-dn-display)] text-2xl text-[var(--dn-ink)]">
-            School Explorer — embedded
-          </h2>
-          <p className="mx-auto mt-2 max-w-xl text-center text-sm text-[var(--dn-muted)]">
-            Inline embed for this neighborhood (popup is also available in the corner).
-          </p>
-          {/* Frameless: avoid a card-inside-a-card; the iframe supplies its own chrome. */}
-          <div className="mx-auto mt-6 max-w-[920px] overflow-hidden rounded-2xl border border-[rgba(15,28,25,0.08)] bg-white shadow-[var(--dn-shadow)]">
-            <SchoolExplorerEmbed address={address} withPopup frameless />
-          </div>
-        </section>
+        {useEmbed && (
+          <section className="dn-container pb-16">
+            <h2 className="text-center font-[family-name:var(--font-dn-display)] text-2xl text-[var(--dn-ink)]">
+              Schools in {n.shortLabel}
+            </h2>
+            <p className="mx-auto mt-2 max-w-xl text-center text-sm text-[var(--dn-muted)]">
+              Ratings, test scores, and safety for schools near this neighborhood.
+            </p>
+            <div className="mx-auto mt-6 max-w-[920px] overflow-hidden rounded-2xl border border-[rgba(15,28,25,0.08)] bg-white shadow-[var(--dn-shadow)]">
+              <SchoolExplorerEmbed address={address} frameless />
+            </div>
+          </section>
+        )}
 
         {nearby.length > 0 && (
           <section className="dn-container pb-16">

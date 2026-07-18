@@ -130,14 +130,6 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 
         <div className="dn-container grid gap-10 py-12 lg:grid-cols-[1fr_320px]">
           <div>
-            <div className="dn-callout mb-8">
-              <p className="text-sm font-bold text-[var(--dn-forest)]">School Explorer popup is live on this page</p>
-              <p className="mt-1 text-sm text-[var(--dn-ink-soft)]">
-                Look for the floating button in the corner — it detected{" "}
-                <strong>{p.address}</strong> from this listing&apos;s address markup.
-              </p>
-            </div>
-
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               {facts.map((f) => (
                 <div key={f.label} className="rounded-2xl border border-[rgba(15,28,25,0.08)] bg-white/90 p-4">

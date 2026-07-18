@@ -35,17 +35,12 @@ export function DemoChrome({ children }: { children: React.ReactNode }) {
       <div className="dn-banner">
         <div className="dn-container flex flex-wrap items-center justify-between gap-2 py-2.5">
           <p>
-            Demo brokerage — fake listings showcasing{" "}
-            <strong className="text-white">School Explorer</strong> popup &amp; embed
+            Sample brokerage site · <strong className="text-white">DN Realty</strong>
           </p>
           <p className="text-[12px] font-medium opacity-90">
-            <Link href="/installation">Install on your site</Link>
+            <Link href="/installation">Add this to your site</Link>
             {" · "}
             <Link href="/realtors">For realtors</Link>
-            {" · "}
-            <a href="https://dreamneighborhoodrealty.com/" target="_blank" rel="noopener noreferrer">
-              Inspired by DN Realty
-            </a>
           </p>
         </div>
       </div>
@@ -123,8 +118,7 @@ export function DemoChrome({ children }: { children: React.ReactNode }) {
             <p className="font-[family-name:var(--font-dn-display)] text-2xl text-white">{site.name}</p>
             <p className="mt-2 max-w-sm text-sm leading-relaxed opacity-80">{site.tagline}</p>
             <p className="mt-4 text-xs opacity-60">
-              Fictional brokerage for product demos. Not a licensed real estate company. Property data is for
-              illustration; addresses are real so School Explorer can geocode.
+              Sample brokerage site for demonstration. Not a licensed real estate company.
             </p>
           </div>
           <div>
@@ -138,25 +132,22 @@ export function DemoChrome({ children }: { children: React.ReactNode }) {
             </ul>
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--dn-forest-light)]">School Explorer</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--dn-forest-light)]">Connect</p>
             <ul className="mt-3 space-y-2 text-sm">
               <li>
-                <Link href="/installation">Install (1 line of code)</Link>
+                <a href={`tel:${site.phone.replace(/[^\d+]/g, "")}`}>{site.phone}</a>
               </li>
               <li>
-                <Link href="/realtors">For realtors</Link>
+                <a href={`mailto:${site.email}`}>{site.email}</a>
               </li>
               <li>
-                <Link href="/partners">For partners</Link>
-              </li>
-              <li>
-                <Link href="/contact">Contact</Link>
+                <Link href="/contact">Contact Dream Neighborhood</Link>
               </li>
             </ul>
           </div>
         </div>
         <div className="border-t border-white/10 py-4 text-center text-xs opacity-50">
-          © {new Date().getFullYear()} Dream Neighborhood · Demo only
+          © {new Date().getFullYear()} DN Realty · Sample site
         </div>
       </footer>
     </>

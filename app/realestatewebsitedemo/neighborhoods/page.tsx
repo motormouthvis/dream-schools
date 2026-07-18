@@ -6,8 +6,7 @@ import { neighborhoods } from "@/lib/demoRealty/neighborhoods";
 
 export const metadata = {
   title: "Neighborhoods",
-  description:
-    "Demo neighborhood pages with School Explorer popup and inline embed.",
+  description: "Explore Los Angeles neighborhoods with DN Realty — lifestyle, character, and schools.",
 };
 
 export default function NeighborhoodsIndexPage() {
@@ -24,10 +23,10 @@ export default function NeighborhoodsIndexPage() {
         </nav>
         <h1 className="mt-4 text-4xl text-[var(--dn-ink)] sm:text-5xl">Neighborhoods</h1>
         <p className="mt-3 max-w-2xl text-[var(--dn-ink-soft)]">
-          Each neighborhood page shows the <strong>floating popup</strong> and an{" "}
-          <strong>inline School Explorer embed</strong> — the combo realtors use on area guides.
+          From hillside quiet to beach-city energy — find the pocket of Los Angeles that fits how you
+          want to live.
         </p>
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
+        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {neighborhoods.map((n) => (
             <NeighborhoodCard key={n.slug} neighborhood={n} />
           ))}

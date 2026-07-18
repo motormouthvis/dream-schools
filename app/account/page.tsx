@@ -191,26 +191,27 @@ function BusinessProfile({ initialBusinessName }: { initialBusinessName: string 
   }
 
   return (
-    <Card title="Realtor Name">
+    <Card title="White Label — Realtor Name">
       <form onSubmit={save} className="space-y-3">
         <div>
           <label className="block text-xs font-bold text-slate-600">
-            Name used for personalization
+            Your white-label name
           </label>
           <input
             className={inp}
             value={businessName}
             onChange={(e) => setBusinessName(e.target.value)}
-            placeholder="Coastal Realty or Jane Doe"
+            placeholder="Realty Candy"
           />
           <p className="mt-1 text-[11px] text-slate-400">
-            Used in upgrade prompts and messages when available.
+            White-label School Explorer with your brokerage or agent name. Shown in upgrade prompts
+            and personalized messages when available.
           </p>
         </div>
         {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
-        {done && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">Business name saved ✓</p>}
+        {done && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">White-label name saved ✓</p>}
         <button type="submit" disabled={busy} className={btn}>
-          {busy ? "Saving…" : "Save business name"}
+          {busy ? "Saving…" : "Save white-label name"}
         </button>
       </form>
     </Card>

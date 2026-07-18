@@ -1,8 +1,9 @@
 import Script from "next/script";
 
 /**
- * Loads School Explorer. Listing pages: popup only.
- * Neighborhood pages: pass `withPopup` + render `#dream-schools-explorer` so both mount.
+ * Loads School Explorer.
+ * - Listing / popup neighborhood pages: script only (floating popup).
+ * - Embed neighborhood pages: also render `#dream-schools-explorer` (no popup).
  */
 export function SchoolExplorerScript() {
   // Cache-bust so partners/demos pick up SPA mount fixes without a stale CDN/browser cache.

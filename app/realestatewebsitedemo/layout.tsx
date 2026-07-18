@@ -18,8 +18,8 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: {
-    default: `${site.name} — School Explorer demo`,
-    template: `%s | ${site.name} demo`,
+    default: `${site.name} — Find your home with confidence`,
+    template: `%s | ${site.name}`,
   },
   description: site.description,
   robots: { index: false, follow: false },
