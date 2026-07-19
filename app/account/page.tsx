@@ -201,7 +201,7 @@ function BusinessProfile({ initialBusinessName }: { initialBusinessName: string 
             className={inp}
             value={businessName}
             onChange={(e) => setBusinessName(e.target.value)}
-            placeholder="Realty Candy"
+            placeholder="your company name"
           />
           <p className="mt-1 text-[11px] text-slate-400">
             White-label School Explorer with your brokerage or agent name. Shown in upgrade prompts
