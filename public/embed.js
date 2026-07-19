@@ -371,29 +371,64 @@
     return fromUrl(location.href);
   }
 
+  function currentScrape(config) {
+    try { return scrapeAddress({ searchPageContent: config.searchPageContent }) || ""; }
+    catch (e) { return ""; }
+  }
+
+  // On SPA route changes the SDK is notified at pushState time — BEFORE the
+  // framework has committed the new DOM and updated <title>/JSON-LD/microdata.
+  // Scraping then yields the previous page's address (or nothing, forcing the
+  // default-address fallback). Poll briefly until the page reflects the new
+  // route: the title changes, a new address appears, or we hit the timeout.
+  function waitForRouteSettle(config, prevAddr, prevTitle) {
+    return new Promise(function (resolve) {
+      var start = Date.now();
+      var MAX_MS = 2000, STEP_MS = 50;
+      (function tick() {
+        var title = document.title || "";
+        var addr = currentScrape(config);
+        var titleChanged = prevTitle ? title !== prevTitle : !!title;
+        var addrChanged = !!addr && addr !== prevAddr;
+        if (titleChanged || addrChanged || Date.now() - start >= MAX_MS) {
+          resolve(currentScrape(config));
+          return;
+        }
+        setTimeout(tick, STEP_MS);
+      })();
+    });
+  }
+
   // Resolve the page to coordinates via the backend (validates + geocodes,
   // with server-side URL/title fallback). Returns {address, lat, lon} or null.
-  function geocodePage(config) {
-    var scraped = "";
-    try { scraped = scrapeAddress({ searchPageContent: config.searchPageContent }) || ""; } catch (e) {}
-    return fetch(config.apiBase + "/api/embed/scrape", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      mode: "cors",
-      credentials: "omit",
-      body: JSON.stringify({ page_url: location.href, page_title: document.title || "", page_address: scraped }),
-    })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) {
-        if (d && d.success) return { address: d.address || scraped, lat: d.lat, lon: d.lon };
-        if (config.defaultAddress) return { address: config.defaultAddress, lat: null, lon: null };
-        if (scraped) return { address: scraped, lat: null, lon: null };
-        return null;
+  // Pass opts.spa (with opts.prevAddr / opts.prevTitle) after a client-side
+  // navigation so we wait for the new route to render before scraping.
+  function geocodePage(config, opts) {
+    opts = opts || {};
+    var scrapedPromise = opts.spa
+      ? waitForRouteSettle(config, opts.prevAddr || "", opts.prevTitle || "")
+      : Promise.resolve(currentScrape(config));
+    return scrapedPromise.then(function (scraped) {
+      scraped = scraped || "";
+      return fetch(config.apiBase + "/api/embed/scrape", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        mode: "cors",
+        credentials: "omit",
+        body: JSON.stringify({ page_url: location.href, page_title: document.title || "", page_address: scraped }),
       })
-      .catch(function () {
-        if (config.defaultAddress) return { address: config.defaultAddress, lat: null, lon: null };
-        return scraped ? { address: scraped, lat: null, lon: null } : null;
-      });
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (d && d.success) return { address: d.address || scraped, lat: d.lat, lon: d.lon };
+          if (config.defaultAddress) return { address: config.defaultAddress, lat: null, lon: null };
+          if (scraped) return { address: scraped, lat: null, lon: null };
+          return null;
+        })
+        .catch(function () {
+          if (config.defaultAddress) return { address: config.defaultAddress, lat: null, lon: null };
+          return scraped ? { address: scraped, lat: null, lon: null } : null;
+        });
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -559,6 +594,7 @@
     if (!config.apiBase) return;
     var isOpen = false, started = false, loaded = false, tooltipDismissed = false;
     var coords = null, coordsPromise = null, lastUrl = location.href, savedY = 0;
+    var lastUsedAddr = "";
     var root, bubble, backdrop, iframe, loadingEl, tooltip, hideTimer = null;
 
     var style = document.createElement("style");
@@ -679,8 +715,12 @@
     function refresh(initial) {
       coords = null; started = false; loaded = false;
       iframe.removeAttribute("src"); iframe.classList.add("dse-hidden"); loadingEl.classList.add("dse-hidden");
-      coordsPromise = geocodePage(config).then(function (c) {
+      // On SPA navigations, wait for the new route to render before scraping so
+      // we don't geocode the previous listing (or fall back to the default).
+      var geoOpts = initial ? {} : { spa: true, prevTitle: document.title || "", prevAddr: lastUsedAddr };
+      coordsPromise = geocodePage(config, geoOpts).then(function (c) {
         coords = c;
+        lastUsedAddr = (c && c.address) || lastUsedAddr;
         // Always step aside for an inline schools embed or the paid Neighborhood Explorer.
         if (popupShouldStepAside()) { hidePopup(); return; }
         if (config.requireAddress && !coords) { hidePopup(); return; }
@@ -733,6 +773,7 @@
     }
     var lastUrl = location.href;
     var currentIframe = null;
+    var lastUsedAddr = "";
     var frameless = boolAttr(container, "data-frameless") === true;
 
     // The iframe reports its content height so we can size it to fit (short for
@@ -747,7 +788,7 @@
       }
     });
 
-    function mount() {
+    function mount(spa) {
       container.innerHTML = "";
       var iframe = document.createElement("iframe");
       currentIframe = iframe;
@@ -778,13 +819,16 @@
         iframe.src = buildIframeUrl(config, { address: dataAddr, lat: lat, lon: lng }, "inline");
         return;
       }
-      geocodePage(config).then(function (coords) {
+      // On SPA navigations, wait for the new route to render before scraping.
+      var geoOpts = spa ? { spa: true, prevTitle: document.title || "", prevAddr: lastUsedAddr } : {};
+      geocodePage(config, geoOpts).then(function (coords) {
+        lastUsedAddr = (coords && coords.address) || lastUsedAddr;
         iframe.src = buildIframeUrl(config, coords, "inline");
       });
     }
 
-    mount();
-    watchSpa(function () { if (location.href !== lastUrl) { lastUrl = location.href; mount(); } });
+    mount(false);
+    watchSpa(function () { if (location.href !== lastUrl) { lastUrl = location.href; mount(true); } });
   }
 
   // -------------------------------------------------------------------------

@@ -6,8 +6,9 @@ import Script from "next/script";
  * - Embed neighborhood pages: also render `#dream-schools-explorer` (no popup).
  */
 export function SchoolExplorerScript() {
-  // Cache-bust so partners/demos pick up SPA mount fixes without a stale CDN/browser cache.
-  return <Script src="/embed.js" strategy="afterInteractive" />;
+  // Cache-bust so the demo picks up SPA address-detection fixes without waiting
+  // out the CDN/browser cache (embed.js is served with max-age=300).
+  return <Script src="/embed.js?v=spa-settle-2" strategy="afterInteractive" />;
 }
 
 export function SchoolExplorerEmbed({
