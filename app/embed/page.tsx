@@ -205,8 +205,10 @@ export default function EmbedExplorer() {
 
   function isWithinSuppressWindow(ts: number, days: number): boolean {
     if (!ts) return false;
-    // days <= 0 means "don't show again" for this browser while the stamp exists
-    if (days <= 0) return true;
+    // days <= 0 means "no cooldown" — the ad stays repeatable (used for testing
+    // and for accounts that set Minimum days between prompts to 0). A prior
+    // dismiss/request must NOT suppress it in that case.
+    if (days <= 0) return false;
     return Date.now() - ts < days * 86400000;
   }
 
