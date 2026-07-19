@@ -146,9 +146,10 @@ export default function EmbedExplorer() {
   const [selected, setSelected] = useState<string | null>(null);
   const [schoolViews, setSchoolViews] = useState(0);
   const [upgradeVisible, setUpgradeVisible] = useState(false);
-  const [upgradeRequested, setUpgradeRequested] = useState(false);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastCountedResultRef = useRef<string>("");
+  /** Prevents a queued idle timer from reopening the ad after dismiss/request. */
+  const upgradeSuppressedRef = useRef(false);
 
   const [address, setAddress] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -202,43 +203,81 @@ export default function EmbedExplorer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, params?.customer]);
 
+  function isWithinSuppressWindow(ts: number, days: number): boolean {
+    if (!ts) return false;
+    // days <= 0 means "don't show again" for this browser while the stamp exists
+    if (days <= 0) return true;
+    return Date.now() - ts < days * 86400000;
+  }
+
   function canShowUpgrade(): boolean {
+    if (upgradeSuppressedRef.current) return false;
     if (!params?.customer || !upgradeKey || !requestKey) return false;
     if (schoolViews < params.upgradeViews) return false;
     try {
-      const now = Date.now();
       const dismissed = Number(localStorage.getItem(upgradeKey) || 0);
       const requested = Number(localStorage.getItem(requestKey) || 0);
-      if (dismissed && now - dismissed < params.upgradeDays * 86400000) return false;
-      if (requested && now - requested < params.upgradeRequestSuppressDays * 86400000) return false;
+      if (isWithinSuppressWindow(dismissed, params.upgradeDays)) return false;
+      if (isWithinSuppressWindow(requested, params.upgradeRequestSuppressDays)) return false;
     } catch {
       return false;
     }
     return true;
   }
 
-  function markUpgradeDismissed(daysOverride?: number) {
+  /** Hide the ad immediately and stamp localStorage so it can't reappear this session / window. */
+  function dismissUpgradeAd(kind: "dismiss" | "request") {
+    upgradeSuppressedRef.current = true;
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = null;
+    }
     try {
-      localStorage.setItem(daysOverride ? requestKey : upgradeKey, String(Date.now()));
-    } catch {}
+      const now = String(Date.now());
+      if (kind === "request") {
+        // Longer suppress for an explicit upgrade request
+        if (requestKey) localStorage.setItem(requestKey, now);
+        // Also stamp dismiss so short cooldown applies even if request stamp fails
+        if (upgradeKey) localStorage.setItem(upgradeKey, now);
+      } else if (upgradeKey) {
+        localStorage.setItem(upgradeKey, now);
+      }
+    } catch {
+      /* ignore quota / private mode */
+    }
     setUpgradeVisible(false);
   }
 
   function scheduleUpgradePrompt() {
     if (!params) return;
+    if (upgradeSuppressedRef.current || !canShowUpgrade()) return;
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     idleTimerRef.current = setTimeout(() => {
+      idleTimerRef.current = null;
       if (canShowUpgrade()) setUpgradeVisible(true);
     }, params.upgradeIdle * 1000);
   }
 
   function recordActivity() {
-    if (upgradeVisible) return;
+    if (upgradeVisible || upgradeSuppressedRef.current) return;
     scheduleUpgradePrompt();
   }
 
   useEffect(() => {
     if (!params?.customer) return;
+    // Sync in-memory suppress from storage (e.g. prior request/dismiss this browser).
+    try {
+      const dismissed = Number(localStorage.getItem(upgradeKey) || 0);
+      const requested = Number(localStorage.getItem(requestKey) || 0);
+      if (
+        isWithinSuppressWindow(dismissed, params.upgradeDays) ||
+        isWithinSuppressWindow(requested, params.upgradeRequestSuppressDays)
+      ) {
+        upgradeSuppressedRef.current = true;
+      }
+    } catch {
+      /* ignore */
+    }
     const events = ["pointerdown", "keydown", "wheel", "touchstart", "scroll"];
     events.forEach((ev) => window.addEventListener(ev, recordActivity, { passive: true }));
     return () => {
@@ -255,7 +294,7 @@ export default function EmbedExplorer() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && upgradeVisible) markUpgradeDismissed();
+      if (e.key === "Escape" && upgradeVisible) dismissUpgradeAd("dismiss");
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -263,8 +302,9 @@ export default function EmbedExplorer() {
   }, [upgradeVisible]);
 
   async function requestFullAccess() {
+    // Close immediately — never leave a lingering "Request sent" screen.
+    dismissUpgradeAd("request");
     if (!params?.customer) return;
-    setUpgradeRequested(true);
     try {
       await fetch("/api/upgrade/request", {
         method: "POST",
@@ -290,9 +330,8 @@ export default function EmbedExplorer() {
           source: params.mode,
         }),
       });
-      markUpgradeDismissed(params.upgradeRequestSuppressDays);
     } catch {
-      markUpgradeDismissed(params.upgradeRequestSuppressDays);
+      // Already dismissed + suppressed; ignore network errors for UX.
     }
   }
   // home = empty search; boot = auto-detected address loading; results = schools ready
@@ -887,8 +926,7 @@ export default function EmbedExplorer() {
         <UpgradePrompt
           accent={accent}
           providerName={params?.provider || params?.business || ""}
-          requested={upgradeRequested}
-          onDismiss={() => markUpgradeDismissed()}
+          onDismiss={() => dismissUpgradeAd("dismiss")}
           onRequest={requestFullAccess}
         />
       )}
@@ -899,13 +937,11 @@ export default function EmbedExplorer() {
 function UpgradePrompt({
   accent,
   providerName,
-  requested,
   onDismiss,
   onRequest,
 }: {
   accent: string;
   providerName: string;
-  requested: boolean;
   onDismiss: () => void;
   onRequest: () => void;
 }) {
@@ -920,6 +956,7 @@ function UpgradePrompt({
       <div className="relative flex min-h-0 w-full flex-col">
         {/* Single close control — no second brand header (popup chrome already brands it). */}
         <button
+          type="button"
           onClick={onDismiss}
           aria-label="Close"
           className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-xl leading-none text-slate-500 shadow-sm ring-1 ring-slate-200/80 transition hover:bg-white hover:text-slate-800"
@@ -973,14 +1010,15 @@ function UpgradePrompt({
 
             <div className="mt-auto space-y-2 pt-6">
               <button
+                type="button"
                 onClick={onRequest}
-                disabled={requested}
-                className="w-full rounded-xl px-4 py-3.5 text-sm font-extrabold text-white shadow-md transition hover:brightness-105 disabled:opacity-70"
+                className="w-full rounded-xl px-4 py-3.5 text-sm font-extrabold text-white shadow-md transition hover:brightness-105"
                 style={{ backgroundColor: accent }}
               >
-                {requested ? "Request sent — thank you!" : buttonText}
+                {buttonText}
               </button>
               <button
+                type="button"
                 onClick={onDismiss}
                 className="w-full py-2 text-xs font-semibold text-slate-400 transition hover:text-slate-600"
               >
