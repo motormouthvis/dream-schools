@@ -1,5 +1,6 @@
 import { getPool, hasDatabase } from "@/lib/db";
 import { randomBytes, scryptSync, timingSafeEqual, createHash, randomUUID } from "crypto";
+import { UPGRADE_PROMPT_LIMITS, type UpgradePromptLimitKey } from "@/lib/upgradeLimits";
 
 // ---------------------------------------------------------------------------
 // Accounts for the School Explorer app. Low-friction email + password signup
@@ -239,13 +240,25 @@ export async function updatePartnerUpgradeSettings(
   values: { viewsToTrigger: number | null; minDaysBetween: number | null; idleSeconds: number | null }
 ): Promise<void> {
   await ensureTables();
+  // null clears the override (falls back to global); otherwise clamp to the
+  // allowed range so a partner can never exceed the maximums.
+  const clamp = (key: UpgradePromptLimitKey, v: number | null): number | null => {
+    if (v == null || !Number.isFinite(v)) return null;
+    const { min, max } = UPGRADE_PROMPT_LIMITS[key];
+    return Math.max(min, Math.min(max, Math.floor(v)));
+  };
   await getPool().query(
     `UPDATE app_users
        SET upgrade_views_to_trigger = $1,
            upgrade_min_days_between = $2,
            upgrade_idle_seconds = $3
      WHERE id = $4`,
-    [values.viewsToTrigger, values.minDaysBetween, values.idleSeconds, userId]
+    [
+      clamp("viewsToTrigger", values.viewsToTrigger),
+      clamp("minDaysBetween", values.minDaysBetween),
+      clamp("idleSeconds", values.idleSeconds),
+      userId,
+    ]
   );
 }
 

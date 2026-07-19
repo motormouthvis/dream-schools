@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app/AppShell";
+import { UPGRADE_PROMPT_LIMITS } from "@/lib/upgradeLimits";
 
 function fmtDate(v?: string): string {
   if (!v) return "—";
@@ -284,9 +285,27 @@ function UpgradePromptSettings({ isOwner, isPartner }: { isOwner: boolean; isPar
       ) : (
         <form onSubmit={save} className="space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <NumberField label="Views to trigger" value={views} onChange={setViews} min={1} />
-            <NumberField label="Minimum days between prompts" value={days} onChange={setDays} min={0} />
-            <NumberField label="Idle seconds before showing" value={idle} onChange={setIdle} min={3} />
+            <NumberField
+              label="Views to trigger"
+              value={views}
+              onChange={setViews}
+              min={UPGRADE_PROMPT_LIMITS.viewsToTrigger.min}
+              max={UPGRADE_PROMPT_LIMITS.viewsToTrigger.max}
+            />
+            <NumberField
+              label="Minimum days between prompts"
+              value={days}
+              onChange={setDays}
+              min={UPGRADE_PROMPT_LIMITS.minDaysBetween.min}
+              max={UPGRADE_PROMPT_LIMITS.minDaysBetween.max}
+            />
+            <NumberField
+              label="Idle seconds before showing"
+              value={idle}
+              onChange={setIdle}
+              min={UPGRADE_PROMPT_LIMITS.idleSeconds.min}
+              max={UPGRADE_PROMPT_LIMITS.idleSeconds.max}
+            />
           </div>
           {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
           {done && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">Prompt settings saved ✓</p>}
@@ -299,17 +318,53 @@ function UpgradePromptSettings({ isOwner, isPartner }: { isOwner: boolean; isPar
   );
 }
 
-function NumberField({ label, value, onChange, min }: { label: string; value: string; onChange: (v: string) => void; min: number }) {
+function NumberField({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  min: number;
+  max: number;
+}) {
+  // Enforce the maximum as the user types: typing a larger number snaps to max.
+  // The minimum is applied on blur so intermediate keystrokes stay editable.
+  function handleChange(raw: string) {
+    if (raw === "") {
+      onChange("");
+      return;
+    }
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return;
+    onChange(n > max ? String(max) : raw);
+  }
+  function handleBlur() {
+    const n = Number(value);
+    if (value === "" || !Number.isFinite(n)) {
+      onChange(String(min));
+      return;
+    }
+    onChange(String(Math.max(min, Math.min(max, Math.floor(n)))));
+  }
   return (
     <label className="block">
       <span className="block text-xs font-bold text-slate-600">{label}</span>
       <input
         type="number"
         min={min}
+        max={max}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={handleBlur}
         className={inp}
       />
+      <span className="mt-1 block text-[11px] text-slate-400">
+        Min {min}, max {max}
+      </span>
     </label>
   );
 }

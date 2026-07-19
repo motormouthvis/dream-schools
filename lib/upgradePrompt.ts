@@ -1,6 +1,7 @@
 import { getPool, hasDatabase } from "@/lib/db";
 import { emailShell, htmlEscape, sendTransactionalEmail } from "@/lib/email";
 import { ensureAuthTables } from "@/lib/auth";
+import { UPGRADE_PROMPT_LIMITS } from "@/lib/upgradeLimits";
 
 export const DEFAULT_UPGRADE_VIEWS_TO_TRIGGER = 2;
 export const DEFAULT_UPGRADE_MIN_DAYS_BETWEEN = 7;
@@ -343,18 +344,18 @@ export async function getGlobalUpgradeSettings(): Promise<UpgradePromptSettings>
   );
   const r = rows[0];
   return {
-    viewsToTrigger: cleanInt(r?.views_to_trigger, DEFAULT_UPGRADE_VIEWS_TO_TRIGGER, 1, 50),
-    minDaysBetween: cleanInt(r?.min_days_between, DEFAULT_UPGRADE_MIN_DAYS_BETWEEN, 0, 365),
-    idleSeconds: cleanInt(r?.idle_seconds, DEFAULT_UPGRADE_IDLE_SECONDS, 3, 60),
+    viewsToTrigger: cleanInt(r?.views_to_trigger, DEFAULT_UPGRADE_VIEWS_TO_TRIGGER, UPGRADE_PROMPT_LIMITS.viewsToTrigger.min, UPGRADE_PROMPT_LIMITS.viewsToTrigger.max),
+    minDaysBetween: cleanInt(r?.min_days_between, DEFAULT_UPGRADE_MIN_DAYS_BETWEEN, UPGRADE_PROMPT_LIMITS.minDaysBetween.min, UPGRADE_PROMPT_LIMITS.minDaysBetween.max),
+    idleSeconds: cleanInt(r?.idle_seconds, DEFAULT_UPGRADE_IDLE_SECONDS, UPGRADE_PROMPT_LIMITS.idleSeconds.min, UPGRADE_PROMPT_LIMITS.idleSeconds.max),
   };
 }
 
 export async function setGlobalUpgradeSettings(values: UpgradePromptSettings): Promise<UpgradePromptSettings> {
   await ensureTables();
   const cleaned = {
-    viewsToTrigger: cleanInt(values.viewsToTrigger, DEFAULT_UPGRADE_VIEWS_TO_TRIGGER, 1, 50),
-    minDaysBetween: cleanInt(values.minDaysBetween, DEFAULT_UPGRADE_MIN_DAYS_BETWEEN, 0, 365),
-    idleSeconds: cleanInt(values.idleSeconds, DEFAULT_UPGRADE_IDLE_SECONDS, 3, 60),
+    viewsToTrigger: cleanInt(values.viewsToTrigger, DEFAULT_UPGRADE_VIEWS_TO_TRIGGER, UPGRADE_PROMPT_LIMITS.viewsToTrigger.min, UPGRADE_PROMPT_LIMITS.viewsToTrigger.max),
+    minDaysBetween: cleanInt(values.minDaysBetween, DEFAULT_UPGRADE_MIN_DAYS_BETWEEN, UPGRADE_PROMPT_LIMITS.minDaysBetween.min, UPGRADE_PROMPT_LIMITS.minDaysBetween.max),
+    idleSeconds: cleanInt(values.idleSeconds, DEFAULT_UPGRADE_IDLE_SECONDS, UPGRADE_PROMPT_LIMITS.idleSeconds.min, UPGRADE_PROMPT_LIMITS.idleSeconds.max),
   };
   await getPool().query(
     `INSERT INTO app_upgrade_settings (key, views_to_trigger, min_days_between, idle_seconds, updated_at)
