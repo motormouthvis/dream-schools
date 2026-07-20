@@ -230,9 +230,38 @@ export async function updatePartnerProfile(userId: string, companyName: string):
   await getPool().query(`UPDATE app_users SET company_name = $1 WHERE id = $2`, [companyName.trim(), userId]);
 }
 
+/** Realtor Name for customer accounts — stored in company_name (partners use that column for Partner Name). */
+export async function updateRealtorProfile(userId: string, realtorName: string): Promise<void> {
+  await updatePartnerProfile(userId, realtorName);
+}
+
 export async function updateBusinessProfile(userId: string, businessName: string): Promise<void> {
   await ensureTables();
   await getPool().query(`UPDATE app_users SET business_name = $1 WHERE id = $2`, [businessName.trim(), userId]);
+}
+
+/**
+ * Partner branding used when a realtor leaves White Label blank:
+ * partner white-label first, then partner company name.
+ */
+export async function getPartnerBranding(
+  partnerId: string | null
+): Promise<{ whiteLabel: string; partnerName: string; inheritedWhiteLabel: string }> {
+  if (!partnerId || !hasDatabase()) {
+    return { whiteLabel: "", partnerName: "", inheritedWhiteLabel: "" };
+  }
+  await ensureTables();
+  const { rows } = await getPool().query(
+    `SELECT company_name, business_name FROM app_users WHERE id = $1 AND deleted_at IS NULL`,
+    [partnerId]
+  );
+  const partnerName = String(rows[0]?.company_name || "").trim();
+  const whiteLabel = String(rows[0]?.business_name || "").trim();
+  return {
+    whiteLabel,
+    partnerName,
+    inheritedWhiteLabel: whiteLabel || partnerName,
+  };
 }
 
 export async function updatePartnerUpgradeSettings(

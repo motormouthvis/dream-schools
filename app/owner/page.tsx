@@ -160,8 +160,8 @@ function OwnerAdmin() {
       let bv: string | number = 0;
       switch (sortKey) {
         case "customer":
-          av = (a.businessName || a.companyName || a.email).toLowerCase();
-          bv = (b.businessName || b.companyName || b.email).toLowerCase();
+          av = (a.companyName || a.businessName || a.email).toLowerCase();
+          bv = (b.companyName || b.businessName || b.email).toLowerCase();
           break;
         case "domain":
           av = (a.authorizedDomain || "").toLowerCase();
@@ -327,7 +327,7 @@ function OwnerAdmin() {
                 <tr key={c.id} className="hover:bg-slate-50/60">
                   <td className="px-3 py-2.5">
                     {(() => {
-                      const name = c.businessName || c.companyName || "";
+                      const name = c.companyName || c.businessName || "";
                       return (
                         <>
                           <div className="font-semibold text-ink-900">{name || c.email}</div>
@@ -650,9 +650,17 @@ function EditModal({
               onChange={(e) => setEmail(e.target.value)}
             />
           </L>
+          {isAdmin && !isPartner && (
+            <L label="Realtor name" hint="Identity for this realtor account (emails, customer list). Not the popup banner.">
+              <input className={inp} value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Jane Doe or Coastal Realty" />
+            </L>
+          )}
           {isAdmin && (
-            <L label="Business / agent name" hint="Used for personalization in upgrade prompts and notifications.">
-              <input className={inp} value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Coastal Realty or Jane Doe" />
+            <L
+              label="White label name"
+              hint="Popup/embed banner: Dream Neighborhood School Explorer provided by …. Blank = inherit partner white label (then partner name)."
+            >
+              <input className={inp} value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="your company name" />
             </L>
           )}
           <L label="Authorized domain" hint="Base domain — works on all pages & subdomains. Popup is OFF until set.">
@@ -746,7 +754,10 @@ function EditModal({
             </p>
             {isPartner && (
               <div className="mt-3 pl-6">
-                <L label="Partner company name" hint="Shown in popup/embed headers for this partner's customers. Safe to change anytime.">
+                <L
+                  label="Partner company name"
+                  hint="Signup / partner identity. Banner uses White Label first; this is the fallback when White Label is blank. Safe to change anytime."
+                >
                   <input className={inp} value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Partner Company" />
                 </L>
               </div>

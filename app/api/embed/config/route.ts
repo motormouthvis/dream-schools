@@ -57,11 +57,22 @@ export async function GET(request: Request) {
   if (hasDatabase() && !config.partnerId.startsWith("host:")) {
     try {
       await ensureAuthTables();
+      // Banner "provided by X" uses white-label (business_name), not Partner Name first:
+      //   1) account's own white-label override
+      //   2) partner's white-label default (for realtors under a partner)
+      //   3) partner's company name
+      //   4) account's own company name (Partner Name / Realtor Name) as last resort
       const { rows } = await getPool().query(
         `SELECT
             u.business_name,
             u.partner_id,
-            COALESCE(NULLIF(partner.company_name, ''), NULLIF(u.company_name, ''), NULLIF(u.business_name, '')) AS provider_name,
+            COALESCE(
+              NULLIF(TRIM(u.business_name), ''),
+              NULLIF(TRIM(partner.business_name), ''),
+              NULLIF(TRIM(partner.company_name), ''),
+              NULLIF(TRIM(u.company_name), ''),
+              ''
+            ) AS provider_name,
             partner.upgrade_views_to_trigger,
             partner.upgrade_min_days_between,
             partner.upgrade_idle_seconds

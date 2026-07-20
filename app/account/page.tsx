@@ -43,7 +43,15 @@ export default function AccountPage() {
               <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email</div>
               <div className="mt-1 break-all text-sm text-ink-900">{me.email}</div>
             </div>
-            <BusinessProfile initialBusinessName={me.businessName || ""} />
+            {!me.isPartner && !me.isOwner && (
+              <RealtorNameProfile initialRealtorName={me.companyName || ""} />
+            )}
+            <WhiteLabelProfile
+              initialBusinessName={me.businessName || ""}
+              inheritedWhiteLabel={me.inheritedWhiteLabel || ""}
+              isPartner={me.isPartner}
+              isCustomer={!me.isPartner && !me.isOwner}
+            />
             {me.isPartner && <PartnerSignupLink partnerId={me.id} />}
             {me.isPartner && (
               <PartnerDesignation initialCompanyName={me.companyName || ""} isPartner={me.isPartner} />
@@ -107,7 +115,7 @@ function PartnerDesignation({
       </div>
       <form onSubmit={save} className="space-y-3">
         <div>
-          <label className="block text-xs font-bold text-slate-600">Company name shown in popup/embed</label>
+          <label className="block text-xs font-bold text-slate-600">Partner company name</label>
           <input
             className={inp}
             value={companyName}
@@ -115,7 +123,8 @@ function PartnerDesignation({
             placeholder="Your Company Name"
           />
           <p className="mt-1 text-[11px] text-slate-400">
-            Header text: Dream Neighborhood School Explorer provided by your company name.
+            Used for your Partner Login signup list and as a fallback banner name when White Label is
+            blank for you or your realtors. The popup/embed banner uses White Label first.
           </p>
         </div>
         {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
@@ -161,7 +170,73 @@ function PartnerSignupLink({ partnerId }: { partnerId: string }) {
   );
 }
 
-function BusinessProfile({ initialBusinessName }: { initialBusinessName: string }) {
+function RealtorNameProfile({ initialRealtorName }: { initialRealtorName: string }) {
+  const [realtorName, setRealtorName] = useState(initialRealtorName);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setDone(false);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/realtor-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ realtorName }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(j.error || "Could not save realtor name.");
+        return;
+      }
+      setDone(true);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card title="Realtor Name">
+      <form onSubmit={save} className="space-y-3">
+        <div>
+          <label className="block text-xs font-bold text-slate-600">Your name</label>
+          <input
+            className={inp}
+            value={realtorName}
+            onChange={(e) => setRealtorName(e.target.value)}
+            placeholder="Jane Doe or Coastal Realty"
+          />
+          <p className="mt-1 text-[11px] text-slate-400">
+            Shown in your account and upgrade-request emails. This is not the popup/embed banner name
+            — use White Label for that.
+          </p>
+        </div>
+        {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
+        {done && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">Realtor name saved ✓</p>}
+        <button type="submit" disabled={busy} className={btn}>
+          {busy ? "Saving…" : "Save realtor name"}
+        </button>
+      </form>
+    </Card>
+  );
+}
+
+function WhiteLabelProfile({
+  initialBusinessName,
+  inheritedWhiteLabel,
+  isPartner,
+  isCustomer,
+}: {
+  initialBusinessName: string;
+  inheritedWhiteLabel: string;
+  isPartner: boolean;
+  isCustomer: boolean;
+}) {
   const [businessName, setBusinessName] = useState(initialBusinessName);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -180,7 +255,7 @@ function BusinessProfile({ initialBusinessName }: { initialBusinessName: string 
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(j.error || "Could not save business name.");
+        setError(j.error || "Could not save white-label name.");
         return;
       }
       setDone(true);
@@ -191,13 +266,14 @@ function BusinessProfile({ initialBusinessName }: { initialBusinessName: string 
     }
   }
 
+  const effective =
+    (businessName || "").trim() || (isCustomer ? inheritedWhiteLabel : "") || "";
+
   return (
-    <Card title="White Label — Realtor Name">
+    <Card title="White Label Name">
       <form onSubmit={save} className="space-y-3">
         <div>
-          <label className="block text-xs font-bold text-slate-600">
-            Your white-label name
-          </label>
+          <label className="block text-xs font-bold text-slate-600">Your white-label name</label>
           <input
             className={inp}
             value={businessName}
@@ -205,9 +281,25 @@ function BusinessProfile({ initialBusinessName }: { initialBusinessName: string 
             placeholder="your company name"
           />
           <p className="mt-1 text-[11px] text-slate-400">
-            White-label School Explorer with your brokerage or agent name. Shown in upgrade prompts
-            and personalized messages when available.
+            {isPartner
+              ? "Shown on the popup and embed banner: Dream Neighborhood School Explorer provided by …. Also the default for your realtors when they leave White Label blank."
+              : isCustomer
+                ? inheritedWhiteLabel
+                  ? `Leave blank to use your partner’s name (“${inheritedWhiteLabel}”). Enter your own to override it on the popup/embed banner.`
+                  : "Shown on the popup and embed banner: Dream Neighborhood School Explorer provided by …. Leave blank for no “provided by” line."
+                : "Shown on the popup and embed banner: Dream Neighborhood School Explorer provided by …."}
           </p>
+          {effective ? (
+            <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+              Banner preview:{" "}
+              <span className="font-semibold text-ink-900">
+                Dream Neighborhood School Explorer provided by {effective}
+              </span>
+              {!businessName.trim() && isCustomer && inheritedWhiteLabel ? (
+                <span className="text-slate-400"> (from your partner)</span>
+              ) : null}
+            </p>
+          ) : null}
         </div>
         {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
         {done && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">White-label name saved ✓</p>}

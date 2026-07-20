@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { currentUser } from "@/lib/auth";
+import { currentUser, getPartnerBranding } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +7,8 @@ export async function GET(request: Request) {
   try {
     const user = await currentUser(request);
     if (!user) return NextResponse.json({ user: null }, { status: 200 });
+    const partnerBranding =
+      !user.isPartner && user.partnerId ? await getPartnerBranding(user.partnerId) : null;
     return NextResponse.json({
       user: {
         id: user.id,
@@ -16,6 +18,7 @@ export async function GET(request: Request) {
         partnerId: user.partnerId,
         companyName: user.companyName,
         businessName: user.businessName,
+        inheritedWhiteLabel: partnerBranding?.inheritedWhiteLabel || "",
         upgradeViewsToTrigger: user.upgradeViewsToTrigger,
         upgradeMinDaysBetween: user.upgradeMinDaysBetween,
         upgradeIdleSeconds: user.upgradeIdleSeconds,

@@ -13,6 +13,8 @@ interface Me {
   partnerId: string | null;
   companyName: string;
   businessName: string;
+  /** Partner white-label (or partner name) when this realtor leaves White Label blank. */
+  inheritedWhiteLabel?: string;
   createdAt?: string;
 }
 
@@ -99,7 +101,9 @@ export function AppShell({
         {/* Account (top, above nav) */}
         <div className="mt-5 flex items-center gap-2.5 rounded-xl bg-white/5 px-3 py-2.5 ring-1 ring-inset ring-white/10">
           {(() => {
-            const displayName = (me.businessName || "").trim() || (me.isPartner ? me.companyName : "") || me.email;
+            // Partner Name / Realtor Name first, then White Label, then email.
+            const displayName =
+              (me.companyName || "").trim() || (me.businessName || "").trim() || me.email;
             const showEmail = displayName !== me.email;
             return (
               <>
