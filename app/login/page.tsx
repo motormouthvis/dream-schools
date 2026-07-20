@@ -17,9 +17,11 @@ export default function LoginPage() {
   const [partnerSearch, setPartnerSearch] = useState("");
   const [partnerOpen, setPartnerOpen] = useState(false);
   const [captcha, setCaptcha] = useState("");
+  const [captchaKey, setCaptchaKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState<null | "verify" | "reset">(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [sent, setSent] = useState<null | "verify" | "reset" | "setPassword">(null);
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search).get("partner") || "";
@@ -69,7 +71,7 @@ export default function LoginPage() {
           body: JSON.stringify({ email, turnstileToken: captcha }),
         });
         // Always show success (we don't reveal whether the email exists).
-        setSent("reset");
+        setSent(notice ? "setPassword" : "reset");
         return;
       }
       const path = mode === "signup" ? "/api/auth/signup" : "/api/auth/login";
@@ -80,6 +82,17 @@ export default function LoginPage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
+        // Managed/imported realtor with no password yet → guide to set one.
+        if (json.needsPassword) {
+          setMode("reset");
+          setNotice(
+            "Your account is ready. Set a password to finish signing in — we'll email you a secure link."
+          );
+          setError(null);
+          setCaptcha("");
+          setCaptchaKey((k) => k + 1); // fresh Turnstile token for the reset request
+          return;
+        }
         setError(json.error || "Something went wrong.");
         return;
       }
@@ -106,6 +119,8 @@ export default function LoginPage() {
           <p className="mt-2 text-sm text-slate-600">
             {sent === "verify" ? (
               <>We sent a verification link to <strong>{email}</strong>. Click it to activate your free account.</>
+            ) : sent === "setPassword" ? (
+              <>We sent a link to <strong>{email}</strong> to set your password. Click it to finish signing in — your School Explorer is already live on your site.</>
             ) : (
               <>If an account exists for <strong>{email}</strong>, we've sent a link to reset your password.</>
             )}
@@ -126,10 +141,17 @@ export default function LoginPage() {
 
   return (
     <Wrap>
-      <h1 className="text-center text-xl font-extrabold text-ink-900">{title}</h1>
+      <h1 className="text-center text-xl font-extrabold text-ink-900">
+        {notice && mode === "reset" ? "Set your password" : title}
+      </h1>
       <p className="mt-1 text-center text-[13px] text-slate-500">
         Free forever · <strong className="font-extrabold text-brand-700">No Credit Card — Ever</strong>
       </p>
+      {notice && mode === "reset" && (
+        <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-center text-[12px] font-semibold text-brand-800">
+          {notice}
+        </p>
+      )}
 
       {mode !== "reset" && (
         <div className="mt-5 inline-flex w-full rounded-full bg-slate-100 p-0.5 text-sm font-semibold">
@@ -271,7 +293,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        <Turnstile onToken={setCaptcha} />
+        <Turnstile key={captchaKey} onToken={setCaptcha} />
 
         {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
 
@@ -286,6 +308,8 @@ export default function LoginPage() {
             ? "Create account →"
             : mode === "login"
             ? "Log in →"
+            : notice
+            ? "Email me a set-password link →"
             : "Send reset link →"}
         </button>
       </form>

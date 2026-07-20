@@ -1,7 +1,22 @@
 import { getPool, hasDatabase } from "@/lib/db";
-import { currentUser, ensureAuthTables, type AppUser } from "@/lib/auth";
+import {
+  currentUser,
+  ensureAuthTables,
+  createManagedUser,
+  getUserByEmail,
+  isValidEmail,
+  type AppUser,
+} from "@/lib/auth";
 import { ensureUpgradeTables } from "@/lib/upgradePrompt";
 import { logUserEventAsync } from "@/lib/audit";
+import {
+  getByPartner,
+  upsertPartner,
+  claimHostForPartner,
+  hostsClaimedByOthers,
+  normalizeHost,
+  DEFAULT_PRESENTATION,
+} from "@/lib/embedConfig";
 
 // ---------------------------------------------------------------------------
 // Owner-admin data access: the customers table with signup + usage, and the
@@ -177,6 +192,115 @@ export async function updateCustomerAccount(
   if (!sets.length) return;
   params.push(id);
   await getPool().query(`UPDATE app_users SET ${sets.join(", ")} WHERE id = $${params.length}`, params);
+}
+
+/**
+ * Provision (or update) a customer's widget config: authorized domain, default
+ * address, and enable the Explorer when a domain is set. Enforces the
+ * one-domain-per-account rule. Shared by admin edit, import, and manual add.
+ */
+export async function activateCustomerWidget(
+  id: string,
+  input: { authorizedDomain?: string; defaultAddress?: string; enabled?: boolean }
+): Promise<{ ok: true } | { ok: false; conflict: string[] }> {
+  const existing = await getByPartner(id, 1);
+  const base = existing ?? { ...DEFAULT_PRESENTATION, defaultAddress: "", enabled: false };
+  const allowedHosts =
+    input.authorizedDomain !== undefined
+      ? [normalizeHost(String(input.authorizedDomain))].filter(Boolean)
+      : existing?.allowedHosts ?? [];
+  if (allowedHosts.length) {
+    const taken = await hostsClaimedByOthers(allowedHosts, id);
+    if (taken.length) return { ok: false, conflict: taken };
+  }
+  const saved = await upsertPartner({
+    partnerId: id,
+    widgetNumber: 1,
+    allowedHosts,
+    defaultAddress:
+      typeof input.defaultAddress === "string" ? input.defaultAddress : existing?.defaultAddress ?? "",
+    accentColor: base.accentColor,
+    position: base.position,
+    bottomOffset: base.bottomOffset,
+    tooltipMessage: base.tooltipMessage,
+    requireAddress: base.requireAddress,
+    searchPageContent: base.searchPageContent,
+    suppressOnInline: base.suppressOnInline,
+    suppressIfNeighborhoodExplorer: base.suppressIfNeighborhoodExplorer,
+    inlineMinHeight: base.inlineMinHeight,
+    inlineShowHeader: base.inlineShowHeader,
+    showExternalLinks: base.showExternalLinks,
+    // Popup/embed stays off until a domain is authorized; on by default once set.
+    enabled:
+      allowedHosts.length > 0
+        ? input.enabled === undefined
+          ? true
+          : Boolean(input.enabled)
+        : false,
+  });
+  if (allowedHosts.length) {
+    await claimHostForPartner(id, allowedHosts).catch((err) =>
+      console.error("claimHostForPartner failed:", err)
+    );
+  }
+  void saved;
+  return { ok: true };
+}
+
+export interface ManagedCustomerInput {
+  email: string;
+  name?: string;
+  authorizedDomain?: string;
+  defaultAddress?: string;
+}
+
+export interface ManagedCustomerResult {
+  email: string;
+  status: "created" | "skipped" | "error";
+  reason?: string;
+  id?: string;
+}
+
+/**
+ * Create a verified, activated realtor account under `partnerId` (or unassigned
+ * for admins). No password — the realtor sets one on first sign-in; the widget
+ * works immediately from the authorized domain + default address.
+ */
+export async function createManagedCustomer(
+  input: ManagedCustomerInput,
+  partnerId: string | null,
+  by: "partner" | "admin"
+): Promise<ManagedCustomerResult> {
+  const email = String(input.email || "").trim().toLowerCase();
+  if (!isValidEmail(email)) {
+    return { email: input.email || "", status: "error", reason: "Invalid email" };
+  }
+  const existing = await getUserByEmail(email);
+  if (existing) {
+    return { email, status: "skipped", reason: "An account with this email already exists" };
+  }
+  const user = await createManagedUser({ email, partnerId, realtorName: input.name });
+  logUserEventAsync(user.id, "account_created", `imported by ${by}${input.name ? ` — ${input.name}` : ""}`);
+  const widget = await activateCustomerWidget(user.id, {
+    authorizedDomain: input.authorizedDomain,
+    defaultAddress: input.defaultAddress,
+    enabled: true,
+  });
+  if (!widget.ok) {
+    // Account still created; report the domain clash so the partner can fix it.
+    return {
+      email,
+      status: "created",
+      id: user.id,
+      reason: `Account created, but ${widget.conflict.join(", ")} is already registered to another account — set a different domain.`,
+    };
+  }
+  const domain = input.authorizedDomain ? normalizeHost(input.authorizedDomain) : "";
+  if (domain) logUserEventAsync(user.id, "domain_changed", `(none) → ${domain} (by ${by})`);
+  if (input.defaultAddress) {
+    logUserEventAsync(user.id, "default_address_changed", `(none) → ${input.defaultAddress} (by ${by})`);
+  }
+  return { email, status: "created", id: user.id };
 }
 
 /** Disable a customer: retain account/config/usage/history, remove access. */

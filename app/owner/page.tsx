@@ -97,6 +97,9 @@ function OwnerAdmin() {
   const [editing, setEditing] = useState<Customer | null>(null);
   const [historyFor, setHistoryFor] = useState<Customer | null>(null);
   const [reasonAction, setReasonAction] = useState<null | { type: "disable"; customer: Customer }>(null);
+  const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const modalOpen = Boolean(editing || historyFor || reasonAction || adding || importing);
 
   async function load() {
     setLoading(true);
@@ -204,6 +207,24 @@ function OwnerAdmin() {
     return filtered;
   }, [customers, query, sortKey, sortDir]);
 
+  async function impersonate(c: Customer) {
+    try {
+      const res = await fetch("/api/owner/impersonate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId: c.id }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(j.error || "Could not view as this customer.");
+        return;
+      }
+      window.location.href = j.redirect || "/dashboard";
+    } catch {
+      alert("Network error.");
+    }
+  }
+
   async function remove(c: Customer, reason: string) {
     const res = await fetch(`/api/owner/customers?id=${encodeURIComponent(c.id)}`, {
       method: "DELETE",
@@ -230,12 +251,30 @@ function OwnerAdmin() {
           <h1 className="text-xl font-extrabold text-ink-900">Customer List</h1>
           <p className="text-[12px] text-slate-500">Everyone who signed up, their setup, and their usage.</p>
         </div>
-        <button
-          onClick={load}
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-        >
-          Refresh
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {canEdit && (
+            <>
+              <button
+                onClick={() => setAdding(true)}
+                className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-bold text-white hover:bg-brand-700"
+              >
+                + Add customer
+              </button>
+              <button
+                onClick={() => setImporting(true)}
+                className="rounded-lg border border-brand-600 px-3 py-1.5 text-sm font-semibold text-brand-700 hover:bg-brand-50"
+              >
+                Import
+              </button>
+            </>
+          )}
+          <button
+            onClick={load}
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -249,13 +288,13 @@ function OwnerAdmin() {
         <input
           value={query}
           onChange={(e) => {
-            // Browser autofill can target the search input while the Edit modal is
+            // Browser autofill can target the search input while a modal is
             // open; ignore those changes so customers don't disappear.
-            if (!editing && !historyFor && !reasonAction) setQuery(e.target.value);
+            if (!modalOpen) setQuery(e.target.value);
           }}
           name="customer-list-filter"
           autoComplete="off"
-          readOnly={Boolean(editing || historyFor || reasonAction)}
+          readOnly={modalOpen}
           placeholder="Search email, domain, month, or year…"
           className="w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
         />
@@ -398,6 +437,15 @@ function OwnerAdmin() {
                     </button>
                     {canEdit && (
                       <>
+                        {!c.deletedAt && !c.isOwner && !c.isPartner && (
+                          <button
+                            onClick={() => impersonate(c)}
+                            title="Sign in as this realtor to configure their account"
+                            className="ml-2 rounded-md border border-brand-300 px-2.5 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50"
+                          >
+                            View as
+                          </button>
+                        )}
                         <button
                           onClick={() => setEditing(c)}
                           className="ml-2 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
@@ -441,6 +489,27 @@ function OwnerAdmin() {
         />
       )}
 
+      {adding && (
+        <AddCustomerModal
+          isAdmin={role === "owner"}
+          partners={partners}
+          onClose={() => setAdding(false)}
+          onSaved={() => {
+            setAdding(false);
+            load();
+          }}
+        />
+      )}
+
+      {importing && (
+        <ImportModal
+          isAdmin={role === "owner"}
+          partners={partners}
+          onClose={() => setImporting(false)}
+          onDone={() => load()}
+        />
+      )}
+
       {historyFor && <HistoryModal customer={historyFor} onClose={() => setHistoryFor(null)} />}
       {reasonAction && (
         <ReasonModal
@@ -477,6 +546,7 @@ const EVENT_LABELS: Record<string, string> = {
   account_restored: "Customer re-enabled",
   partner_assignment_changed: "Partner assignment changed",
   partner_status_changed: "Partner status changed",
+  impersonation_started: "Viewed by partner/admin",
 };
 
 function HistoryModal({ customer, onClose }: { customer: Customer; onClose: () => void }) {
@@ -810,6 +880,271 @@ function EditModal({
             }}
           />
         )}
+      </div>
+    </div>
+  );
+}
+
+function AddCustomerModal({
+  isAdmin,
+  partners,
+  onClose,
+  onSaved,
+}: {
+  isAdmin: boolean;
+  partners: PartnerOption[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [authorizedDomain, setAuthorizedDomain] = useState("");
+  const [defaultAddress, setDefaultAddress] = useState("");
+  const [partnerId, setPartnerId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  useEscapeKey(onClose);
+
+  async function save() {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/owner/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          partnerId: isAdmin ? partnerId || undefined : undefined,
+          rows: [{ email, name, authorizedDomain, defaultAddress }],
+        }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(j.error || "Could not add customer.");
+        return;
+      }
+      const r = (j.results || [])[0];
+      if (r?.status === "created" && !r.reason) {
+        onSaved();
+        return;
+      }
+      if (r?.status === "created" && r.reason) {
+        setNotice(r.reason);
+        return;
+      }
+      setError(r?.reason || "Could not add customer.");
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="flex max-h-[90vh] w-full max-w-md flex-col rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-lg font-extrabold text-ink-900">Add customer</h2>
+        <p className="mt-0.5 text-[12px] text-slate-500">
+          Creates a verified, active realtor account — the School Explorer works on their site right
+          away. They set a password the first time they sign in.
+        </p>
+        <div className="-mr-2 mt-4 flex-1 space-y-3 overflow-y-auto pr-2">
+          <L label="Email">
+            <input type="email" className={inp} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="agent@agency.com" />
+          </L>
+          <L label="Customer name">
+            <input className={inp} value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Doe or Coastal Realty" />
+          </L>
+          <L label="Authorized domain" hint="Base domain — works on all pages & subdomains.">
+            <input className={inp} value={authorizedDomain} onChange={(e) => setAuthorizedDomain(e.target.value)} placeholder="youragency.com" />
+          </L>
+          <L label="Default address (fallback)">
+            <AddressAutocomplete className={inp} value={defaultAddress} onChange={setDefaultAddress} placeholder="1500 N 23rd St, Fort Pierce, FL" />
+          </L>
+          {isAdmin && (
+            <L label="Belongs to partner" hint="Optional. Assign this realtor to a partner.">
+              <select className={inp} value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
+                <option value="">No partner</option>
+                {partners.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.companyName || p.email}
+                  </option>
+                ))}
+              </select>
+            </L>
+          )}
+        </div>
+        {error && <p className="mt-3 shrink-0 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+        {notice && <p className="mt-3 shrink-0 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">{notice}</p>}
+        <div className="mt-4 flex shrink-0 justify-end gap-2 border-t border-slate-100 pt-4">
+          <button onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            {notice ? "Done" : "Cancel"}
+          </button>
+          <button onClick={save} disabled={busy} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-700 disabled:opacity-60">
+            {busy ? "Adding…" : "Add customer"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface ImportResult {
+  email: string;
+  status: "created" | "skipped" | "error";
+  reason?: string;
+}
+
+// Parse pasted CSV/TSV rows: email, name, domain, address. A header line
+// containing "email" is ignored. Commas inside addresses are handled by
+// treating the 4th column onward as the address.
+function parseImport(text: string): { email: string; name: string; authorizedDomain: string; defaultAddress: string }[] {
+  const out: { email: string; name: string; authorizedDomain: string; defaultAddress: string }[] = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    const delim = line.includes("\t") ? "\t" : ",";
+    const parts = line.split(delim).map((p) => p.trim());
+    if (!parts[0] || /^e-?mail$/i.test(parts[0]) || !parts[0].includes("@")) {
+      // Skip header rows or lines whose first cell isn't an email.
+      if (/@/.test(parts[0] || "")) {
+        // still an email even without dot? unlikely; fallthrough
+      } else {
+        continue;
+      }
+    }
+    const email = parts[0] || "";
+    const name = parts[1] || "";
+    const authorizedDomain = parts[2] || "";
+    // Address may itself contain the delimiter → rejoin the remainder.
+    const defaultAddress = parts.length > 3 ? parts.slice(3).join(delim === "," ? ", " : " ").trim() : "";
+    out.push({ email, name, authorizedDomain, defaultAddress });
+  }
+  return out;
+}
+
+function ImportModal({
+  isAdmin,
+  partners,
+  onClose,
+  onDone,
+}: {
+  isAdmin: boolean;
+  partners: PartnerOption[];
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [text, setText] = useState("");
+  const [partnerId, setPartnerId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<null | { created: number; skipped: number; errored: number; results: ImportResult[] }>(null);
+  useEscapeKey(onClose);
+
+  const parsed = useMemo(() => parseImport(text), [text]);
+
+  async function run() {
+    if (!parsed.length) {
+      setError("Paste at least one row with an email.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/owner/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ partnerId: isAdmin ? partnerId || undefined : undefined, rows: parsed }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(j.error || "Import failed.");
+        return;
+      }
+      setSummary({ created: j.created, skipped: j.skipped, errored: j.errored, results: j.results || [] });
+      onDone();
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-lg font-extrabold text-ink-900">Import customers</h2>
+        <p className="mt-0.5 text-[12px] text-slate-500">
+          One realtor per line: <code className="rounded bg-slate-100 px-1">email, customer name, authorized domain, default address</code>.
+          Accounts are created verified and active — no email verification needed.
+        </p>
+
+        {!summary ? (
+          <div className="-mr-2 mt-4 flex-1 space-y-3 overflow-y-auto pr-2">
+            <textarea
+              rows={9}
+              className={`${inp} resize-y font-mono text-[12px]`}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={"jane@agency.com, Jane Doe, janeagency.com, 1500 N 23rd St, Fort Pierce, FL\njohn@homes.com, John Smith, johnhomes.com, 742 Evergreen Ter, Springfield, IL"}
+            />
+            <p className="text-[12px] text-slate-500">{parsed.length} row{parsed.length === 1 ? "" : "s"} detected.</p>
+            {isAdmin && (
+              <L label="Assign all to partner" hint="Optional. Applies to every imported row.">
+                <select className={inp} value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
+                  <option value="">No partner</option>
+                  {partners.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.companyName || p.email}
+                    </option>
+                  ))}
+                </select>
+              </L>
+            )}
+          </div>
+        ) : (
+          <div className="-mr-2 mt-4 flex-1 space-y-3 overflow-y-auto pr-2">
+            <div className="flex gap-2">
+              <Stat label="Created" value={String(summary.created)} />
+              <Stat label="Skipped" value={String(summary.skipped)} />
+              <Stat label="Errors" value={String(summary.errored)} />
+            </div>
+            <ul className="space-y-1 text-[12px]">
+              {summary.results.map((r, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span
+                    className={`mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                      r.status === "created"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : r.status === "skipped"
+                          ? "bg-slate-100 text-slate-600"
+                          : "bg-rose-100 text-rose-700"
+                    }`}
+                  >
+                    {r.status}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="font-semibold text-ink-900">{r.email}</span>
+                    {r.reason && <span className="text-slate-500"> — {r.reason}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {error && <p className="mt-3 shrink-0 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+        <div className="mt-4 flex shrink-0 justify-end gap-2 border-t border-slate-100 pt-4">
+          <button onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            {summary ? "Done" : "Cancel"}
+          </button>
+          {!summary && (
+            <button onClick={run} disabled={busy} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-700 disabled:opacity-60">
+              {busy ? "Importing…" : `Import ${parsed.length || ""}`.trim()}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

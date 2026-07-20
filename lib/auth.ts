@@ -15,6 +15,10 @@ import { UPGRADE_PROMPT_LIMITS, type UpgradePromptLimitKey } from "@/lib/upgrade
 // ---------------------------------------------------------------------------
 
 export const SESSION_COOKIE = "dn_sess";
+// While a partner/admin is impersonating a realtor, dn_sess points at the
+// realtor and this cookie holds the impersonator's own session token so they
+// can return to their account.
+export const IMPERSONATOR_COOKIE = "dn_imp";
 const SESSION_TTL_DAYS = 60;
 const VERIFY_TTL_HOURS = 48;
 
@@ -218,6 +222,34 @@ export async function createUser(email: string, password: string, partnerId?: st
     [id, normalizeEmail(email), hashPassword(password), owner, partnerId || null]
   );
   return rowToUser(rows[0]);
+}
+
+/**
+ * Create a realtor account on behalf of a partner/admin (import or manual add).
+ * The account is created ALREADY VERIFIED and with NO password — the widget
+ * works immediately, and the realtor sets a password the first time they sign
+ * in to the app (an empty hash can never authenticate; see verifyPassword).
+ */
+export async function createManagedUser(input: {
+  email: string;
+  partnerId?: string | null;
+  realtorName?: string;
+}): Promise<AppUser> {
+  await ensureTables();
+  const pool = getPool();
+  const id = randomUUID();
+  const owner = isOwnerEmail(input.email);
+  const { rows } = await pool.query(
+    `INSERT INTO app_users (id, email, password_hash, email_verified, is_owner, partner_id, company_name)
+     VALUES ($1,$2,'',TRUE,$3,$4,$5) RETURNING *`,
+    [id, normalizeEmail(input.email), owner, input.partnerId || null, (input.realtorName || "").trim()]
+  );
+  return rowToUser(rows[0]);
+}
+
+/** True when the account has never set a password (managed/imported realtor). */
+export function isPasswordless(passwordHash: string | null | undefined): boolean {
+  return !String(passwordHash || "").trim();
 }
 
 export async function setUserPartner(userId: string, partnerId: string | null): Promise<void> {
@@ -438,4 +470,30 @@ export function sessionCookie(value: string, maxAgeSeconds = SESSION_TTL_DAYS * 
     path: "/",
     maxAge: maxAgeSeconds,
   };
+}
+
+// Cookie holding the impersonator's own session token during impersonation.
+export function impersonatorCookie(value: string, maxAgeSeconds = SESSION_TTL_DAYS * 24 * 3600) {
+  return {
+    name: IMPERSONATOR_COOKIE,
+    value,
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: maxAgeSeconds,
+  };
+}
+
+export function impersonatorTokenFromRequest(request: Request): string | null {
+  const cookie = request.headers.get("cookie") || "";
+  const m = cookie.match(/(?:^|;\s*)dn_imp=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+/** The impersonator (partner/admin) behind the current session, if any. */
+export async function impersonatorFromRequest(request: Request): Promise<AppUser | null> {
+  const token = impersonatorTokenFromRequest(request);
+  if (!token) return null;
+  return getUserBySession(token);
 }

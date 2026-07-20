@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { hasDatabase } from "@/lib/db";
-import { getUserByEmail, verifyPassword, createSession, sessionCookie } from "@/lib/auth";
+import { getUserByEmail, verifyPassword, createSession, sessionCookie, isPasswordless } from "@/lib/auth";
 import { verifyTurnstile } from "@/lib/turnstile";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +23,18 @@ export async function POST(request: Request) {
   }
   try {
     const user = await getUserByEmail(email);
+    // Managed/imported realtors have no password yet — guide them to set one
+    // (rather than a confusing "incorrect password"). The account is already
+    // verified and their widget already works.
+    if (user && isPasswordless(user.passwordHash)) {
+      return NextResponse.json(
+        {
+          error: "Your account is ready — set a password to sign in. We'll email you a secure link.",
+          needsPassword: true,
+        },
+        { status: 403 }
+      );
+    }
     if (!user || !verifyPassword(password, user.passwordHash)) {
       return NextResponse.json({ error: "Incorrect email or password." }, { status: 401 });
     }

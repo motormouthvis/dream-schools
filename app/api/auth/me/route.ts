@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { currentUser, getPartnerBranding } from "@/lib/auth";
+import { currentUser, getPartnerBranding, impersonatorFromRequest } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +9,19 @@ export async function GET(request: Request) {
     if (!user) return NextResponse.json({ user: null }, { status: 200 });
     const partnerBranding =
       !user.isPartner && user.partnerId ? await getPartnerBranding(user.partnerId) : null;
+    // If a partner/admin is viewing this account, expose who (for the banner).
+    const impersonator = await impersonatorFromRequest(request);
+    const impersonating =
+      impersonator && impersonator.id !== user.id
+        ? {
+            by: {
+              id: impersonator.id,
+              email: impersonator.email,
+              name: impersonator.companyName || impersonator.businessName || impersonator.email,
+              isOwner: impersonator.isOwner,
+            },
+          }
+        : null;
     return NextResponse.json({
       user: {
         id: user.id,
@@ -25,6 +38,7 @@ export async function GET(request: Request) {
         emailVerified: user.emailVerified,
         createdAt: user.createdAt,
       },
+      impersonating,
     });
   } catch {
     return NextResponse.json({ user: null }, { status: 200 });

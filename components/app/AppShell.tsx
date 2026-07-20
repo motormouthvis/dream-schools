@@ -18,6 +18,10 @@ interface Me {
   createdAt?: string;
 }
 
+interface Impersonation {
+  by: { id: string; email: string; name: string; isOwner: boolean };
+}
+
 export function AppShell({
   active,
   children,
@@ -26,6 +30,7 @@ export function AppShell({
   children: (me: Me) => React.ReactNode;
 }) {
   const [me, setMe] = useState<Me | null>(null);
+  const [impersonating, setImpersonating] = useState<Impersonation | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -38,6 +43,7 @@ export function AppShell({
           return;
         }
         setMe(j.user);
+        setImpersonating(j.impersonating || null);
         setLoaded(true);
       })
       .catch(() => (window.location.href = "/login"));
@@ -165,8 +171,41 @@ export function AppShell({
             </div>
           </div>
         )}
+        {impersonating && <ImpersonationBanner info={impersonating} viewing={me} />}
         <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">{children(me)}</main>
       </div>
+    </div>
+  );
+}
+
+function ImpersonationBanner({ info, viewing }: { info: Impersonation; viewing: Me }) {
+  const [busy, setBusy] = useState(false);
+  const viewingName = (viewing.companyName || viewing.businessName || viewing.email).trim();
+
+  async function stop() {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/owner/impersonate", { method: "DELETE" });
+      const j = await res.json().catch(() => ({}));
+      window.location.href = j.redirect || "/owner";
+    } catch {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 bg-amber-500 px-4 py-2 text-[13px] font-semibold text-amber-950">
+      <span>
+        Viewing <strong>{viewingName}</strong>’s account as {info.by.name}. Changes you make apply to this realtor.
+      </span>
+      <button
+        type="button"
+        onClick={stop}
+        disabled={busy}
+        className="rounded-lg bg-amber-950 px-3 py-1 text-xs font-bold text-white transition hover:bg-black disabled:opacity-60"
+      >
+        {busy ? "Returning…" : "Stop & return to my account"}
+      </button>
     </div>
   );
 }

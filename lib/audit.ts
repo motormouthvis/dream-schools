@@ -17,7 +17,8 @@ export type UserEventType =
   | "account_deleted"
   | "account_restored"
   | "partner_assignment_changed"
-  | "partner_status_changed";
+  | "partner_status_changed"
+  | "impersonation_started";
 
 export interface UserEvent {
   event: UserEventType | string;
