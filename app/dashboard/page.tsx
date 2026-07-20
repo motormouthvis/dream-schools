@@ -72,7 +72,7 @@ export default function DashboardPage() {
                 School Explorer
               </h1>
               <p className="mt-1 max-w-[15rem] text-base font-bold leading-snug text-ink-800 sm:max-w-md sm:text-xl">
-                Free, Full Featured School Data to Your Website
+                Free, Full Featured School Data For Your Website
               </p>
               <p className="mt-2 max-w-[17rem] text-xs font-semibold leading-snug text-slate-700 sm:max-w-sm">
                 Real ratings, test scores &amp; safety ratings for any US School

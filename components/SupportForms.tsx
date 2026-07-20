@@ -213,6 +213,69 @@ function SupportForm({ mode }: { mode: "contact" | "feedback" }) {
   );
 }
 
+/** Form body shared by the public www pages and the signed-in app shell. */
+export function SupportContent({
+  title,
+  subtitle,
+  mode,
+  aside,
+  compact = false,
+}: {
+  title: string;
+  subtitle: string;
+  mode: "contact" | "feedback";
+  aside?: React.ReactNode;
+  /** Tighter heading when shown inside the app sidebar layout. */
+  compact?: boolean;
+}) {
+  return (
+    <>
+      <h1 className={`${compact ? "text-xl" : "mt-8 text-3xl"} font-extrabold tracking-tight text-ink-900`}>
+        {title}
+      </h1>
+      <p className={`${compact ? "mt-1 text-[12px]" : "mt-2 text-sm"} max-w-2xl leading-relaxed text-slate-600`}>
+        {subtitle}
+      </p>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-[1fr_1.2fr]">
+        <aside className="space-y-3">
+          <a
+            href="mailto:support@dreamneighborhood.com"
+            className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-brand-300"
+          >
+            <span className="text-lg" aria-hidden>
+              ✉
+            </span>
+            <span>
+              <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">Email</span>
+              <span className="block text-sm font-semibold text-ink-900">support@dreamneighborhood.com</span>
+            </span>
+          </a>
+          <a
+            href="tel:+17722020185"
+            className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-brand-300"
+          >
+            <span className="text-lg" aria-hidden>
+              ☎
+            </span>
+            <span>
+              <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">Phone</span>
+              <span className="block text-sm font-semibold text-ink-900">(772) 202-0185</span>
+            </span>
+          </a>
+          {aside}
+        </aside>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <Suspense fallback={<p className="text-sm text-slate-500">Loading form…</p>}>
+            <SupportForm mode={mode} />
+          </Suspense>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function SupportShell({
   title,
   subtitle,
@@ -244,44 +307,7 @@ export function SupportShell({
           </nav>
         </div>
 
-        <h1 className="mt-8 text-3xl font-extrabold tracking-tight text-ink-900">{title}</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">{subtitle}</p>
-
-        <div className="mt-6 grid gap-4 md:grid-cols-[1fr_1.2fr]">
-          <aside className="space-y-3">
-            <a
-              href="mailto:support@dreamneighborhood.com"
-              className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-brand-300"
-            >
-              <span className="text-lg" aria-hidden>
-                ✉
-              </span>
-              <span>
-                <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">Email</span>
-                <span className="block text-sm font-semibold text-ink-900">support@dreamneighborhood.com</span>
-              </span>
-            </a>
-            <a
-              href="tel:+17722020185"
-              className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-brand-300"
-            >
-              <span className="text-lg" aria-hidden>
-                ☎
-              </span>
-              <span>
-                <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">Phone</span>
-                <span className="block text-sm font-semibold text-ink-900">(772) 202-0185</span>
-              </span>
-            </a>
-            {aside}
-          </aside>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <Suspense fallback={<p className="text-sm text-slate-500">Loading form…</p>}>
-              <SupportForm mode={mode} />
-            </Suspense>
-          </div>
-        </div>
+        <SupportContent title={title} subtitle={subtitle} mode={mode} aside={aside} />
 
         <p className="mt-10 text-center text-[11px] text-slate-400">
           <a href={TERMS_URL} className="hover:text-brand-700" target="_blank" rel="noopener noreferrer">
