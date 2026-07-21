@@ -70,7 +70,7 @@ function PartnerGuide() {
           <p className="mt-3">You have three tools:</p>
           <ul className="mt-2 space-y-1.5">
             <Li><strong>Add customer</strong> — set up one realtor by hand.</Li>
-            <Li><strong>Import</strong> — set up many realtors at once from a pasted list.</Li>
+            <Li><strong>Import</strong> — set up many realtors at once from a CSV file or pasted list.</Li>
             <Li><strong>View as</strong> — step into a realtor's account and configure everything for them.</Li>
           </ul>
         </Section>

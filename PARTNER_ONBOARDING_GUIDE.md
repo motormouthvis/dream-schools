@@ -18,7 +18,7 @@ anything — and it keeps working whether or not they ever log in.
 You have three tools:
 
 1. **Add customer** — set up one realtor by hand.
-2. **Import** — set up many realtors at once from a pasted list.
+2. **Import** — set up many realtors at once from a CSV file or pasted list.
 3. **View as** — step into a realtor's account and configure everything for them.
 
 ---
