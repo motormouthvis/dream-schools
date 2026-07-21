@@ -37,29 +37,47 @@ optional and overrides the server-resolved per-host config.
 | `data-require-address` | popup | hide the bubble when no address resolves |
 | `data-search-page-content` | both | opt-in to the heavier visible-text address scan |
 | `data-suppress-on-inline` | popup | (legacy) hide the popup when an inline schools embed is also present — now automatic |
-| `data-suppress-if-neighborhood-explorer` | popup | (legacy) hide the popup when the (paid) Dream Neighborhood Explorer is on the page — now automatic |
 | `data-show-external-links` | both | show a "more on this school" row (Niche & GreatSchools) on the school detail. Off by default on the embed; always on for the main site |
-
-### Automatic popup suppression
-
-The floating School popup **never appears** when either of these is detected on the
-page, regardless of config:
-
-- a **School Explorer embedded snippet** (an inline container such as
-  `#dream-schools-explorer`), or
-- the **paid Dream Neighborhood Explorer** — its floating popup or an embedded
-  snippet (detected via a `dreamneighborhood.com` script/iframe/link, a known
-  container selector, or a global such as `__DN_EXPLORER_API_BASE__`).
-
-Detection re-runs shortly after load to catch a partner widget whose script
-loads after ours. The `data-*` flags above remain for backward compatibility but
-are no longer required.
 | `data-min-height` | inline | iframe min-height in px |
 | `data-max-width` | inline | max width in px (default 840; e.g. `600` narrower or `1100` wider) |
 | `data-show-header` | inline | show the explorer header bar |
 | `data-address` | inline | explicit address; bypasses scraping |
 | `data-lat` / `data-lng` | inline | explicit coordinates; bypasses geocoding |
 | `data-api-base` | both | override the API origin (defaults to the script's origin) |
+
+### Automatic popup suppression
+
+The floating School popup steps aside when:
+
+1. **An inline School Explorer** is already on the page (e.g. `#dream-schools-explorer`), or
+2. **Neighborhood Explorer actually shows** on the page — not merely because its
+   script tag is present.
+
+Neighborhood Explorer (www.dreamneighborhood.com) signals readiness once per page
+load when it is entitled and mounted:
+
+```js
+window.__DN_NEIGHBORHOOD_EXPLORER_READY__ = true;
+window.dispatchEvent(new Event("dn:neighborhood-explorer-ready"));
+```
+
+The School popup:
+
+- Checks the flag first (in case NE already signaled),
+- Listens for the event (including after the grace period),
+- Waits a configurable grace period (default **4000ms**, admin Account Settings)
+  before showing if no signal arrives.
+
+**Inline School Explorer is not suppressed** by this handshake — partners can keep
+an embedded School Explorer on a school page alongside Neighborhood Explorer.
+
+#### Known SPA quirk
+
+The ready flag never flips back to `false`. On single-page-app listing sites, if
+Neighborhood Explorer shows on listing A (flag becomes true) and then hides on
+listing B without a full page reload (e.g. no address found), the School popup
+stays suppressed for the rest of that tab session. A refresh or new tab resets it.
+Tracked in `TODO.md` for a possible future “hidden” event on both sides.
 
 ## Address scraping (best-effort, in order)
 

@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app/AppShell";
 import { UPGRADE_PROMPT_LIMITS } from "@/lib/upgradeLimits";
+import {
+  DEFAULT_NEIGHBORHOOD_EXPLORER_GRACE_MS,
+  NEIGHBORHOOD_EXPLORER_GRACE_MS_MIN,
+  NEIGHBORHOOD_EXPLORER_GRACE_MS_MAX,
+} from "@/lib/embedSettings";
 
 function fmtDate(v?: string): string {
   if (!v) return "—";
@@ -59,6 +64,7 @@ export default function AccountPage() {
             {(me.isOwner || me.isPartner) && (
               <UpgradePromptSettings isOwner={me.isOwner} isPartner={me.isPartner} />
             )}
+            {me.isOwner && <NeighborhoodExplorerGraceSettings />}
             <ChangeEmail currentEmail={me.email} />
             <ChangePassword email={me.email} />
             <AccountHistory />
@@ -307,6 +313,90 @@ function WhiteLabelProfile({
           {busy ? "Saving…" : "Save white-label name"}
         </button>
       </form>
+    </Card>
+  );
+}
+
+function NeighborhoodExplorerGraceSettings() {
+  const [loaded, setLoaded] = useState(false);
+  const [graceMs, setGraceMs] = useState(String(DEFAULT_NEIGHBORHOOD_EXPLORER_GRACE_MS));
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/embed-settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (j?.neighborhoodExplorerGraceMs != null) {
+          setGraceMs(String(j.neighborhoodExplorerGraceMs));
+        }
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setDone(false);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/embed-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ neighborhoodExplorerGraceMs: graceMs }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(j.error || "Could not save settings.");
+        return;
+      }
+      if (j.neighborhoodExplorerGraceMs != null) {
+        setGraceMs(String(j.neighborhoodExplorerGraceMs));
+      }
+      setDone(true);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card title="School popup ↔ Neighborhood Explorer">
+      <p className="mb-3 text-[12px] leading-relaxed text-slate-500">
+        When both widgets are on a page, the School popup waits this long for Neighborhood
+        Explorer to signal that it is actually showing. If the signal arrives (then or later),
+        the School popup hides. If it never arrives, the School popup shows after the wait.
+        Applies globally to all sites. Admin only.
+      </p>
+      {!loaded ? (
+        <p className="text-sm text-slate-400">Loading…</p>
+      ) : (
+        <form onSubmit={save} className="space-y-3">
+          <NumberField
+            label="Grace period (milliseconds)"
+            value={graceMs}
+            onChange={setGraceMs}
+            min={NEIGHBORHOOD_EXPLORER_GRACE_MS_MIN}
+            max={NEIGHBORHOOD_EXPLORER_GRACE_MS_MAX}
+          />
+          <p className="text-[11px] text-slate-400">
+            Default {DEFAULT_NEIGHBORHOOD_EXPLORER_GRACE_MS}ms. Don&apos;t set much below 3000ms —
+            Neighborhood Explorer needs a config fetch and geocode before it can signal.
+          </p>
+          {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
+          {done && (
+            <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+              Grace period saved ✓
+            </p>
+          )}
+          <button type="submit" disabled={busy} className={btn}>
+            {busy ? "Saving…" : "Save grace period"}
+          </button>
+        </form>
+      )}
     </Card>
   );
 }

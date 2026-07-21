@@ -75,17 +75,20 @@
     requireAddress: false,
     searchPageContent: false,
     suppressOnInline: false,
-    suppressIfNeighborhoodExplorer: false,
     showExternalLinks: false,
     inlineMinHeight: 540,
     inlineMinHeightExplicit: false,
     inlineShowHeader: false,
+    neighborhoodExplorerGraceMs: 4000,
   };
 
   function presentationFromRemote(remote) {
     if (!remote || typeof remote !== "object") return Object.assign({}, DEFAULTS);
     var popup = remote.popup && typeof remote.popup === "object" ? remote.popup : remote;
     var inline = remote.inline && typeof remote.inline === "object" ? remote.inline : {};
+    var grace = typeof remote.neighborhoodExplorerGraceMs === "number"
+      ? remote.neighborhoodExplorerGraceMs
+      : DEFAULTS.neighborhoodExplorerGraceMs;
     return {
       accentColor: typeof remote.accentColor === "string" && remote.accentColor ? remote.accentColor : DEFAULTS.accentColor,
       position: normPosition(popup.position),
@@ -93,12 +96,12 @@
       tooltipMessage: typeof popup.tooltipMessage === "string" ? popup.tooltipMessage : DEFAULTS.tooltipMessage,
       requireAddress: typeof popup.requireAddress === "boolean" ? popup.requireAddress : DEFAULTS.requireAddress,
       suppressOnInline: typeof popup.suppressOnInline === "boolean" ? popup.suppressOnInline : DEFAULTS.suppressOnInline,
-      suppressIfNeighborhoodExplorer: typeof popup.suppressIfNeighborhoodExplorer === "boolean" ? popup.suppressIfNeighborhoodExplorer : DEFAULTS.suppressIfNeighborhoodExplorer,
       showExternalLinks: typeof remote.showExternalLinks === "boolean" ? remote.showExternalLinks : DEFAULTS.showExternalLinks,
       searchPageContent: typeof remote.searchPageContent === "boolean" ? remote.searchPageContent : DEFAULTS.searchPageContent,
       inlineMinHeight: typeof inline.minHeight === "number" ? Math.max(200, inline.minHeight | 0) : DEFAULTS.inlineMinHeight,
       inlineMinHeightExplicit: false,
       inlineShowHeader: typeof inline.showHeader === "boolean" ? inline.showHeader : DEFAULTS.inlineShowHeader,
+      neighborhoodExplorerGraceMs: Math.max(2000, Math.min(15000, grace | 0) || DEFAULTS.neighborhoodExplorerGraceMs),
     };
   }
 
@@ -116,8 +119,6 @@
     if (sp !== null) next.searchPageContent = sp;
     var soi = boolAttr(el, "data-suppress-on-inline");
     if (soi !== null) next.suppressOnInline = soi;
-    var sne = boolAttr(el, "data-suppress-if-neighborhood-explorer");
-    if (sne !== null) next.suppressIfNeighborhoodExplorer = sne;
     var sxl = boolAttr(el, "data-show-external-links");
     if (sxl !== null) next.showExternalLinks = sxl;
     var mh = intAttr(el, "data-min-height", 200);
@@ -174,11 +175,11 @@
         requireAddress: pres.requireAddress,
         searchPageContent: pres.searchPageContent,
         suppressOnInline: pres.suppressOnInline,
-        suppressIfNeighborhoodExplorer: pres.suppressIfNeighborhoodExplorer,
         showExternalLinks: pres.showExternalLinks,
         inlineMinHeight: pres.inlineMinHeight,
         inlineMinHeightExplicit: pres.inlineMinHeightExplicit,
         inlineShowHeader: pres.inlineShowHeader,
+        neighborhoodExplorerGraceMs: pres.neighborhoodExplorerGraceMs,
       };
     });
   }
@@ -542,48 +543,18 @@
     return v === "1" || v === "true" || v === "yes";
   }
 
-  // Detect the (paid) Dream Neighborhood "Neighborhood Explorer" on the page —
-  // either its floating popup or an inline/embedded snippet — so the free School
-  // Explorer popup can step aside.
-  var DN_HOST_RE = /(^|\.)dreamneighborhood\.com$/i; // never matches dreamneighborhoodschools.com
-  function neighborhoodExplorerPresent() {
-    try {
-      if (
-        window.__DN_EXPLORER_API_BASE__ ||
-        window.DreamNeighborhood ||
-        window.__DREAM_NEIGHBORHOOD__ ||
-        window.DreamNeighborhoodExplorer
-      ) {
-        return true;
-      }
-      if (
-        document.querySelector(
-          "#dn-explorer,.dn-explorer,[data-dn-explorer],[data-dream-neighborhood-explorer]," +
-            "#dream-neighborhood-explorer,.dream-neighborhood-explorer,[data-dream-neighborhood]"
-        )
-      ) {
-        return true;
-      }
-      // Any script/iframe/link served from dreamneighborhood.com means the paid
-      // popup or embedded explorer snippet is installed on this page.
-      var nodes = document.querySelectorAll("script[src],iframe[src],link[href]");
-      for (var i = 0; i < nodes.length; i++) {
-        var url = nodes[i].getAttribute("src") || nodes[i].getAttribute("href") || "";
-        if (!url) continue;
-        try {
-          if (DN_HOST_RE.test(new URL(url, location.href).hostname)) return true;
-        } catch (e) {}
-      }
-    } catch (e) {}
-    return false;
-  }
+  // Neighborhood Explorer ready handshake (from www.dreamneighborhood.com):
+  //   window.__DN_NEIGHBORHOOD_EXPLORER_READY__ = true
+  //   window.dispatchEvent(new Event("dn:neighborhood-explorer-ready"))
+  // Fires at most once per page load, only when NE is actually showing (entitled +
+  // geocode settled + bubble/iframe mounted). Script-tag presence alone means nothing.
+  var NE_READY_FLAG = "__DN_NEIGHBORHOOD_EXPLORER_READY__";
+  var NE_READY_EVENT = "dn:neighborhood-explorer-ready";
 
-  // The School popup should never appear when the explorer is already on the page
-  // as an inline/embedded snippet, or when the paid Neighborhood Explorer is present.
-  function popupShouldStepAside() {
-    if (neighborhoodExplorerPresent()) return true;
-    if (inlinePresent() && !allowPopupWithInline()) return true;
-    return false;
+  // The School popup steps aside for an inline School Explorer embed on the same page.
+  // Neighborhood Explorer coexistence is handled separately via the ready signal.
+  function popupShouldStepAsideForInline() {
+    return inlinePresent() && !allowPopupWithInline();
   }
 
   // -------------------------------------------------------------------------
@@ -596,6 +567,21 @@
     var coords = null, coordsPromise = null, lastUrl = location.href, savedY = 0;
     var lastUsedAddr = "";
     var root, bubble, backdrop, iframe, loadingEl, tooltip, hideTimer = null;
+
+    // Coexistence with Neighborhood Explorer (popup only — inline School Explorer
+    // is never suppressed by this handshake).
+    // Cases: signal already fired; signal fires later; signal never comes.
+    var neSuppressed = false;
+    var graceDone = false;
+    var geoDone = false;
+    var graceMs = typeof config.neighborhoodExplorerGraceMs === "number"
+      ? config.neighborhoodExplorerGraceMs
+      : DEFAULTS.neighborhoodExplorerGraceMs;
+
+    function onNeighborhoodExplorerReady() {
+      neSuppressed = true;
+      hidePopup();
+    }
 
     var style = document.createElement("style");
     style.textContent = CSS;
@@ -708,27 +694,52 @@
     }
 
     function hidePopup() {
+      if (!root) return;
       root.style.display = "none";
-      tooltip.classList.remove("dse-tv");
+      if (tooltip) tooltip.classList.remove("dse-tv");
+    }
+
+    function tryRevealPopup(initial) {
+      if (neSuppressed) { hidePopup(); return; }
+      if (!geoDone || !root) return;
+      // Before grace elapses, keep hidden (waiting for NE ready or timeout).
+      if (!graceDone) { hidePopup(); return; }
+      if (popupShouldStepAsideForInline()) { hidePopup(); return; }
+      if (config.requireAddress && !coords) { hidePopup(); return; }
+      root.style.display = "";
+      setTimeout(showTooltip, initial ? 800 : 0);
     }
 
     function refresh(initial) {
-      coords = null; started = false; loaded = false;
+      coords = null; started = false; loaded = false; geoDone = false;
       iframe.removeAttribute("src"); iframe.classList.add("dse-hidden"); loadingEl.classList.add("dse-hidden");
+      // Catch up if NE signaled while we were mid-refresh (SPA or late load).
+      if (window[NE_READY_FLAG]) onNeighborhoodExplorerReady();
+      if (neSuppressed) { hidePopup(); return; }
       // On SPA navigations, wait for the new route to render before scraping so
       // we don't geocode the previous listing (or fall back to the default).
       var geoOpts = initial ? {} : { spa: true, prevTitle: document.title || "", prevAddr: lastUsedAddr };
       coordsPromise = geocodePage(config, geoOpts).then(function (c) {
         coords = c;
         lastUsedAddr = (c && c.address) || lastUsedAddr;
-        // Always step aside for an inline schools embed or the paid Neighborhood Explorer.
-        if (popupShouldStepAside()) { hidePopup(); return; }
-        if (config.requireAddress && !coords) { hidePopup(); return; }
-        root.style.display = "";
-        setTimeout(showTooltip, initial ? 800 : 0);
-        // Re-check once in case the other widget's script loads after ours.
-        setTimeout(function () { if (!isOpen && popupShouldStepAside()) hidePopup(); }, 1800);
+        geoDone = true;
+        tryRevealPopup(initial);
       });
+    }
+
+    // Wire NE ready handshake after DOM exists so hidePopup can run safely.
+    try {
+      if (window[NE_READY_FLAG]) {
+        onNeighborhoodExplorerReady();
+      } else {
+        window.addEventListener(NE_READY_EVENT, onNeighborhoodExplorerReady, { once: true });
+        setTimeout(function () {
+          graceDone = true;
+          tryRevealPopup();
+        }, graceMs);
+      }
+    } catch (e) {
+      graceDone = true;
     }
 
     lastUrl = location.href;

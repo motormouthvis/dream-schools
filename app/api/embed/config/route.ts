@@ -3,6 +3,7 @@ import { presentationPayload, resolveByHost } from "@/lib/embedConfig";
 import { recordUsageAsync } from "@/lib/embedUsage";
 import { getPool, hasDatabase } from "@/lib/db";
 import { getGlobalUpgradeSettings, REQUEST_SUPPRESS_DAYS } from "@/lib/upgradePrompt";
+import { getEmbedGlobalSettings } from "@/lib/embedSettings";
 import { ensureAuthTables } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -94,6 +95,7 @@ export async function GET(request: Request) {
     }
   }
   const globalUpgrade = await getGlobalUpgradeSettings();
+  const embedGlobals = await getEmbedGlobalSettings();
   const upgradePrompt = {
     enabled: true,
     viewsToTrigger: partnerOverride.viewsToTrigger ?? globalUpgrade.viewsToTrigger,
@@ -115,6 +117,7 @@ export async function GET(request: Request) {
     customerId: config.partnerId,
     customerPartnerId: partnerId,
     upgradePrompt,
+    neighborhoodExplorerGraceMs: embedGlobals.neighborhoodExplorerGraceMs,
     ...presentationPayload(config),
   };
   const res = withCors(request, payload);

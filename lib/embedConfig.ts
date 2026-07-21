@@ -27,8 +27,11 @@ export interface EmbedPresentation {
   searchPageContent: boolean;
   /** Hide the floating popup when an inline embed is already on the page. */
   suppressOnInline: boolean;
-  /** Hide the School Explorer when the (paid) Neighborhood Explorer popup/embed
-   *  is already present on the page, so the two don't stack. */
+  /**
+   * Legacy DB field — popup coexistence with Neighborhood Explorer is now driven
+   * by the ready signal (`__DN_NEIGHBORHOOD_EXPLORER_READY__`), not this flag.
+   * Kept for row mapping / upsert compatibility only.
+   */
   suppressIfNeighborhoodExplorer: boolean;
   /** Inline embed min-height (desktop) in px. */
   inlineMinHeight: number;
@@ -117,7 +120,6 @@ export function presentationPayload(p: EmbedPresentation) {
       tooltipMessage: p.tooltipMessage,
       requireAddress: p.requireAddress,
       suppressOnInline: p.suppressOnInline,
-      suppressIfNeighborhoodExplorer: p.suppressIfNeighborhoodExplorer,
     },
     inline: {
       minHeight: p.inlineMinHeight,

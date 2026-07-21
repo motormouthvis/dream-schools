@@ -104,6 +104,13 @@ as traffic grows**.
       popup is detected/used, so the customer sees not just total views but how many
       distinct listing/neighborhood pages each type appears on (breakdown by embed vs
       popup).
+- [ ] **Neighborhood Explorer “hidden” event for SPA routes:** today NE sets
+      `__DN_NEIGHBORHOOD_EXPLORER_READY__` once when it successfully shows, and never
+      clears it. On SPA listing sites, if NE shows on listing A then hides on listing B
+      (no full reload — e.g. `requireAddress` with no address), the School popup stays
+      suppressed for the rest of the tab session. Needs a coordinated `dn:neighborhood-explorer-hidden`
+      (or equivalent) on both NE and Schools if partners care about that case.
+      Documented in `EMBED.md`.
 
 ## Emails
 - [ ] **Bulk email from the Upgrade Requests page:** let a partner email all their

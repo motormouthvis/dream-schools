@@ -80,10 +80,8 @@ export async function POST(request: Request) {
     tooltipMessage: str(body.tooltipMessage, p.tooltipMessage),
     requireAddress: bool(body.requireAddress, p.requireAddress),
     searchPageContent: bool(body.searchPageContent, p.searchPageContent),
-    suppressIfNeighborhoodExplorer:
-      user.isOwner || user.isPartner
-        ? bool(body.suppressIfNeighborhoodExplorer, p.suppressIfNeighborhoodExplorer ?? true)
-        : true,
+    // Legacy column — coexistence is signal-driven in embed.js; preserve stored value.
+    suppressIfNeighborhoodExplorer: p.suppressIfNeighborhoodExplorer ?? true,
     inlineMinHeight: num(body.inlineMinHeight, p.inlineMinHeight),
     inlineShowHeader: bool(body.inlineShowHeader, p.inlineShowHeader),
     showExternalLinks: bool(body.showExternalLinks, p.showExternalLinks),

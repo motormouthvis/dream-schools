@@ -30,7 +30,6 @@ interface Partner {
   requireAddress: boolean;
   searchPageContent: boolean;
   suppressOnInline: boolean;
-  suppressIfNeighborhoodExplorer: boolean;
   inlineMinHeight: number;
   inlineShowHeader: boolean;
   showExternalLinks: boolean;
@@ -47,7 +46,6 @@ interface FormState {
   tooltipMessage: string;
   requireAddress: boolean;
   searchPageContent: boolean;
-  suppressIfNeighborhoodExplorer: boolean;
   showExternalLinks: boolean;
   enabled: boolean;
 }
@@ -62,7 +60,6 @@ const BLANK: FormState = {
   tooltipMessage: "",
   requireAddress: false,
   searchPageContent: false,
-  suppressIfNeighborhoodExplorer: false,
   showExternalLinks: false,
   enabled: true,
 };
@@ -94,7 +91,6 @@ function partnerToForm(p: Partner): FormState {
     tooltipMessage: p.tooltipMessage,
     requireAddress: p.requireAddress,
     searchPageContent: p.searchPageContent,
-    suppressIfNeighborhoodExplorer: p.suppressIfNeighborhoodExplorer,
     showExternalLinks: p.showExternalLinks,
     enabled: p.enabled,
   };
@@ -175,7 +171,6 @@ export default function EmbedAdmin() {
           tooltipMessage: form.tooltipMessage,
           requireAddress: form.requireAddress,
           searchPageContent: form.searchPageContent,
-          suppressIfNeighborhoodExplorer: form.suppressIfNeighborhoodExplorer,
           showExternalLinks: form.showExternalLinks,
           enabled: form.enabled,
         }),
@@ -521,26 +516,6 @@ export default function EmbedAdmin() {
                 <div className="text-[11px] text-zinc-500">
                   If no address is found in the URL, scan the page content for
                   one and use it as the explorer&apos;s default.
-                </div>
-              </div>
-            </label>
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 bg-white p-3 hover:bg-zinc-50">
-              <input
-                type="checkbox"
-                checked={form.suppressIfNeighborhoodExplorer}
-                onChange={(e) =>
-                  setForm({ ...form, suppressIfNeighborhoodExplorer: e.target.checked })
-                }
-                className="mt-0.5 h-4 w-4 cursor-pointer accent-emerald-600"
-              />
-              <div className="flex-1">
-                <div className="text-sm font-medium text-zinc-900">
-                  Hide when the Neighborhood Explorer is on the page
-                </div>
-                <div className="text-[11px] text-zinc-500">
-                  Suppress this free School Explorer popup on pages that already
-                  have the full Dream Neighborhood Explorer (popup or embed), so the
-                  two don&apos;t stack.
                 </div>
               </div>
             </label>

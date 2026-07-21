@@ -12,7 +12,6 @@ type Form = {
   bottomOffset: number;
   tooltipMessage: string;
   requireAddress: boolean;
-  suppressIfNeighborhoodExplorer: boolean;
   inlineMinHeight: number;
   inlineShowHeader: boolean;
   showExternalLinks: boolean;
@@ -27,7 +26,6 @@ const BLANK: Form = {
   bottomOffset: 0,
   tooltipMessage: "",
   requireAddress: false,
-  suppressIfNeighborhoodExplorer: true,
   inlineMinHeight: 0,
   inlineShowHeader: false,
   showExternalLinks: true,
@@ -63,7 +61,6 @@ export default function EditPage() {
             bottomOffset: c.bottomOffset ?? 0,
             tooltipMessage: c.tooltipMessage ?? "",
             requireAddress: !!c.requireAddress,
-            suppressIfNeighborhoodExplorer: !!c.suppressIfNeighborhoodExplorer,
             inlineMinHeight: c.inlineMinHeight ?? 0,
             inlineShowHeader: !!c.inlineShowHeader,
             showExternalLinks: !!c.showExternalLinks,
@@ -236,9 +233,6 @@ export default function EditPage() {
                       <input className={inp} value={form.tooltipMessage} onChange={(e) => set("tooltipMessage", e.target.value)} placeholder="See schools near {{address}}" />
                     </Field>
                     <Check checked={form.requireAddress} onChange={(v) => set("requireAddress", v)} label="Only show when an address is detected" />
-                    {(me.isOwner || me.isPartner) && (
-                      <Check checked={form.suppressIfNeighborhoodExplorer} onChange={(v) => set("suppressIfNeighborhoodExplorer", v)} label="Hide when the Neighborhood Explorer is present" />
-                    )}
                   </OptionBlock>
                   <OptionBlock title="Popup code">
                     <CodeBlock code={POPUP_SNIPPET} />
