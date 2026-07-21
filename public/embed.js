@@ -557,6 +557,44 @@
     return inlinePresent() && !allowPopupWithInline();
   }
 
+  // Cheap hint: is Neighborhood Explorer plausibly on this page? Used ONLY to
+  // decide whether it's worth waiting out the grace period for NE's async ready
+  // signal. Per the DN contract this NEVER suppresses on its own — a script tag
+  // alone means nothing; only the ready flag/event actually hides the popup. On
+  // pages with no sign of NE we skip the wait entirely so the popup shows
+  // immediately, exactly as before.
+  var DN_HOST_RE = /(^|\.)dreamneighborhood\.com$/i; // never matches dreamneighborhoodschools.com
+  function neighborhoodExplorerMaybePresent() {
+    try {
+      if (
+        window[NE_READY_FLAG] ||
+        window.__DN_EXPLORER_API_BASE__ ||
+        window.DreamNeighborhood ||
+        window.__DREAM_NEIGHBORHOOD__ ||
+        window.DreamNeighborhoodExplorer
+      ) {
+        return true;
+      }
+      if (
+        document.querySelector(
+          "#dn-explorer,.dn-explorer,[data-dn-explorer],[data-dream-neighborhood-explorer]," +
+            "#dream-neighborhood-explorer,.dream-neighborhood-explorer,[data-dream-neighborhood]"
+        )
+      ) {
+        return true;
+      }
+      var nodes = document.querySelectorAll("script[src],iframe[src],link[href]");
+      for (var i = 0; i < nodes.length; i++) {
+        var url = nodes[i].getAttribute("src") || nodes[i].getAttribute("href") || "";
+        if (!url) continue;
+        try {
+          if (DN_HOST_RE.test(new URL(url, location.href).hostname)) return true;
+        } catch (e) {}
+      }
+    } catch (e) {}
+    return false;
+  }
+
   // -------------------------------------------------------------------------
   // Popup mode
   // -------------------------------------------------------------------------
@@ -728,15 +766,22 @@
     }
 
     // Wire NE ready handshake after DOM exists so hidePopup can run safely.
+    // Contract (www.dreamneighborhood.com): the ready flag/event is the ONLY
+    // thing that suppresses us. We only *delay* the popup (wait out the grace
+    // period) when NE is plausibly on the page — otherwise School-only pages,
+    // the vast majority, show with no artificial delay.
     try {
+      // Always listen: if NE loads late and signals, we hide even after showing.
+      window.addEventListener(NE_READY_EVENT, onNeighborhoodExplorerReady, { once: true });
       if (window[NE_READY_FLAG]) {
         onNeighborhoodExplorerReady();
-      } else {
-        window.addEventListener(NE_READY_EVENT, onNeighborhoodExplorerReady, { once: true });
+      } else if (neighborhoodExplorerMaybePresent()) {
         setTimeout(function () {
           graceDone = true;
           tryRevealPopup();
         }, graceMs);
+      } else {
+        graceDone = true;
       }
     } catch (e) {
       graceDone = true;

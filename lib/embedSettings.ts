@@ -41,21 +41,31 @@ function clampGraceMs(raw: unknown): number {
   );
 }
 
+// Short in-memory cache: this is read on every /api/embed/config request (once
+// per widget page load). The value changes only when an admin saves it, so a
+// brief TTL keeps the hot embed endpoint from doing a DB round-trip per view.
+const CACHE_TTL_MS = 60_000;
+let cached: { value: EmbedGlobalSettings; at: number } | null = null;
+
 export async function getEmbedGlobalSettings(): Promise<EmbedGlobalSettings> {
   if (!hasDatabase()) {
     return { neighborhoodExplorerGraceMs: DEFAULT_NEIGHBORHOOD_EXPLORER_GRACE_MS };
+  }
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
+    return cached.value;
   }
   await ensureTable();
   const pool = getPool();
   const { rows } = await pool.query(
     `SELECT neighborhood_explorer_grace_ms FROM app_embed_settings WHERE key = 'global'`
   );
-  if (!rows[0]) {
-    return { neighborhoodExplorerGraceMs: DEFAULT_NEIGHBORHOOD_EXPLORER_GRACE_MS };
-  }
-  return {
-    neighborhoodExplorerGraceMs: clampGraceMs(rows[0].neighborhood_explorer_grace_ms),
+  const value: EmbedGlobalSettings = {
+    neighborhoodExplorerGraceMs: rows[0]
+      ? clampGraceMs(rows[0].neighborhood_explorer_grace_ms)
+      : DEFAULT_NEIGHBORHOOD_EXPLORER_GRACE_MS,
   };
+  cached = { value, at: Date.now() };
+  return value;
 }
 
 export async function setEmbedGlobalSettings(
@@ -82,5 +92,10 @@ export async function setEmbedGlobalSettings(
      RETURNING neighborhood_explorer_grace_ms`,
     [grace]
   );
-  return { neighborhoodExplorerGraceMs: clampGraceMs(rows[0]?.neighborhood_explorer_grace_ms) };
+  const value: EmbedGlobalSettings = {
+    neighborhoodExplorerGraceMs: clampGraceMs(rows[0]?.neighborhood_explorer_grace_ms),
+  };
+  // Refresh the cache so admins see their change immediately.
+  cached = { value, at: Date.now() };
+  return value;
 }
