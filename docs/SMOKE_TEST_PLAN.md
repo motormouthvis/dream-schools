@@ -121,6 +121,16 @@ and Postgres upgrade steps) is documented in [`docs/SCALING.md`](./SCALING.md).
 
 ## Live smoke site URLs (Heroku)
 
+> **Cost note:** the three smoke-site dynos are scaled to **0** when not in use to
+> save ~$21/mo (they serve QA only, never customers). Bring one back before a run:
+>
+> ```bash
+> heroku ps:scale web=1 -a dream-schools-smoke-ind   # and -p1 / -p2
+> ```
+> Scale back to 0 when finished. (If the account subscribes to Eco dynos, prefer
+> `heroku ps:type web=eco` so they sleep/wake automatically instead.)
+
+
 | Site | URL | Hostname to authorize |
 |------|-----|------------------------|
 | Independent realtor | https://dream-schools-smoke-ind-43304e4a96aa.herokuapp.com/ | `dream-schools-smoke-ind-43304e4a96aa.herokuapp.com` |
