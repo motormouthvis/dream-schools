@@ -266,6 +266,14 @@ function OwnerAdmin() {
               >
                 Import
               </button>
+              <a
+                href="/partner-guide"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Instructions
+              </a>
             </>
           )}
           <button

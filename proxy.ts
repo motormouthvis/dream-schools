@@ -23,6 +23,7 @@ const APP_PAGES = [
   "/help",
   "/server",
   "/test",
+  "/partner-guide",
 ];
 
 /** Public support pages: work on www AND app; never redirected www → app. */
