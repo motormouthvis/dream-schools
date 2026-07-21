@@ -1,137 +1,152 @@
 # Dream Neighborhood — School Explorer · TODO
 
-A living backlog. Check items off as they ship; add new ones at the bottom.
+A living backlog, organized into three prioritized sections:
 
-## Ship to first big customer (production readiness) — TOP PRIORITY
+1. **Scaling the product** — what to do as traffic grows, and the signal that tells you it's time.
+2. **Bug fixes** — known defects / limitations.
+3. **New features** — in priority order.
 
-Assumption: **low volume at start**; keep current Heroku size and **upgrade dynos/DB
-as traffic grows**.
+A "Recently shipped" log is kept at the bottom for reference.
 
-### Must do before go-live
-- [x] **End-to-end funnel smoke** — `docs/SMOKE_TEST_PLAN.md` + `scripts/smoke-e2e.mjs`
-      (52/52 API checks) + `scripts/smoke-widgets-browser.mjs` (popup/embed on 3 dummy
-      sites across USA listings). Roles: smoke admin (`/test`), partner + 2 realtors,
-      independent realtor. Reminder/offer emails sent via API (`sent:true`).
-      **Bug fixed during smoke:** self-delete now disables embed (matched admin disable).
+---
+
+# 1) Scaling the product
+
+**Current production baseline (`dream-schools`):**
+- Web: **Standard-1x × 2 dynos** (redundancy + throughput).
+- Postgres: **essential-1** (20-connection limit, ~1 GB / 10M rows).
+- `PG_POOL_MAX=6` per dyno → 2 × 6 = **12 connections** in use (safe under 20).
+- Usage writes are **batched**; `/embed.js` + `/api/embed/config` send **CDN-ready** cache headers.
+- Full command reference: **`docs/SCALING.md`**.
+
+Each widget pageview = one `embed.js` fetch + one `/api/embed/config` call, so load
+scales with **partner sites × pageviews**. Watch that path first.
+
+### The steps, in the order you'll likely need them
+
+- [ ] **CDN in front of `www` (Cloudflare).** Biggest load reducer; no code change
+      (headers already set). **Do before the first big customer's full rollout.**
+      *How I know it's time:* you're onboarding a customer with many sites, OR
+      origin request volume / response times start climbing.
+- [ ] **Bigger / more dynos.** Standard-1x ×2 → Standard-2x, then Performance-M
+      with autoscaling. *How I know it's time:* `heroku logs` shows **R14/R15**
+      (memory) or **H12** (timeout) errors, or p95 response time creeps up under load.
+- [ ] **Postgres essential-1 → standard-0** (120 connections, 64 GB, HA). Copy +
+      promote migration — **needs a maintenance window** (see `docs/SCALING.md`).
+      *How I know it's time:* `heroku pg:info` connection count approaches **~15 of
+      20**, storage nears 1 GB / 10M rows, or backups/queries get slow.
+- [ ] **PgBouncer / connection pooling** if you add many dynos and
+      `dynos × PG_POOL_MAX` would exceed the DB connection limit.
+- [ ] **Redis for shared state** once >1 dyno needs a *shared* cache or shared
+      rate-limit counters (today each dyno caches independently with a 60s TTL,
+      which is fine). *How I know it's time:* you add real rate limiting or a cache
+      that must be consistent across dynos.
+- [ ] **Server-side pagination for the Upgrade Requests list.** Today it loads up to
+      a `LIMIT` (2,000) into the browser and sorts/filters client-side. Move to true
+      server-side paging (`page`, `pageSize`, `sort`, `dir` → `{ rows, total }`), add
+      indexes on `app_upgrade_requests(requested_at, customer_id)`, and a separate
+      "export everything." *How I know it's time:* any single partner's request count
+      approaches ~2,000 (before onboarding high-volume partners).
+- [ ] **Geocoding headroom.** Currently the free **U.S. Census** geocoder with a
+      zip-centroid fallback (no key). *How I know it's time:* geocode latency or
+      failure rate rises → add a keyed provider (Mapbox/Geoapify) behind an env flag.
+- [ ] **Light rate limits** on public autocomplete/lookup/school endpoints, plus
+      lookup/school result caching. *How I know it's time:* abuse or a traffic spike
+      shows up in logs.
+
+### Monitoring / go-live hygiene (do around launch)
 - [ ] Manual spot-checks in `smoketest.md`: real-inbox email, Turnstile signup/login,
       week-1 `/server` watch.
-- [x] Customer runbook one-pager — `CUSTOMER_RUNBOOK.md` (login, authorize domain,
-      install snippets, usage/upgrade requests, who to ping if embed is disabled).
-- [x] `/parents` deep link + Fair Housing hamburger (I-agree gate) — verified / shipped.
+- [ ] Uptime check on `www` + `app`; optional Sentry; Heroku 5xx/memory alerts.
 
-### Nice-to-have (not blockers at low volume)
-- [ ] Uptime check on www + app; optional Sentry; Heroku 5xx/memory alerts.
-- [ ] Light rate limits on public autocomplete/lookup/school.
-- [ ] Lookup/school result caching (autocomplete cache already shipped).
+---
 
-### Scale when volume grows (do NOT block first ship)
-- [ ] Dynos: Basic → Standard-1x → ≥2 dynos; autoscaling only if spikes demand it.
-- [ ] Postgres: essential-1 → Standard-0 (HA) when connections/backups hurt; PgBouncer
-      if multi-dyno.
-- [ ] Paid Geoapify when free 3k/day is hit (keep Geoapify primary / Option A).
-- [ ] Redis when >1 dyno needs shared cache; upgrade-requests server pagination for
-      high-volume partners; scheduled Server Management digests.
+# 2) Bug fixes
 
-### Already done
-- [x] Geoapify primary autocomplete + Census/Photon fallback; autocomplete TTL cache.
-- [x] Server Management + sustained fallback alerts.
-- [x] Smoke harness: `/test` admin, `/api/auth/smoke`, 3 dummy realtor sites, plan + e2e script.
+- [ ] **"Not rated" school detail shows red text** — reads as an error/alert when
+      it's just missing data. Use a neutral style.
+- [ ] **Neighborhood Explorer "hidden" event for SPA routes.** NE sets
+      `__DN_NEIGHBORHOOD_EXPLORER_READY__` once when it shows and never clears it. On
+      single-page-app listing sites, if NE shows on listing A then hides on listing B
+      without a full reload (e.g. `requireAddress` with no address), the School popup
+      stays suppressed for the rest of the tab session. Needs a coordinated
+      `dn:neighborhood-explorer-hidden` event on both NE and Schools. Documented in
+      `EMBED.md`. Low urgency — only affects SPA sites that also run NE.
 
-## Marketing launch
-- [x] **Enhance the marketing-site hamburger (settings) menu.**
-  - Removed Map / List from the menu (List/Map stays on the schools results toolbar).
-  - Renamed to **Demographics**: **Limited** (default) vs **Full**.
-  - Full requires Fair Housing warning + **I agree** (cookie + timestamp, ~180 days).
-  - Same unlock control on school detail next to the Diversity Index (website only; not embed/popup).
-  - Clear stored addresses; expanded Data sources with attribution; removed custom-weights “soon”.
-- [x] **Fake brokerage demo site** — `/realestatewebsitedemo` (listings with popup;
-      neighborhoods with popup + embed), using DN Realty sample data.
-- [ ] Optional later: font-size / accessibility in hamburger; Terms & Privacy shortcuts.
+---
 
-## Priority
-- [ ] **Server-side pagination for the Upgrade Requests list.** Today the list is
-      loaded into the browser with a `LIMIT` (currently 2,000) and sorted/filtered
-      client-side; totals/graph come from server-side aggregates. This won't scale
-      as request volume grows. Move to true server-side paging: API accepts
-      `page`, `pageSize`, `sort`, `dir` (plus existing scope/filter) and returns
-      `{ rows, total }`; the client fetches only the current page. Add DB indexes
-      on `app_upgrade_requests(requested_at, customer_id)` and provide a separate
-      export for "download everything." Do this before onboarding high-volume partners.
+# 3) New features (priority order)
 
-## Data
-- [ ] **Find data for private schools to create a more confident rating.** Private
-      schools (NCES PSS) have no federal test scores, graduation, or safety data,
-      so they currently show "Limited data." Investigate sources to produce a real
-      rating: state private-school report cards, accreditation bodies (e.g.,
-      Cognia, regional/religious accreditors), Niche/Private School Review style
-      datasets, or self-reported outcomes. Goal: ≥1 outcome measure per private
-      school so the Dream Rating isn't "Limited data."
-- [ ] Refresh freshest state test scores (federal EDFacts lags ~2019-20) via
-      state DOE report cards — closes the biggest accuracy gap vs GreatSchools.
-- [ ] Add academic **growth** + full **equity** (subgroup) ratings.
-- [ ] School **websites** (not in federal data) — add a source.
+1. [ ] **Detect existing paid Neighborhood Explorer subscribers (Stripe).**
+   Integrate with the dreamneighborhood.com Stripe account to check whether a
+   Realtor already has an active NE subscription, and skip/soften the upgrade pitch
+   for customers who already pay.
+2. [ ] **"Your Current Plan" badge** on the Home page School Explorer block
+   ("Free — School Explorer" vs "Neighborhood Explorer — Active"), driven by the
+   Stripe lookup above.
+3. [ ] **Bulk email from the Upgrade Requests page.** Let a partner email all their
+   realtors at once, and an admin email all realtors or all partners at once
+   (reminder or special offer), instead of one recipient at a time.
+4. [ ] **Auto-apply Stripe offer code from the email.** Make the Special Offer email's
+   Upgrade button carry the offer code (e.g. `?offer=CODE`) so it pre-fills/auto-applies
+   at `app.dreamneighborhood.com/accounts/signup/`.
+5. [ ] **Install reminder in reminder emails.** If a Realtor hasn't installed the
+   embed/popup yet (no detected usage / no authorized domain), include a friendly
+   "finish setup — add it to your website" section with install steps instead of stats.
+6. [ ] **Homebuyer settings (gear icon) in the popup/embed.** Small gear that opens a
+   per-homebuyer panel: font size + display/accessibility options, persisted in
+   cookies/localStorage (no account needed).
+7. [ ] **Per-page usage analytics.** Capture each unique page URL where the embed/popup
+   is used, so customers see how many distinct listing/neighborhood pages each surface
+   appears on (breakdown by embed vs popup), not just total views.
+8. [ ] **Minimalist embed + popup variant** showing only rating, distance, and address,
+   linking out to `www.dreamneighborhoodschools.com/<school>` for full details
+   (lightweight option for space-constrained listing pages).
+9. [ ] **Private-school ratings data.** Private schools (NCES PSS) lack federal
+   scores/graduation/safety, so they show "Limited data." Investigate state private
+   report cards, accreditors (Cognia, etc.), or Niche-style datasets to get ≥1 outcome
+   measure per private school.
+10. [ ] **Refresh freshest state test scores** via state DOE report cards (federal
+    EDFacts lags ~2019-20) — closes the biggest accuracy gap vs GreatSchools.
+11. [ ] **Academic growth + full equity (subgroup) ratings.**
+12. [ ] **School websites source** (not in federal data).
+13. [ ] **Custom parent rating weights** (user-defined) shown beside the Dream Rating.
+14. [ ] **"Show all schools in district" view** (beyond the nearest 30).
+15. [ ] **Scheduled data auto-updates** (Heroku Scheduler).
+16. [ ] **Unify list-chip 0–100 score with the 1–10 Dream Rating** (see
+    `RATING_METHODOLOGY.md`, Option 1) so private/charter schools don't show an
+    unearned "Excellent."
+17. [ ] **Marketing hamburger polish:** font-size/accessibility options; Terms &
+    Privacy shortcuts.
 
-## Ratings
-- [x] Option 3: show data-coverage indicator ("based on N of M measures") + ⓘ info popup.
-- [ ] Consider unifying the list-chip 0–100 score with the 1–10 Dream Rating
-      (see `RATING_METHODOLOGY.md`, Option 1) so private/charter schools don't
-      show an unearned "Excellent."
-
-## Features
-- [ ] **Homebuyer settings (gear icon) in the popup/embed.** Add a small gear icon
-      somewhere in the School Explorer UI that opens a settings panel for the
-      individual homebuyer: font size and other display/accessibility options.
-      Persist choices in cookies/localStorage so they stick across visits (no
-      account needed).
-- [ ] Custom parent rating weights (user-defined) shown beside the "Dream Rating."
-- [ ] "Show all schools in district" view (beyond the nearest 30).
-- [ ] Scheduled data auto-updates (Heroku Scheduler).
-
-## Monetization / plan awareness
-- [ ] **Integrate with the dreamneighborhood.com Stripe account** to check whether a
-      Realtor already has an active (paid) Neighborhood Explorer subscription there.
-      Use it to tailor upgrade prompts/emails (skip or soften the pitch for
-      customers who already pay).
-- [ ] **"Your Current Plan" badge** on the Home page School Explorer block (e.g.
-      "Free — School Explorer" vs "Neighborhood Explorer — Active"), driven by the
-      Stripe lookup above.
-
-## Embed / popup
-- [ ] **Minimalist embed + popup variant** that shows only school rating, distance,
-      and address, then links out to `www.dreamneighborhoodschools.com/<school>` for
-      full details (lightweight option for space-constrained listing pages).
-- [ ] **Per-page usage analytics:** capture each unique page URL where the embed or
-      popup is detected/used, so the customer sees not just total views but how many
-      distinct listing/neighborhood pages each type appears on (breakdown by embed vs
-      popup).
-- [ ] **Neighborhood Explorer “hidden” event for SPA routes:** today NE sets
-      `__DN_NEIGHBORHOOD_EXPLORER_READY__` once when it successfully shows, and never
-      clears it. On SPA listing sites, if NE shows on listing A then hides on listing B
-      (no full reload — e.g. `requireAddress` with no address), the School popup stays
-      suppressed for the rest of the tab session. Needs a coordinated `dn:neighborhood-explorer-hidden`
-      (or equivalent) on both NE and Schools if partners care about that case.
-      Documented in `EMBED.md`.
-
-## Emails
-- [ ] **Bulk email from the Upgrade Requests page:** let a partner email all their
-      realtors at once, and let an admin email all realtors or all partners at once
-      (reminder or special offer), instead of only a single selected recipient.
-- [ ] **Auto-apply Stripe offer code from the email:** in the Special Offer email,
-      make the Upgrade button carry the offer code so clicking it pre-fills /
-      auto-applies the code at `app.dreamneighborhood.com/accounts/signup/`
-      (e.g. `?offer=CODE` / Stripe promotion code), so the realtor doesn't type it.
-- [ ] **Install reminder in reminder emails:** if a Realtor hasn't installed the
-      embed/popup on their site yet (no detected usage / no authorized domain),
-      include a friendly "finish setup — add it to your website" section with
-      install instructions instead of usage stats.
-
-## UI polish
-- [ ] Remove the red text styling on the school detail page when a school is
-      "Not rated" — it reads as an error/alert when it's just missing data.
-
-## Tech / ops
-- [ ] **Decide on editable email templates.** The Email Templates admin UI was
-      removed (we now use fixed, code-driven reminder/offer emails). The backend
-      (`EmailTemplateManager`, `app_upgrade_email_templates`, template APIs) is
-      still in the code. Review whether to reinstate the UI or delete the code.
+### Tech debt / cleanup (low priority)
+- [ ] **Decide on editable email templates.** The Email Templates admin UI was removed
+   (we use fixed, code-driven emails), but the backend (`EmailTemplateManager`,
+   `app_upgrade_email_templates`, template APIs) still exists. Reinstate the UI or
+   delete the code.
 - [ ] Optional: Mapbox token for best-in-class address autocomplete (env-gated).
+
+---
+
+# Recently shipped
+
+- [x] **NE ↔ School popup coexistence via ready signal** — `__DN_NEIGHBORHOOD_EXPLORER_READY__`
+      / `dn:neighborhood-explorer-ready`, admin-configurable grace period, popup only,
+      old suppress toggle + script-tag heuristics removed (`EMBED.md`).
+- [x] **Scale-readiness** — env-tunable Postgres pool + timeouts, batched usage writes,
+      CDN-ready cache headers, `docs/SCALING.md`. Prod scaled to Standard-1x ×2.
+- [x] **Partner Import / Add / Impersonate** — managed passwordless realtor accounts;
+      CSV **file upload** or paste; onboarding guide (`PARTNER_ONBOARDING_GUIDE.md`,
+      `/partner-guide`).
+- [x] **Banner from White Label** (customer WL → partner WL → partner/realtor name).
+- [x] **Upgrade prompt** max limits + zero-days repeatable fix; SPA address detection.
+- [x] **End-to-end funnel smoke** — `docs/SMOKE_TEST_PLAN.md`, `scripts/smoke-e2e.mjs`
+      (52/52), `scripts/smoke-widgets-browser.mjs`, `scripts/smoke-ne-coexistence.mjs`
+      (12/12). Self-delete now disables embed.
+- [x] **Customer runbook** — `CUSTOMER_RUNBOOK.md`.
+- [x] **`/parents` deep link + Fair Housing I-agree gate.**
+- [x] **Marketing hamburger → Demographics (Limited/Full)** with Fair Housing gate.
+- [x] **Fake brokerage demo site** — `/realestatewebsitedemo`.
+- [x] **Geoapify primary autocomplete + Census/Photon fallback; autocomplete TTL cache.**
+- [x] **Server Management + sustained fallback alerts.**
+- [x] **Ratings data-coverage indicator** ("based on N of M measures") + info popup.
