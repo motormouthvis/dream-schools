@@ -142,6 +142,33 @@ async function run() {
         await page.close();
       }
 
+      // --- Case 2c: an NE embed on the page → School popup must not appear
+      //     (even with NO ready signal) — never a popup over an embed. ---
+      {
+        const page = await context.newPage();
+        // Insert an NE inline container (#dn-explorer) before embed.js resolves.
+        await page.addInitScript(() => {
+          const add = () => {
+            if (!document.getElementById("dn-explorer")) {
+              const d = document.createElement("div");
+              d.id = "dn-explorer";
+              (document.body || document.documentElement).appendChild(d);
+            }
+          };
+          if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", add);
+          } else {
+            add();
+          }
+        });
+        await page.goto(site.base + LISTING, { waitUntil: "load", timeout: 30000 });
+        await page.waitForTimeout(7000);
+        const v = await popupVisible(page);
+        record(`${site.key}: popup hidden when an NE EMBED is on the page`, !v.visible,
+          v.visible ? "popup visible (should be hidden)" : "hidden");
+        await page.close();
+      }
+
       // --- Case 3: NE present but inline embed still mounts ---
       {
         const page = await context.newPage();

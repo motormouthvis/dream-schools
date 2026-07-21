@@ -535,6 +535,20 @@
     return !!document.querySelector(INLINE_SELECTORS.join(",") + ",.dse-inline-iframe");
   }
 
+  // Author-placed Neighborhood Explorer INLINE container(s). Element-based (not a
+  // script-tag check) so it means "an NE embed is on this page", which is a reason
+  // for the School popup to step aside — never show a popup over any embed.
+  var NE_INLINE_SELECTORS =
+    "#dn-explorer,.dn-explorer,[data-dn-explorer],[data-dream-neighborhood-explorer]," +
+    "#dream-neighborhood-explorer,.dream-neighborhood-explorer,[data-dream-neighborhood]";
+  function neighborhoodExplorerInlinePresent() {
+    try {
+      return !!document.querySelector(NE_INLINE_SELECTORS);
+    } catch (e) {
+      return false;
+    }
+  }
+
   /** Pages that intentionally show popup + inline together (e.g. neighborhood demos). */
   function allowPopupWithInline() {
     var el = document.querySelector(INLINE_SELECTORS.join(","));
@@ -553,8 +567,11 @@
 
   // The School popup steps aside for an inline School Explorer embed on the same page.
   // Neighborhood Explorer coexistence is handled separately via the ready signal.
+  // The floating School popup must never appear over an inline embed on the same
+  // page — whether that's a School embed OR a Neighborhood Explorer embed.
   function popupShouldStepAsideForInline() {
-    return inlinePresent() && !allowPopupWithInline();
+    if (neighborhoodExplorerInlinePresent()) return true; // NE embed on the page
+    return inlinePresent() && !allowPopupWithInline();     // School embed (unless opt-in)
   }
 
   // Cheap hint: is Neighborhood Explorer plausibly on this page? Used ONLY to
@@ -912,7 +929,9 @@
 
       function ensurePopup() {
         if (popupStarted) return;
-        // Popup-only pages, or pages that opt into popup + embed together.
+        // Never mount the popup over an inline embed on the page — a Neighborhood
+        // Explorer embed, or a School embed (unless the page opts into both).
+        if (neighborhoodExplorerInlinePresent()) return;
         if (findContainer() && !allowPopupWithInline()) return;
         popupStarted = true;
         initPopup(config);
