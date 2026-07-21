@@ -7,7 +7,7 @@ import {
   DEFAULT_NEIGHBORHOOD_EXPLORER_GRACE_MS,
   NEIGHBORHOOD_EXPLORER_GRACE_MS_MIN,
   NEIGHBORHOOD_EXPLORER_GRACE_MS_MAX,
-} from "@/lib/embedSettings";
+} from "@/lib/embedSettingsShared";
 
 function fmtDate(v?: string): string {
   if (!v) return "—";

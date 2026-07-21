@@ -1,9 +1,16 @@
 import { getPool, hasDatabase } from "@/lib/db";
+import {
+  DEFAULT_NEIGHBORHOOD_EXPLORER_GRACE_MS,
+  NEIGHBORHOOD_EXPLORER_GRACE_MS_MIN,
+  NEIGHBORHOOD_EXPLORER_GRACE_MS_MAX,
+} from "@/lib/embedSettingsShared";
 
-/** Default wait (ms) before showing the School popup when Neighborhood Explorer hasn't signaled ready. */
-export const DEFAULT_NEIGHBORHOOD_EXPLORER_GRACE_MS = 4000;
-export const NEIGHBORHOOD_EXPLORER_GRACE_MS_MIN = 2000;
-export const NEIGHBORHOOD_EXPLORER_GRACE_MS_MAX = 15000;
+// Re-export so existing server-side importers (API route) keep working.
+export {
+  DEFAULT_NEIGHBORHOOD_EXPLORER_GRACE_MS,
+  NEIGHBORHOOD_EXPLORER_GRACE_MS_MIN,
+  NEIGHBORHOOD_EXPLORER_GRACE_MS_MAX,
+};
 
 export interface EmbedGlobalSettings {
   neighborhoodExplorerGraceMs: number;
