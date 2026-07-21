@@ -8,6 +8,28 @@ import { join } from "path";
 
 const EMBED_JS = "https://www.dreamneighborhoodschools.com/embed.js";
 
+// Optional Neighborhood Explorer simulator for coexistence QA. Inert unless the
+// page is loaded with `?ne` in the query string. Mirrors the real NE contract:
+// after a delay it sets the ready flag and dispatches the ready event once.
+//   ?ne          → fire after 1200ms (typical "signal arrives later")
+//   ?ne=<ms>     → fire after <ms> (e.g. ?ne=0 near-immediate, ?ne=6000 slow)
+const NE_SIMULATOR = `<script>
+(function () {
+  try {
+    var q = new URLSearchParams(location.search);
+    if (!q.has("ne")) return;
+    var raw = q.get("ne");
+    var delay = parseInt(raw, 10);
+    if (!isFinite(delay) || delay < 0) delay = 1200;
+    setTimeout(function () {
+      window.__DN_NEIGHBORHOOD_EXPLORER_READY__ = true;
+      window.dispatchEvent(new Event("dn:neighborhood-explorer-ready"));
+      if (window.console && console.log) console.log("[NE-SIM] ready fired after " + delay + "ms");
+    }, delay);
+  } catch (e) {}
+})();
+</script>`;
+
 const SITES = [
   {
     dir: "independent-realtor",
@@ -87,6 +109,7 @@ function layout({ brand, tagline, accent, title, body, extraHead = "", scripts =
   </header>
   <main>${body}</main>
   <footer>Smoke-test listing site for Dream Neighborhood Schools · not a real brokerage</footer>
+  ${NE_SIMULATOR}
   ${scripts}
 </body>
 </html>`;

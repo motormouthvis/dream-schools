@@ -22,6 +22,10 @@ Each realtor site includes:
 - Home + listings index with **popup** one-liner (`embed.js`)
 - `/embed.html` with **inline embed**
 - 12 USA listing pages (NY, DC, Chicago, CA, CO, TX, NC, LA, MA, OR, FL, Austin)
+- A **Neighborhood Explorer simulator** on every page, inert unless the URL has
+  `?ne` (see Phase G). It mirrors the real NE contract:
+  `window.__DN_NEIGHBORHOOD_EXPLORER_READY__ = true` + a one-time
+  `dn:neighborhood-explorer-ready` event.
 
 ## Phase A — Enable harness
 
@@ -56,6 +60,30 @@ Addresses covered (listing pages): NYC, DC, Chicago, Cupertino, Denver, Houston,
 5. Send **special offer** email (`kind: offer`) with code `SMOKE20`.
 6. Self-service reminder from a realtor account (`POST /api/app/reminder` with `send: true`).
 
+## Phase G — Neighborhood Explorer coexistence (popup only)
+
+Uses the `?ne` simulator on any smoke listing page. The **popup** should hide
+when NE signals ready; the **inline embed** must never be suppressed by NE.
+
+1. **No NE (baseline):** open a listing page normally. The School **popup**
+   bubble should appear promptly (~after geocode, no artificial delay).
+2. **NE ready (typical):** open the same listing with `?ne=1200`. The popup must
+   **not** appear (it hides when the ready signal fires ~1.2s in).
+3. **NE ready before we mount (`?ne=0`):** popup never shows (flag already set).
+4. **NE ready AFTER the grace period:** set the admin grace low for the test
+   (Account Settings → "School popup ↔ Neighborhood Explorer", e.g. 2000ms) and
+   open with `?ne=4000`. The popup may flash in at ~2s, then hide when NE signals
+   at ~4s.
+5. **NE never comes:** open with a `dreamneighborhood.com` script present but no
+   ready signal — popup shows after the grace period. (The `?ne` simulator always
+   fires; to test "never", just confirm case 1 — no NE at all shows immediately.)
+6. **Inline coexistence:** open `/embed.html?ne=1200`. The inline School Explorer
+   must still mount and render; only the floating popup defers to NE.
+
+Automated version: `node scripts/smoke-ne-coexistence.mjs` (Playwright) loads the
+new `embed.js` against the live smoke sites with and without `?ne` and asserts
+popup visibility. See the script header for env vars.
+
 ## Phase E — Account lifecycle
 
 On the **independent** realtor (then restore):
@@ -87,7 +115,9 @@ Repeat a shorter disable/restore on one **partner realtor**.
 
 ## Out of scope (scale later)
 
-Dyno/DB upgrades, Redis, paid Geoapify, server-side upgrade-request pagination.
+Redis, paid Geoapify, server-side upgrade-request pagination.
+Scale posture (pool tuning, batched usage writes, CDN-ready cache headers, dyno
+and Postgres upgrade steps) is documented in [`docs/SCALING.md`](./SCALING.md).
 
 ## Live smoke site URLs (Heroku)
 

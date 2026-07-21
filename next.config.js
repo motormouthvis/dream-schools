@@ -14,10 +14,16 @@ const nextConfig = {
       },
       {
         // The one-line SDK is loaded cross-origin from partner sites.
+        // Browser caches 5 min; a CDN (see docs/SCALING.md) can hold it 10 min
+        // and serve stale for a day while revalidating, so the origin dyno sees
+        // very few embed.js requests even across many partner sites.
         source: "/embed.js",
         headers: [
           { key: "Access-Control-Allow-Origin", value: "*" },
-          { key: "Cache-Control", value: "public, max-age=300" },
+          {
+            key: "Cache-Control",
+            value: "public, max-age=300, s-maxage=600, stale-while-revalidate=86400",
+          },
         ],
       },
     ];

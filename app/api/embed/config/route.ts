@@ -121,6 +121,11 @@ export async function GET(request: Request) {
     ...presentationPayload(config),
   };
   const res = withCors(request, payload);
-  res.headers.set("Cache-Control", "public, max-age=60");
+  // Cache per fully-qualified URL (host + widget + surface are in the query).
+  // A CDN in front absorbs most of this endpoint's load; see docs/SCALING.md.
+  res.headers.set(
+    "Cache-Control",
+    "public, max-age=60, s-maxage=60, stale-while-revalidate=120"
+  );
   return res;
 }

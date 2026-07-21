@@ -60,6 +60,22 @@
 <li><a href="/listing-austin.html">301 W 4th Street, Austin, TX 78701</a></li></ul>
         </div></main>
   <footer>Smoke-test listing site for Dream Neighborhood Schools · not a real brokerage</footer>
+  <script>
+(function () {
+  try {
+    var q = new URLSearchParams(location.search);
+    if (!q.has("ne")) return;
+    var raw = q.get("ne");
+    var delay = parseInt(raw, 10);
+    if (!isFinite(delay) || delay < 0) delay = 1200;
+    setTimeout(function () {
+      window.__DN_NEIGHBORHOOD_EXPLORER_READY__ = true;
+      window.dispatchEvent(new Event("dn:neighborhood-explorer-ready"));
+      if (window.console && console.log) console.log("[NE-SIM] ready fired after " + delay + "ms");
+    }, delay);
+  } catch (e) {}
+})();
+</script>
   <script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>
 </body>
 </html>
