@@ -320,6 +320,40 @@ export async function deleteCustomer(id: string, reason?: string): Promise<boole
   return (res.rowCount ?? 0) > 0;
 }
 
+/**
+ * Permanently delete a customer and all of their data (account, widget config,
+ * usage, history, upgrade requests, sessions). Admin-only, irreversible. Refuses
+ * to purge an admin, or a partner that still has customers (would orphan them).
+ */
+export async function purgeCustomer(
+  id: string
+): Promise<{ ok: boolean; reason?: string }> {
+  if (!hasDatabase() || !id) return { ok: false, reason: "Database required." };
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT is_owner, is_partner FROM app_users WHERE id = $1`,
+    [id]
+  );
+  if (!rows[0]) return { ok: false, reason: "Not found." };
+  if (rows[0].is_owner) return { ok: false, reason: "Can't delete an admin account." };
+  if (rows[0].is_partner) {
+    const kids = await pool.query(`SELECT 1 FROM app_users WHERE partner_id = $1 LIMIT 1`, [id]);
+    if (kids.rowCount) {
+      return { ok: false, reason: "Partner still has customers — reassign or delete them first." };
+    }
+  }
+  // Remove dependent rows first (best-effort; some tables may not exist yet).
+  await pool.query(`DELETE FROM app_sessions WHERE user_id = $1`, [id]).catch(() => {});
+  await pool.query(`DELETE FROM app_verify_tokens WHERE user_id = $1`, [id]).catch(() => {});
+  await pool.query(`DELETE FROM app_user_events WHERE user_id = $1`, [id]).catch(() => {});
+  await pool.query(`DELETE FROM embed_partners WHERE partner_id = $1`, [id]).catch(() => {});
+  await pool.query(`DELETE FROM embed_usage WHERE partner_id = $1`, [id]).catch(() => {});
+  await pool.query(`DELETE FROM app_upgrade_requests WHERE customer_id = $1`, [id]).catch(() => {});
+  await pool.query(`DELETE FROM app_upgrade_offer_emails WHERE customer_id = $1`, [id]).catch(() => {});
+  const res = await pool.query(`DELETE FROM app_users WHERE id = $1 AND is_owner = FALSE`, [id]);
+  return { ok: (res.rowCount ?? 0) > 0 };
+}
+
 /** Re-enable a disabled customer. If they have a domain, turn the Explorer back on too. */
 export async function restoreCustomer(id: string, reason?: string): Promise<boolean> {
   if (!hasDatabase() || !id) return false;

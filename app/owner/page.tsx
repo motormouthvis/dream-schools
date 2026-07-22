@@ -99,7 +99,10 @@ function OwnerAdmin() {
   const [reasonAction, setReasonAction] = useState<null | { type: "disable"; customer: Customer }>(null);
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
-  const modalOpen = Boolean(editing || historyFor || reasonAction || adding || importing);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<null | "disable" | "delete">(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const modalOpen = Boolean(editing || historyFor || reasonAction || adding || importing || bulkAction);
 
   async function load() {
     setLoading(true);
@@ -115,6 +118,7 @@ function OwnerAdmin() {
       setPartners(j.partners || []);
       setCanEdit(Boolean(j.canEdit));
       setRole(j.role === "owner" ? "owner" : "partner");
+      setSelected(new Set());
     } catch {
       setError("Network error.");
     } finally {
@@ -206,6 +210,71 @@ function OwnerAdmin() {
     });
     return filtered;
   }, [customers, query, sortKey, sortDir]);
+
+  const visibleRows = pageSize === 0 ? rows : rows.slice(0, pageSize);
+  // Admin rows can't be bulk-acted on; everything else the viewer sees is fair game
+  // (partners only ever see their own customers).
+  const selectableVisible = visibleRows.filter((c) => !c.isOwner);
+  const allVisibleSelected =
+    selectableVisible.length > 0 && selectableVisible.every((c) => selected.has(c.id));
+  const someVisibleSelected = selectableVisible.some((c) => selected.has(c.id));
+
+  function toggleSelectAll() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) selectableVisible.forEach((c) => next.delete(c.id));
+      else selectableVisible.forEach((c) => next.add(c.id));
+      return next;
+    });
+  }
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function clearSelection() {
+    setSelected(new Set());
+  }
+
+  async function runBulk(action: "disable" | "delete", reason?: string) {
+    const ids = Array.from(selected);
+    if (!ids.length) return;
+    setBulkBusy(true);
+    try {
+      const res = await fetch("/api/owner/customers/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ids, reason }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(j.error || "Bulk action failed.");
+        return;
+      }
+      const failed = (j.results || []).filter((r: { ok: boolean }) => !r.ok);
+      if (failed.length) {
+        const emailOf = (id: string) => customers.find((c) => c.id === id)?.email || id;
+        const lines = failed
+          .slice(0, 10)
+          .map((f: { id: string; reason?: string }) => `• ${emailOf(f.id)} — ${f.reason || "failed"}`)
+          .join("\n");
+        alert(
+          `${j.ok} ${action === "delete" ? "deleted" : "disabled"}, ${failed.length} skipped:\n${lines}` +
+            (failed.length > 10 ? `\n…and ${failed.length - 10} more` : "")
+        );
+      }
+      clearSelection();
+      setBulkAction(null);
+      await load();
+    } catch {
+      alert("Network error.");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
 
   async function impersonate(c: Customer) {
     try {
@@ -339,10 +408,53 @@ function OwnerAdmin() {
 
       {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
 
+      {canEdit && selected.size > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2">
+          <span className="text-[13px] font-bold text-brand-800">
+            {selected.size} selected
+          </span>
+          <button
+            onClick={() => setBulkAction("disable")}
+            className="rounded-md border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+          >
+            Disable selected
+          </button>
+          {role === "owner" && (
+            <button
+              onClick={() => setBulkAction("delete")}
+              className="rounded-md border border-rose-600 bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700"
+            >
+              Delete selected
+            </button>
+          )}
+          <button
+            onClick={clearSelection}
+            className="ml-auto rounded-md px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800"
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
+
       <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
             <tr>
+              {canEdit && (
+                <th className="w-10 px-3 py-2">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all"
+                    className="h-4 w-4 cursor-pointer accent-brand-600"
+                    checked={allVisibleSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected;
+                    }}
+                    onChange={toggleSelectAll}
+                    disabled={selectableVisible.length === 0}
+                  />
+                </th>
+              )}
               <Th label="Customer Name" k="customer" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <Th label="Signed up" k="createdAt" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <Th label="Domain" k="domain" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
@@ -359,19 +471,32 @@ function OwnerAdmin() {
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               <tr>
-                <td colSpan={11} className="px-3 py-8 text-center text-slate-400">
+                <td colSpan={12} className="px-3 py-8 text-center text-slate-400">
                   Loading…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-3 py-8 text-center text-slate-400">
+                <td colSpan={12} className="px-3 py-8 text-center text-slate-400">
                   No customers yet.
                 </td>
               </tr>
             ) : (
-              (pageSize === 0 ? rows : rows.slice(0, pageSize)).map((c) => (
+              visibleRows.map((c) => (
                 <tr key={c.id} className="hover:bg-slate-50/60">
+                  {canEdit && (
+                    <td className="px-3 py-2.5">
+                      {!c.isOwner && (
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${c.email}`}
+                          className="h-4 w-4 cursor-pointer accent-brand-600"
+                          checked={selected.has(c.id)}
+                          onChange={() => toggleOne(c.id)}
+                        />
+                      )}
+                    </td>
+                  )}
                   <td className="px-3 py-2.5">
                     {(() => {
                       const name = c.companyName || c.businessName || "";
@@ -523,6 +648,16 @@ function OwnerAdmin() {
       )}
 
       {historyFor && <HistoryModal customer={historyFor} onClose={() => setHistoryFor(null)} />}
+      {bulkAction && (
+        <BulkActionModal
+          action={bulkAction}
+          count={selected.size}
+          busy={bulkBusy}
+          onClose={() => !bulkBusy && setBulkAction(null)}
+          onConfirm={(reason) => runBulk(bulkAction, reason)}
+        />
+      )}
+
       {reasonAction && (
         <ReasonModal
           title="Disable customer"
@@ -1156,6 +1291,94 @@ function ImportModal({
               {busy ? "Importing…" : `Import ${parsed.length || ""}`.trim()}
             </button>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BulkActionModal({
+  action,
+  count,
+  busy,
+  onClose,
+  onConfirm,
+}: {
+  action: "disable" | "delete";
+  count: number;
+  busy: boolean;
+  onClose: () => void;
+  onConfirm: (reason?: string) => void;
+}) {
+  const isDelete = action === "delete";
+  const [reason, setReason] = useState("");
+  const [confirmText, setConfirmText] = useState("");
+  useEscapeKey(onClose);
+  const canConfirm = isDelete ? confirmText.trim().toUpperCase() === "DELETE" : true;
+  const noun = `${count} ${count === 1 ? "customer" : "customers"}`;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-lg font-extrabold text-ink-900">
+          {isDelete ? "Delete customers permanently" : "Disable customers"}
+        </h2>
+        <p className="mt-0.5 text-[12px] text-slate-500">{noun} selected.</p>
+
+        {isDelete ? (
+          <div className="mt-4 space-y-3">
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-700">
+              This <strong>permanently</strong> removes the selected accounts and all of their
+              data — widget config, usage history, and upgrade requests. This cannot be undone.
+              (Partners that still have customers are skipped.)
+            </div>
+            <L label={'Type "DELETE" to confirm'}>
+              <input
+                className={inp}
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder="DELETE"
+                autoFocus
+              />
+            </L>
+          </div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            <p className="text-[12px] text-slate-500">
+              They lose access and their widget is turned off. You can re-enable them later.
+            </p>
+            <L label="Reason (optional)">
+              <input
+                className={inp}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="e.g. Billing/support cleanup"
+              />
+            </L>
+          </div>
+        )}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            disabled={busy}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onConfirm(isDelete ? undefined : reason.trim() || undefined)}
+            disabled={busy || !canConfirm}
+            className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-700 disabled:opacity-60"
+          >
+            {busy
+              ? isDelete
+                ? "Deleting…"
+                : "Disabling…"
+              : isDelete
+                ? `Delete ${count}`
+                : `Disable ${count}`}
+          </button>
         </div>
       </div>
     </div>
