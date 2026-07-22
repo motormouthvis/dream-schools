@@ -445,10 +445,14 @@ function OwnerAdmin() {
                     </button>
                     {canEdit && (
                       <>
-                        {!c.deletedAt && !c.isOwner && !c.isPartner && (
+                        {!c.deletedAt && !c.isOwner && (!c.isPartner || role === "owner") && (
                           <button
                             onClick={() => impersonate(c)}
-                            title="Sign in as this realtor to configure their account"
+                            title={
+                              c.isPartner
+                                ? "Sign in as this partner to configure their account"
+                                : "Sign in as this realtor to configure their account"
+                            }
                             className="ml-2 rounded-md border border-brand-300 px-2.5 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50"
                           >
                             View as

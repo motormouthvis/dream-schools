@@ -196,7 +196,7 @@ function ImpersonationBanner({ info, viewing }: { info: Impersonation; viewing: 
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 bg-amber-500 px-4 py-2 text-[13px] font-semibold text-amber-950">
       <span>
-        Viewing <strong>{viewingName}</strong>’s account as {info.by.name}. Changes you make apply to this realtor.
+        Viewing <strong>{viewingName}</strong>’s account as {info.by.name}. Changes you make apply to this account.
       </span>
       <button
         type="button"

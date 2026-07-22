@@ -19,11 +19,18 @@ export async function POST(request: Request) {
   if (!hasDatabase()) {
     return NextResponse.json({ error: "Database required." }, { status: 503 });
   }
-  // Nested impersonation is not allowed: while impersonating, currentUser is the
-  // realtor (no Customer List access), so this guard also blocks re-entry.
   const actor = await requireCustomerListAccess(request);
   if (!actor) {
     return NextResponse.json({ error: "Customer List access required." }, { status: 403 });
+  }
+  // Block nested "View as": once impersonating a partner (who has Customer List
+  // access), the impersonated session could otherwise start another impersonation
+  // and clobber the original actor's stashed session. Exit first.
+  if (impersonatorTokenFromRequest(request)) {
+    return NextResponse.json(
+      { error: "You're already viewing as another account. Exit that first." },
+      { status: 400 }
+    );
   }
 
   let body: { customerId?: string };
@@ -38,8 +45,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "You can't impersonate your own account." }, { status: 400 });
   }
 
-  // Authorize: admins may impersonate any non-admin; partners only their own
-  // realtors (never another partner or admin).
+  // Authorize: admins may impersonate any non-admin (customers AND partners);
+  // partners only their own realtors (never another partner or admin).
   const scope = await getCustomerScope(customerId);
   if (!scope) return NextResponse.json({ error: "Customer not found." }, { status: 404 });
   if (scope.isOwner) {
