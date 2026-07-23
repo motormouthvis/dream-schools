@@ -276,6 +276,48 @@ function OwnerAdmin() {
     }
   }
 
+  async function sendLoginLinks(ids: string[]) {
+    if (!ids.length) return;
+    try {
+      const res = await fetch("/api/owner/customers/send-login-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(j.error || "Could not send login link.");
+        return;
+      }
+      const failed = (j.results || []).filter((r: { ok: boolean }) => !r.ok);
+      if (failed.length) {
+        const emailOf = (id: string) => customers.find((c) => c.id === id)?.email || id;
+        const lines = failed
+          .slice(0, 10)
+          .map((f: { id: string; reason?: string }) => `• ${emailOf(f.id)} — ${f.reason || "failed"}`)
+          .join("\n");
+        alert(`${j.ok} sent, ${failed.length} skipped:\n${lines}`);
+      } else {
+        alert(`Login link sent to ${j.ok} ${j.ok === 1 ? "customer" : "customers"}.`);
+      }
+    } catch {
+      alert("Network error.");
+    }
+  }
+
+  async function sendSingleLoginLink(c: Customer) {
+    if (!confirm(`Email a login link to ${c.email}?`)) return;
+    await sendLoginLinks([c.id]);
+  }
+
+  async function sendBulkLoginLinks() {
+    const n = selected.size;
+    if (!n) return;
+    if (!confirm(`Email a login link to ${n} selected ${n === 1 ? "customer" : "customers"}?`)) return;
+    await sendLoginLinks(Array.from(selected));
+    clearSelection();
+  }
+
   async function impersonate(c: Customer) {
     try {
       const res = await fetch("/api/owner/impersonate", {
@@ -413,6 +455,12 @@ function OwnerAdmin() {
           <span className="text-[13px] font-bold text-brand-800">
             {selected.size} selected
           </span>
+          <button
+            onClick={sendBulkLoginLinks}
+            className="rounded-md border border-brand-300 bg-white px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-50"
+          >
+            Send login link
+          </button>
           <button
             onClick={() => setBulkAction("disable")}
             className="rounded-md border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50"
@@ -581,6 +629,15 @@ function OwnerAdmin() {
                             className="ml-2 rounded-md border border-brand-300 px-2.5 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50"
                           >
                             View as
+                          </button>
+                        )}
+                        {!c.deletedAt && !c.isOwner && !c.isPartner && (
+                          <button
+                            onClick={() => sendSingleLoginLink(c)}
+                            title="Email this realtor a secure link to set a password and manage their settings"
+                            className="ml-2 rounded-md border border-brand-300 px-2.5 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50"
+                          >
+                            Send link
                           </button>
                         )}
                         <button

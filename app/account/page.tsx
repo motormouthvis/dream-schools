@@ -65,6 +65,7 @@ export default function AccountPage() {
               <UpgradePromptSettings isOwner={me.isOwner} isPartner={me.isPartner} />
             )}
             {(me.isOwner || me.isPartner) && <CustomerDefaultColorSettings />}
+            {(me.isOwner || me.isPartner) && <CustomerLoginEmailSettings />}
             {me.isOwner && <NeighborhoodExplorerGraceSettings />}
             <ChangeEmail currentEmail={me.email} />
             <ChangePassword email={me.email} />
@@ -314,6 +315,93 @@ function WhiteLabelProfile({
           {busy ? "Saving…" : "Save white-label name"}
         </button>
       </form>
+    </Card>
+  );
+}
+
+function CustomerLoginEmailSettings() {
+  const [loaded, setLoaded] = useState(false);
+  const [text, setText] = useState("");
+  const [defaultText, setDefaultText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/customer-defaults")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (j) {
+          if (typeof j.loginEmailText === "string") setText(j.loginEmailText);
+          if (typeof j.defaultLoginEmailText === "string") setDefaultText(j.defaultLoginEmailText);
+        }
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setDone(false);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/customer-defaults", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ loginEmailText: text }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(j.error || "Could not save the email text.");
+        return;
+      }
+      if (typeof j.loginEmailText === "string") setText(j.loginEmailText);
+      setDone(true);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card title="Customer login link email">
+      <p className="mb-3 text-[12px] leading-relaxed text-slate-500">
+        The message in the branded email sent when you use <strong>Send login link</strong> on the
+        Customer List. The email includes a secure button for the realtor to set a password and manage
+        their School Explorer. Use <code className="rounded bg-slate-100 px-1">{"{company}"}</code> for
+        your business name. Leave blank to use the default.
+      </p>
+      {!loaded ? (
+        <p className="text-sm text-slate-400">Loading…</p>
+      ) : (
+        <form onSubmit={save} className="space-y-3">
+          <textarea
+            rows={5}
+            className={`${inp} resize-y`}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={defaultText}
+          />
+          <div className="flex items-center gap-3">
+            <button type="submit" disabled={busy} className={btn}>
+              {busy ? "Saving…" : "Save email text"}
+            </button>
+            {text.trim() !== "" && (
+              <button
+                type="button"
+                onClick={() => setText("")}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Reset to default
+              </button>
+            )}
+          </div>
+          {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
+          {done && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">Email text saved ✓</p>}
+        </form>
+      )}
     </Card>
   );
 }

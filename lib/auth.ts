@@ -58,6 +58,7 @@ async function ensureTables(): Promise<void> {
            company_name   TEXT NOT NULL DEFAULT '',
            business_name  TEXT NOT NULL DEFAULT '',
            default_customer_accent_color TEXT NOT NULL DEFAULT '',
+           customer_login_email_text TEXT NOT NULL DEFAULT '',
            upgrade_views_to_trigger INTEGER,
            upgrade_min_days_between INTEGER,
            upgrade_idle_seconds INTEGER,
@@ -77,6 +78,7 @@ async function ensureTables(): Promise<void> {
              ADD COLUMN IF NOT EXISTS company_name TEXT NOT NULL DEFAULT '',
              ADD COLUMN IF NOT EXISTS business_name TEXT NOT NULL DEFAULT '',
              ADD COLUMN IF NOT EXISTS default_customer_accent_color TEXT NOT NULL DEFAULT '',
+             ADD COLUMN IF NOT EXISTS customer_login_email_text TEXT NOT NULL DEFAULT '',
              ADD COLUMN IF NOT EXISTS upgrade_views_to_trigger INTEGER,
              ADD COLUMN IF NOT EXISTS upgrade_min_days_between INTEGER,
              ADD COLUMN IF NOT EXISTS upgrade_idle_seconds INTEGER,
@@ -278,6 +280,26 @@ export async function setCustomerDefaultAccentColor(userId: string, color: strin
   await getPool().query(
     `UPDATE app_users SET default_customer_accent_color = $1 WHERE id = $2`,
     [String(color || "").trim(), userId]
+  );
+}
+
+/** Owner/partner's editable intro text for the "manage your School Explorer" email ("" = default). */
+export async function getCustomerLoginEmailText(userId: string): Promise<string> {
+  if (!hasDatabase() || !userId) return "";
+  await ensureTables();
+  const { rows } = await getPool().query(
+    `SELECT customer_login_email_text FROM app_users WHERE id = $1`,
+    [userId]
+  );
+  return String(rows[0]?.customer_login_email_text || "");
+}
+
+export async function setCustomerLoginEmailText(userId: string, text: string): Promise<void> {
+  if (!hasDatabase() || !userId) return;
+  await ensureTables();
+  await getPool().query(
+    `UPDATE app_users SET customer_login_email_text = $1 WHERE id = $2`,
+    [String(text || ""), userId]
   );
 }
 
