@@ -881,8 +881,11 @@
       iframe.setAttribute("loading", "eager");
       // Width: default caps at 840px; partner can set data-max-width="720" (px).
       var maxW = intAttr(container, "data-max-width", 280);
-      var maxWidthCss = maxW != null ? maxW + "px" : "840px";
-      var chrome = frameless
+      var maxWidthCss = maxW != null ? maxW + "px" : (config.inlineVariant === "full" ? "1040px" : "840px");
+      // The "full" (Nearby Schools) design is meant to sit natively in the page —
+      // flat, no card border/shadow, and it flows with the page (auto-height).
+      var flat = frameless || config.inlineVariant === "full";
+      var chrome = flat
         ? "display:block;width:100%;max-width:" + maxWidthCss + ";margin:0;border:0;border-radius:0;background:#fff;color-scheme:light;overflow:hidden;box-shadow:none"
         : "display:block;width:100%;max-width:" + maxWidthCss + ";margin:20px auto;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color-scheme:light;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.08)";
       iframe.style.cssText = config.inlineMinHeightExplicit

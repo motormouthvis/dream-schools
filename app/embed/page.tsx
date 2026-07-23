@@ -869,7 +869,7 @@ export default function EmbedExplorer() {
               Popup fills the SDK-set panel (flex-1); inline caps the list.
               The "full" variant manages its own list+map layout / heights. */}
           {isFull ? (
-            <div className="min-h-0 flex-1 pb-4">
+            <div className="pb-4">
               {loading && (
                 <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
                   Looking up schools…
@@ -879,17 +879,15 @@ export default function EmbedExplorer() {
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>
               )}
               {!loading && !error && selected && (
-                <div className="overflow-y-auto lg:max-h-[600px]">
-                  <SchoolDetailModal
-                    ncesId={selected}
-                    fairHousing={false}
-                    variant="inline"
-                    embed
-                    showExternalLinks
-                    backLabel="Nearby Schools"
-                    onClose={() => setSelected(null)}
-                  />
-                </div>
+                <SchoolDetailModal
+                  ncesId={selected}
+                  fairHousing={false}
+                  variant="inline"
+                  embed
+                  showExternalLinks
+                  backLabel="Nearby Schools"
+                  onClose={() => setSelected(null)}
+                />
               )}
               {!loading && !error && !selected && (
                 <NearbySchoolsFull

@@ -24,9 +24,10 @@ export function NearbySchoolsFull({
   data: LookupResult;
   onOpenSchool: (ncesId: string) => void;
 }) {
+  const INITIAL = 8;
   const [filterType, setFilterType] = useState<"all" | "public" | "private">("all");
   const [sortBy, setSortBy] = useState<"distance" | "rating">("distance");
-  const [listLimit, setListLimit] = useState(20);
+  const [listLimit, setListLimit] = useState(INITIAL);
 
   const visibleSchools = useMemo(() => {
     let list = data.nearbySchools.slice();
@@ -38,14 +39,17 @@ export function NearbySchoolsFull({
   }, [data.nearbySchools, filterType, sortBy]);
 
   const noop = () => {};
+  const shown = visibleSchools.slice(0, listLimit);
+  const remaining = visibleSchools.length - shown.length;
 
+  // Page-flow (Zillow/GreatSchools style): no fixed height, no inner scrollbar —
+  // the section is as tall as its content and scrolls with the host page.
   return (
-    <div className="flex flex-col lg:h-[560px]">
+    <div>
       {/* Header */}
-      <div className="mb-3 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
+      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
         <h2 className="text-lg font-extrabold tracking-tight text-slate-900">Nearby Schools</h2>
         <span className="text-xs text-slate-400">{visibleSchools.length} nearby</span>
-        {/* Filters: type + sort */}
         <div className="ml-auto flex flex-wrap items-center gap-1.5">
           <span className="text-[11px] font-semibold text-slate-400">Show</span>
           <Seg active={filterType === "all"} onClick={() => setFilterType("all")}>All</Seg>
@@ -57,27 +61,35 @@ export function NearbySchoolsFull({
         </div>
       </div>
 
-      {/* List + map together */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* List (scrolls) */}
-        <div className="min-h-0 overflow-y-auto pr-0.5 lg:pr-1.5">
-          {visibleSchools.length > 0 ? (
+      {/* List + map together — natural height, flows with the page. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div>
+          {shown.length > 0 ? (
             <>
               <NearbySchools
-                schools={visibleSchools.slice(0, listLimit)}
+                schools={shown}
                 onSelect={onOpenSchool}
                 compareIds={[]}
                 onToggleCompare={noop}
                 showCompare={false}
                 unratedGradCap
               />
-              {visibleSchools.length > listLimit && (
+              {remaining > 0 && (
                 <button
                   type="button"
-                  onClick={() => setListLimit((n) => n + 20)}
+                  onClick={() => setListLimit((n) => n + 8)}
                   className="mt-3 w-full rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-brand-700 shadow-sm transition hover:bg-brand-50"
                 >
-                  Show more ({visibleSchools.length - listLimit} more nearby)
+                  Show {Math.min(8, remaining)} more ({remaining} more nearby)
+                </button>
+              )}
+              {listLimit > INITIAL && (
+                <button
+                  type="button"
+                  onClick={() => setListLimit(INITIAL)}
+                  className="mt-2 w-full py-1.5 text-xs font-semibold text-slate-400 transition hover:text-slate-600"
+                >
+                  Show fewer
                 </button>
               )}
             </>
@@ -88,13 +100,14 @@ export function NearbySchoolsFull({
           )}
         </div>
 
-        {/* Map (fixed alongside on desktop; below on mobile) */}
-        <div className="min-h-0">
+        {/* Map: a normal block (no inner scroll). On desktop it sticks while the
+            page scrolls the list; on mobile it sits above the list. */}
+        <div className="order-first lg:order-none lg:sticky lg:top-3 lg:self-start">
           <MapView
             data={data}
             schools={visibleSchools}
             onSelectSchool={onOpenSchool}
-            heightClass="h-[320px] lg:h-full"
+            heightClass="h-[300px] lg:h-[520px]"
           />
           <p className="mt-1.5 px-1 text-center text-[11px] leading-relaxed text-slate-400">
             📍 your address · 🟠 private · shaded area = {data.district.name}
