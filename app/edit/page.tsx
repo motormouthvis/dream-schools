@@ -234,13 +234,19 @@ export default function EditPage() {
                     </Field>
                     <Check checked={form.requireAddress} onChange={(v) => set("requireAddress", v)} label="Only show when an address is detected" />
                   </OptionBlock>
-                  <OptionBlock title="Popup code">
-                    <CodeBlock code={POPUP_SNIPPET} />
-                    <p className="mt-2 text-[11px] text-slate-500">Paste once before <code>&lt;/body&gt;</code>. It floats over pages automatically.</p>
+                  <OptionBlock title="Popup code (School + Neighborhood Explorer)">
+                    <CodeBlock code={POPUP_DUAL_SNIPPET} />
+                    <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                      Paste once before <code>&lt;/body&gt;</code> on your listing pages. It shows the free{" "}
+                      <strong>School Explorer</strong> popup — and automatically shows the paid{" "}
+                      <strong>Neighborhood Explorer</strong> popup instead if this realtor has an active
+                      subscription. No code change is needed when they upgrade. The popup never appears on a
+                      page that has an inline embed (below).
+                    </p>
                   </OptionBlock>
                 </TechColumn>
 
-                <TechColumn title="Embed" subtitle="An inline explorer placed exactly where you want it.">
+                <TechColumn title="Embed" subtitle="A static inline explorer placed exactly where you want it (e.g. a “Schools” or “The Neighborhood” tab).">
                   <OptionBlock title="Embed options">
                     <DetectionLine
                       label="Embed"
@@ -261,25 +267,20 @@ export default function EditPage() {
                     <Check checked={form.inlineShowHeader} onChange={(v) => set("inlineShowHeader", v)} label="Show the header bar on the inline embed" />
                     <p className="mt-1 text-[11px] text-slate-400">Header bar adds a branded title strip above the inline embed. Leave it off if the page already labels the section. Width is set per-embed in the snippet: <code>data-max-width="840"</code>.</p>
                   </OptionBlock>
-                  <OptionBlock title="Embed code">
-                    <CodeBlock code={INLINE_SNIPPET} />
+                  <OptionBlock title="School Explorer embed code">
+                    <CodeBlock code={SCHOOL_EMBED_SNIPPET} />
+                    <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                      Renders the <strong>School Explorer</strong> inline where you place the{" "}
+                      <code className="rounded bg-white px-1">&lt;div&gt;</code> — e.g. a dedicated{" "}
+                      <strong>“Schools”</strong> page.
+                    </p>
                   </OptionBlock>
-                </TechColumn>
-              </div>
-
-              {/* Dual: popup + inline embed on the same page (eases upgrading). */}
-              <div className="mt-4">
-                <TechColumn
-                  title="Dual — popup + embed together"
-                  subtitle="One snippet that shows BOTH the floating popup and an inline explorer on the same page. Easiest path when you want the popup everywhere and an embedded explorer on specific pages."
-                >
-                  <OptionBlock title="Dual code (popup + embed)">
-                    <CodeBlock code={DUAL_SNIPPET} />
-                    <p className="mt-2 text-[11px] text-slate-500">
-                      Put the <code className="rounded bg-white px-1">&lt;div&gt;</code> where you want the
-                      inline explorer. The <code className="rounded bg-white px-1">data-with-popup="true"</code>{" "}
-                      attribute keeps the floating popup visible on that page too — omit it if you want the
-                      embed only.
+                  <OptionBlock title="Neighborhood Explorer embed code">
+                    <CodeBlock code={NEIGHBORHOOD_EMBED_SNIPPET} />
+                    <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                      Renders the paid <strong>Neighborhood Explorer</strong> inline — e.g. a{" "}
+                      <strong>“The Neighborhood”</strong> page. Requires an active Neighborhood Explorer
+                      subscription; it&apos;s configured from the realtor&apos;s Neighborhood Explorer account.
                     </p>
                   </OptionBlock>
                 </TechColumn>
@@ -292,11 +293,18 @@ export default function EditPage() {
   );
 }
 
-const POPUP_SNIPPET = `<script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
-const INLINE_SNIPPET = `<div id="dream-schools-explorer"></div>
+// Listing-page popup: load BOTH products. The free School Explorer popup shows
+// unless the realtor has an active Neighborhood Explorer subscription, in which
+// case the paid popup shows instead — no code change needed to upgrade. Neither
+// popup appears on a page that has an inline embed.
+const POPUP_DUAL_SNIPPET = `<script src="https://app.dreamneighborhood.com/explorer/sdk.js" async></script>
 <script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
-const DUAL_SNIPPET = `<div id="dream-schools-explorer" data-with-popup="true"></div>
+// Static inline School Explorer (e.g. a "Schools" page).
+const SCHOOL_EMBED_SNIPPET = `<div id="dream-schools-explorer"></div>
 <script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
+// Static inline Neighborhood Explorer (e.g. a "The Neighborhood" page).
+const NEIGHBORHOOD_EMBED_SNIPPET = `<div id="dn-explorer"></div>
+<script src="https://app.dreamneighborhood.com/explorer/sdk.js" async></script>`;
 
 function fmtSeen(v?: string | null): string {
   const d = v ? new Date(v) : null;
