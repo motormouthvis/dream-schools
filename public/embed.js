@@ -79,6 +79,7 @@
     inlineMinHeight: 540,
     inlineMinHeightExplicit: false,
     inlineShowHeader: false,
+    inlineVariant: "classic", // "classic" (existing) | "full" (new Nearby Schools design)
     neighborhoodExplorerGraceMs: 4000,
   };
 
@@ -101,6 +102,7 @@
       inlineMinHeight: typeof inline.minHeight === "number" ? Math.max(200, inline.minHeight | 0) : DEFAULTS.inlineMinHeight,
       inlineMinHeightExplicit: false,
       inlineShowHeader: typeof inline.showHeader === "boolean" ? inline.showHeader : DEFAULTS.inlineShowHeader,
+      inlineVariant: inline.variant === "full" ? "full" : DEFAULTS.inlineVariant,
       neighborhoodExplorerGraceMs: Math.max(2000, Math.min(15000, grace | 0) || DEFAULTS.neighborhoodExplorerGraceMs),
     };
   }
@@ -128,6 +130,9 @@
     }
     var sh = boolAttr(el, "data-show-header");
     if (sh !== null) next.inlineShowHeader = sh;
+    if (el.hasAttribute("data-variant")) {
+      next.inlineVariant = (el.getAttribute("data-variant") || "").trim().toLowerCase() === "full" ? "full" : "classic";
+    }
     return next;
   }
 
@@ -179,6 +184,7 @@
         inlineMinHeight: pres.inlineMinHeight,
         inlineMinHeightExplicit: pres.inlineMinHeightExplicit,
         inlineShowHeader: pres.inlineShowHeader,
+        inlineVariant: pres.inlineVariant,
         neighborhoodExplorerGraceMs: pres.neighborhoodExplorerGraceMs,
       };
     });
@@ -442,6 +448,7 @@
       return typeof value === "number" && isFinite(value) ? value : fallback;
     }
     if (mode === "inline" && config.inlineShowHeader) url += "&header=1";
+    if (mode === "inline" && config.inlineVariant === "full") url += "&variant=full";
     if (config.showExternalLinks) url += "&links=1";
     if (config.providerName) url += "&provider=" + encodeURIComponent(config.providerName);
     if (config.businessName) url += "&business=" + encodeURIComponent(config.businessName);

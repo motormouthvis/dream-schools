@@ -34,6 +34,7 @@ const BLANK: Form = {
 
 export default function EditPage() {
   const [form, setForm] = useState<Form>(BLANK);
+  const [fullEmbed, setFullEmbed] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -269,11 +270,32 @@ export default function EditPage() {
                     <p className="mt-1 text-[11px] text-slate-400">Header bar adds a branded title strip above the inline embed. Leave it off if the page already labels the section. Width is set per-embed in the snippet: <code>data-max-width="840"</code>.</p>
                   </OptionBlock>
                   <OptionBlock title="School Explorer embed code">
-                    <CodeBlock code={SCHOOL_EMBED_SNIPPET} />
+                    <div className="mb-2 inline-flex rounded-full bg-slate-100 p-0.5 text-[11px] font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setFullEmbed(true)}
+                        className={`rounded-full px-3 py-1.5 transition ${fullEmbed ? "bg-white text-brand-700 shadow-sm" : "text-slate-500"}`}
+                      >
+                        New “Nearby Schools” design
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFullEmbed(false)}
+                        className={`rounded-full px-3 py-1.5 transition ${!fullEmbed ? "bg-white text-brand-700 shadow-sm" : "text-slate-500"}`}
+                      >
+                        Classic
+                      </button>
+                    </div>
+                    <CodeBlock code={fullEmbed ? SCHOOL_EMBED_FULL_SNIPPET : SCHOOL_EMBED_SNIPPET} />
                     <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
                       Renders the <strong>School Explorer</strong> inline where you place the{" "}
                       <code className="rounded bg-white px-1">&lt;div&gt;</code> — e.g. a dedicated{" "}
-                      <strong>“Schools”</strong> page.
+                      <strong>“Schools”</strong> page.{" "}
+                      {fullEmbed ? (
+                        <>The <strong>new design</strong> shows a refined “Nearby Schools” list and map together, built to sit natively on your page.</>
+                      ) : (
+                        <>The <strong>classic</strong> design mirrors the popup explorer.</>
+                      )}
                     </p>
                   </OptionBlock>
                   <OptionBlock title="Neighborhood Explorer embed code">
@@ -303,6 +325,9 @@ const POPUP_DUAL_SNIPPET = `<script src="https://app.dreamneighborhood.com/explo
 <script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
 // Static inline School Explorer (e.g. a "Schools" page).
 const SCHOOL_EMBED_SNIPPET = `<div id="dream-schools-explorer"></div>
+<script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
+// New "Nearby Schools" inline design (opt-in via data-variant="full").
+const SCHOOL_EMBED_FULL_SNIPPET = `<div id="dream-schools-explorer" data-variant="full"></div>
 <script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
 // Static inline Neighborhood Explorer (e.g. a "The Neighborhood" page).
 const NEIGHBORHOOD_EMBED_SNIPPET = `<div id="dn-explorer"></div>

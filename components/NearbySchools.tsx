@@ -10,6 +10,8 @@ export function NearbySchools({
   compareIds,
   onToggleCompare,
   twoCol = false,
+  showCompare = true,
+  unratedGradCap = false,
 }: {
   schools: NearbySchool[];
   onSelect: (ncesId: string) => void;
@@ -17,6 +19,10 @@ export function NearbySchools({
   onToggleCompare: (ncesId: string) => void;
   /** Two columns on wide screens (used by the embed popup to fill the panel). */
   twoCol?: boolean;
+  /** Hide the compare column (used by the sophisticated inline "full" embed). */
+  showCompare?: boolean;
+  /** Show a graduation-cap "Not rated" chip for unscored schools (full embed). */
+  unratedGradCap?: boolean;
 }) {
   return (
     <ul className={twoCol ? "grid grid-cols-1 gap-2.5 sm:grid-cols-2" : "space-y-2.5"}>
@@ -49,12 +55,22 @@ export function NearbySchools({
                 <span className="absolute left-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/25 text-[10px] font-bold">
                   {i + 1}
                 </span>
-                <span className={`font-extrabold leading-none ${hasScore ? "text-2xl" : "text-base"}`}>
-                  {hasScore ? r10 : "NR"}
-                </span>
-                <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide opacity-90">
-                  {hasScore ? "/ 10" : "no data"}
-                </span>
+                {hasScore ? (
+                  <>
+                    <span className="text-2xl font-extrabold leading-none">{r10}</span>
+                    <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide opacity-90">/ 10</span>
+                  </>
+                ) : unratedGradCap ? (
+                  <>
+                    <GradCapIcon />
+                    <span className="mt-0.5 text-[8px] font-semibold uppercase tracking-wide opacity-90">Not rated</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-base font-extrabold leading-none">NR</span>
+                    <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide opacity-90">no data</span>
+                  </>
+                )}
               </span>
 
               {/* exactly three single-line rows → every card is the same height */}
@@ -84,29 +100,31 @@ export function NearbySchools({
             </button>
 
             {/* compare toggle */}
-            <button
-              type="button"
-              onClick={() => onToggleCompare(s.ncesId)}
-              disabled={atMax}
-              className={`flex w-14 shrink-0 flex-col items-center justify-center gap-1 border-l text-[10px] font-semibold transition ${
-                selected
-                  ? "border-brand-200 bg-brand-50 text-brand-700"
-                  : atMax
-                  ? "border-slate-100 text-slate-300"
-                  : "border-slate-100 text-slate-400 hover:bg-slate-50"
-              }`}
-              aria-pressed={selected}
-              title={atMax ? "Up to 3 schools" : "Add to compare"}
-            >
-              <span
-                className={`flex h-5 w-5 items-center justify-center rounded border ${
-                  selected ? "border-brand-600 bg-brand-600 text-white" : "border-slate-300"
+            {showCompare && (
+              <button
+                type="button"
+                onClick={() => onToggleCompare(s.ncesId)}
+                disabled={atMax}
+                className={`flex w-14 shrink-0 flex-col items-center justify-center gap-1 border-l text-[10px] font-semibold transition ${
+                  selected
+                    ? "border-brand-200 bg-brand-50 text-brand-700"
+                    : atMax
+                    ? "border-slate-100 text-slate-300"
+                    : "border-slate-100 text-slate-400 hover:bg-slate-50"
                 }`}
+                aria-pressed={selected}
+                title={atMax ? "Up to 3 schools" : "Add to compare"}
               >
-                {selected ? "✓" : ""}
-              </span>
-              Compare
-            </button>
+                <span
+                  className={`flex h-5 w-5 items-center justify-center rounded border ${
+                    selected ? "border-brand-600 bg-brand-600 text-white" : "border-slate-300"
+                  }`}
+                >
+                  {selected ? "✓" : ""}
+                </span>
+                Compare
+              </button>
+            )}
           </li>
         );
       })}
@@ -145,6 +163,15 @@ function ScrollName({ name }: { name: string }) {
         {name}
       </span>
     </span>
+  );
+}
+
+function GradCapIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6" aria-hidden="true">
+      <path d="M22 10 12 5 2 10l10 5 10-5z" />
+      <path d="M6 12v5c0 1 2.5 2.5 6 2.5s6-1.5 6-2.5v-5" />
+    </svg>
   );
 }
 
