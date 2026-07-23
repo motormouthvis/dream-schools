@@ -278,9 +278,10 @@ export default function EditPage() {
                   <OptionBlock title="Neighborhood Explorer embed code">
                     <CodeBlock code={NEIGHBORHOOD_EMBED_SNIPPET} />
                     <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-                      Renders the paid <strong>Neighborhood Explorer</strong> inline — e.g. a{" "}
-                      <strong>“The Neighborhood”</strong> page. Requires an active Neighborhood Explorer
-                      subscription; it&apos;s configured from the realtor&apos;s Neighborhood Explorer account.
+                      Renders the <strong>Neighborhood Explorer</strong> inline — e.g. a{" "}
+                      <strong>“The Neighborhood”</strong> page. <strong>Schools are free, but this is the paid
+                      product:</strong> it only appears with an active Neighborhood Explorer subscription, and
+                      it&apos;s configured from the realtor&apos;s Neighborhood Explorer account.
                     </p>
                   </OptionBlock>
                 </TechColumn>
