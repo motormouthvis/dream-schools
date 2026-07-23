@@ -237,8 +237,9 @@ export default function EditPage() {
                   <OptionBlock title="Popup code (School + Neighborhood Explorer)">
                     <CodeBlock code={POPUP_DUAL_SNIPPET} />
                     <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-                      Paste once before <code>&lt;/body&gt;</code> on your listing pages. It shows the free{" "}
-                      <strong>School Explorer</strong> popup — and automatically shows the paid{" "}
+                      Add it <strong>once</strong> in the site’s global footer / “code injection” area (before{" "}
+                      <code>&lt;/body&gt;</code>) — it then loads on every page automatically. It shows the free{" "}
+                      <strong>School Explorer</strong> popup, and automatically shows the paid{" "}
                       <strong>Neighborhood Explorer</strong> popup instead if this realtor has an active
                       subscription. No code change is needed when they upgrade. The popup never appears on a
                       page that has an inline embed (below).

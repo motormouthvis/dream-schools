@@ -214,13 +214,16 @@ export default function HelpPage() {
               <SnippetBlock
                 badge="Recommended"
                 badgeTone="brand"
-                title="Popup — School + Neighborhood Explorer (put this on every page)"
+                title="Popup — School + Neighborhood Explorer"
                 code={DUAL_POPUP_SNIPPET}
               >
-                A floating school button on every listing page. Shows the <strong>free School Explorer</strong>{" "}
-                popup, and automatically shows the <strong>paid Neighborhood Explorer</strong> popup instead
-                once a subscription is active — <strong>no code change to upgrade</strong>. Paste it once,
-                site-wide. It never appears on a page that has an inline embed (below).
+                A floating school button that appears across your site. Shows the{" "}
+                <strong>free School Explorer</strong> popup, and automatically shows the{" "}
+                <strong>paid Neighborhood Explorer</strong> popup instead once a subscription is active —{" "}
+                <strong>no code change to upgrade</strong>.{" "}
+                <strong>Add it once</strong> in your site’s global footer / “code injection” / body-end area
+                (not on each page) — it then loads on all pages automatically. It never appears on a page
+                that has an inline embed (below).
               </SnippetBlock>
 
               <SnippetBlock
@@ -298,8 +301,10 @@ export default function HelpPage() {
             {/* Per-platform */}
             <div className="mt-6 text-sm font-bold text-slate-700">Install by platform</div>
             <p className="text-[12px] text-slate-500">
-              The steps are the same for any snippet — paste it before <code>&lt;/body&gt;</code>. Use the
-              popup snippet site-wide; add an embed snippet on the specific page where you want it inline.
+              The steps are the same for any snippet — paste it before <code>&lt;/body&gt;</code>. For the{" "}
+              <strong>popup</strong>, add it <strong>once</strong> in a global footer / code-injection area so
+              it loads on all pages. For an <strong>embed</strong>, add the snippet on the specific page where
+              you want the explorer to appear inline.
             </p>
             <div className="mt-2 space-y-2">
               {PLATFORMS.map((p) => (
@@ -346,9 +351,10 @@ function RealtorStart() {
             page, set your <strong>authorized website URL</strong> (and a default address if you like).
           </>,
           <>
-            Copy the <strong>Popup snippet</strong> below and paste it once, site-wide, before{" "}
-            <code className="rounded bg-white px-1">&lt;/body&gt;</code>. That’s it — the free School Explorer
-            is now live on every listing page.
+            Copy the <strong>Popup snippet</strong> below and paste it <strong>once</strong> in your site’s
+            global footer / “code injection” area (before{" "}
+            <code className="rounded bg-white px-1">&lt;/body&gt;</code>). It loads on all pages
+            automatically — the free School Explorer is now live across your site.
           </>,
           <>
             Optional: add a <strong>Schools</strong> or <strong>The Neighborhood</strong> page using the embed
