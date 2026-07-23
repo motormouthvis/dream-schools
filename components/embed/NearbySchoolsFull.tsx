@@ -24,10 +24,8 @@ export function NearbySchoolsFull({
   data: LookupResult;
   onOpenSchool: (ncesId: string) => void;
 }) {
-  const INITIAL = 8;
   const [filterType, setFilterType] = useState<"all" | "public" | "private">("all");
   const [sortBy, setSortBy] = useState<"distance" | "rating">("distance");
-  const [listLimit, setListLimit] = useState(INITIAL);
 
   const visibleSchools = useMemo(() => {
     let list = data.nearbySchools.slice();
@@ -39,15 +37,13 @@ export function NearbySchoolsFull({
   }, [data.nearbySchools, filterType, sortBy]);
 
   const noop = () => {};
-  const shown = visibleSchools.slice(0, listLimit);
-  const remaining = visibleSchools.length - shown.length;
 
-  // Page-flow (Zillow/GreatSchools style): no fixed height, no inner scrollbar —
-  // the section is as tall as its content and scrolls with the host page.
+  // Fixed-height window: header + filters stay put; the list scrolls in its own
+  // pane and the map fills the height beside it. Never clips, never balloons.
   return (
-    <div>
-      {/* Header */}
-      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Header + filters (fixed) */}
+      <div className="mb-3 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
         <h2 className="text-lg font-extrabold tracking-tight text-slate-900">Nearby Schools</h2>
         <span className="text-xs text-slate-400">{visibleSchools.length} nearby</span>
         <div className="ml-auto flex flex-wrap items-center gap-1.5">
@@ -61,38 +57,19 @@ export function NearbySchoolsFull({
         </div>
       </div>
 
-      {/* List + map together — natural height, flows with the page. */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div>
-          {shown.length > 0 ? (
-            <>
-              <NearbySchools
-                schools={shown}
-                onSelect={onOpenSchool}
-                compareIds={[]}
-                onToggleCompare={noop}
-                showCompare={false}
-                unratedGradCap
-              />
-              {remaining > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setListLimit((n) => n + 8)}
-                  className="mt-3 w-full rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-brand-700 shadow-sm transition hover:bg-brand-50"
-                >
-                  Show {Math.min(8, remaining)} more ({remaining} more nearby)
-                </button>
-              )}
-              {listLimit > INITIAL && (
-                <button
-                  type="button"
-                  onClick={() => setListLimit(INITIAL)}
-                  className="mt-2 w-full py-1.5 text-xs font-semibold text-slate-400 transition hover:text-slate-600"
-                >
-                  Show fewer
-                </button>
-              )}
-            </>
+      {/* List + map together, filling the fixed height. */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* List — scrolls within its pane */}
+        <div className="order-last min-h-0 overflow-y-auto pr-0.5 lg:order-none lg:pr-1.5">
+          {visibleSchools.length > 0 ? (
+            <NearbySchools
+              schools={visibleSchools}
+              onSelect={onOpenSchool}
+              compareIds={[]}
+              onToggleCompare={noop}
+              showCompare={false}
+              unratedGradCap
+            />
           ) : (
             <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-400">
               No {filterType === "all" ? "" : filterType + " "}schools in this area.
@@ -100,16 +77,15 @@ export function NearbySchoolsFull({
           )}
         </div>
 
-        {/* Map: a normal block (no inner scroll). On desktop it sticks while the
-            page scrolls the list; on mobile it sits above the list. */}
-        <div className="order-first lg:order-none lg:sticky lg:top-3 lg:self-start">
+        {/* Map — fills the height beside the list (above it on mobile) */}
+        <div className="flex min-h-[240px] flex-col lg:min-h-0">
           <MapView
             data={data}
             schools={visibleSchools}
             onSelectSchool={onOpenSchool}
-            heightClass="h-[300px] lg:h-[520px]"
+            heightClass="h-[240px] lg:h-full"
           />
-          <p className="mt-1.5 px-1 text-center text-[11px] leading-relaxed text-slate-400">
+          <p className="mt-1.5 hidden px-1 text-center text-[11px] leading-relaxed text-slate-400 lg:block">
             📍 your address · 🟠 private · shaded area = {data.district.name}
           </p>
         </div>

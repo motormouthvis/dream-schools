@@ -361,6 +361,9 @@ export default function EmbedExplorer() {
   //    recent-searches dropdown, and a viewport-sized "expanded" size for results.
   //    Auto-boot uses "expanded" so the panel doesn't flash home→results size.
   useEffect(() => {
+    // The "full" design is a fixed-height window sized by the SDK; it neither
+    // auto-grows (inline height) nor uses the popup screen sizes.
+    if (isFull || peekIsFull()) return;
     const inline = isInline || peekIsInline();
     if (inline) {
       // Measure the FULL page including the recents/autocomplete dropdowns, which
@@ -711,7 +714,7 @@ export default function EmbedExplorer() {
   }
 
   return (
-    <main className={`flex flex-col bg-white ${isInline ? "" : "h-screen overflow-hidden"}`}>
+    <main className={`flex flex-col bg-white ${isInline && !isFull ? "" : "h-screen overflow-hidden"}`}>
       <style>{`
         @keyframes dse-inline-title-marquee {
           0%, 15% { transform: translateX(0); }
@@ -743,8 +746,38 @@ export default function EmbedExplorer() {
         </header>
       )}
 
+      {/* ---- FULL variant home: compact search only (no hero, no Home button) ---- */}
+      {screen === "home" && isFull && (
+        <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 py-6">
+          <div>
+            <h2 className="text-lg font-extrabold tracking-tight text-slate-900">Nearby Schools</h2>
+            <p className="text-[13px] text-slate-500">Enter an address to see nearby schools and ratings.</p>
+          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              runLookup(address);
+            }}
+            className="flex w-full flex-col gap-2 sm:flex-row"
+          >
+            {SearchField}
+            <button
+              type="submit"
+              disabled={loading}
+              className="rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60"
+              style={{ background: accent }}
+            >
+              {loading ? "Searching…" : "Search"}
+            </button>
+          </form>
+          {error && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>
+          )}
+        </div>
+      )}
+
       {/* ---- HOME SCREEN (fits without scrolling on desktop) ---- */}
-      {screen === "home" && (
+      {screen === "home" && !isFull && (
         <div
           className={`mx-auto flex w-full max-w-3xl flex-col gap-3 px-4 py-3 ${
             isInline ? "" : "min-h-0 flex-1 justify-start"
@@ -810,19 +843,21 @@ export default function EmbedExplorer() {
       {screen === "results" && data && (
         <div
           className={`mx-auto flex w-full max-w-5xl flex-col px-3 pt-3 sm:px-4 ${
-            isInline ? "" : "min-h-0 flex-1"
+            isInline && !isFull ? "" : "min-h-0 flex-1"
           }`}
         >
           <div className="mb-3 flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={goHome}
-              aria-label="Home"
-              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
-            >
-              <SchoolhouseMark className="h-4 w-4 rounded-[3px]" />
-              <span className="hidden sm:inline">Home</span>
-            </button>
+            {!isFull && (
+              <button
+                type="button"
+                onClick={goHome}
+                aria-label="Home"
+                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
+              >
+                <SchoolhouseMark className="h-4 w-4 rounded-[3px]" />
+                <span className="hidden sm:inline">Home</span>
+              </button>
+            )}
 
             {!changing ? (
               <div className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
@@ -869,7 +904,7 @@ export default function EmbedExplorer() {
               Popup fills the SDK-set panel (flex-1); inline caps the list.
               The "full" variant manages its own list+map layout / heights. */}
           {isFull ? (
-            <div className="pb-4">
+            <div className="flex min-h-0 flex-1 flex-col pb-2">
               {loading && (
                 <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
                   Looking up schools…
@@ -879,15 +914,17 @@ export default function EmbedExplorer() {
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>
               )}
               {!loading && !error && selected && (
-                <SchoolDetailModal
-                  ncesId={selected}
-                  fairHousing={false}
-                  variant="inline"
-                  embed
-                  showExternalLinks
-                  backLabel="Nearby Schools"
-                  onClose={() => setSelected(null)}
-                />
+                <div className="min-h-0 flex-1 overflow-y-auto pb-2">
+                  <SchoolDetailModal
+                    ncesId={selected}
+                    fairHousing={false}
+                    variant="inline"
+                    embed
+                    showExternalLinks
+                    backLabel="Nearby Schools"
+                    onClose={() => setSelected(null)}
+                  />
+                </div>
               )}
               {!loading && !error && !selected && (
                 <NearbySchoolsFull
