@@ -6,6 +6,7 @@ import {
   type ManagedCustomerInput,
   type ManagedCustomerResult,
 } from "@/lib/owner";
+import { getCustomerDefaultAccentColor } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,11 @@ export async function POST(request: Request) {
     ? String(body.partnerId || "").trim() || null
     : actor.id;
 
+  // New customers inherit the default widget color of the account they belong to:
+  // the assigned partner if any, otherwise the creating admin/partner.
+  const colorSourceId = targetPartnerId || actor.id;
+  const defaultAccentColor = await getCustomerDefaultAccentColor(colorSourceId);
+
   const rows: ManagedCustomerInput[] = rawRows.map((r: any) => ({
     email: String(r?.email ?? "").trim(),
     name: String(r?.name ?? r?.customerName ?? "").trim(),
@@ -67,7 +73,9 @@ export async function POST(request: Request) {
     }
     if (key) seen.add(key);
     try {
-      results.push(await createManagedCustomer(row, targetPartnerId, by));
+      results.push(
+        await createManagedCustomer(row, targetPartnerId, by, { accentColor: defaultAccentColor })
+      );
     } catch (err: any) {
       if (err?.code === "23505") {
         results.push({ email: row.email, status: "skipped", reason: "An account with this email already exists" });

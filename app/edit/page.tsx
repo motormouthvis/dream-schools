@@ -266,6 +266,24 @@ export default function EditPage() {
                   </OptionBlock>
                 </TechColumn>
               </div>
+
+              {/* Dual: popup + inline embed on the same page (eases upgrading). */}
+              <div className="mt-4">
+                <TechColumn
+                  title="Dual — popup + embed together"
+                  subtitle="One snippet that shows BOTH the floating popup and an inline explorer on the same page. Easiest path when you want the popup everywhere and an embedded explorer on specific pages."
+                >
+                  <OptionBlock title="Dual code (popup + embed)">
+                    <CodeBlock code={DUAL_SNIPPET} />
+                    <p className="mt-2 text-[11px] text-slate-500">
+                      Put the <code className="rounded bg-white px-1">&lt;div&gt;</code> where you want the
+                      inline explorer. The <code className="rounded bg-white px-1">data-with-popup="true"</code>{" "}
+                      attribute keeps the floating popup visible on that page too — omit it if you want the
+                      embed only.
+                    </p>
+                  </OptionBlock>
+                </TechColumn>
+              </div>
             </div>
           )}
         </>
@@ -276,6 +294,8 @@ export default function EditPage() {
 
 const POPUP_SNIPPET = `<script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
 const INLINE_SNIPPET = `<div id="dream-schools-explorer"></div>
+<script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
+const DUAL_SNIPPET = `<div id="dream-schools-explorer" data-with-popup="true"></div>
 <script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
 
 function fmtSeen(v?: string | null): string {

@@ -64,6 +64,7 @@ export default function AccountPage() {
             {(me.isOwner || me.isPartner) && (
               <UpgradePromptSettings isOwner={me.isOwner} isPartner={me.isPartner} />
             )}
+            {(me.isOwner || me.isPartner) && <CustomerDefaultColorSettings />}
             {me.isOwner && <NeighborhoodExplorerGraceSettings />}
             <ChangeEmail currentEmail={me.email} />
             <ChangePassword email={me.email} />
@@ -313,6 +314,99 @@ function WhiteLabelProfile({
           {busy ? "Saving…" : "Save white-label name"}
         </button>
       </form>
+    </Card>
+  );
+}
+
+const DEFAULT_WIDGET_COLOR = "#1fa55f";
+
+function CustomerDefaultColorSettings() {
+  const [loaded, setLoaded] = useState(false);
+  const [color, setColor] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/customer-defaults")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (j && typeof j.accentColor === "string") setColor(j.accentColor);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
+
+  const effective = /^#[0-9a-fA-F]{6}$/.test(color) ? color : DEFAULT_WIDGET_COLOR;
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setDone(false);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/customer-defaults", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accentColor: color.trim() }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(j.error || "Could not save the default color.");
+        return;
+      }
+      if (typeof j.accentColor === "string") setColor(j.accentColor);
+      setDone(true);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card title="Default widget color for new customers">
+      <p className="mb-3 text-[12px] leading-relaxed text-slate-500">
+        The accent color applied to the School Explorer for every new customer you add or import.
+        Existing customers aren&apos;t changed, and each can still override their own color in
+        Configure Explorer. Leave blank to use the standard green.
+      </p>
+      {!loaded ? (
+        <p className="text-sm text-slate-400">Loading…</p>
+      ) : (
+        <form onSubmit={save} className="space-y-3">
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              aria-label="Pick default color"
+              value={effective}
+              onChange={(e) => setColor(e.target.value)}
+              className="h-10 w-14 cursor-pointer rounded-lg border border-slate-300 bg-white p-1"
+            />
+            <input
+              className={inp}
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              placeholder={DEFAULT_WIDGET_COLOR}
+              spellCheck={false}
+            />
+            {color.trim() !== "" && (
+              <button
+                type="button"
+                onClick={() => setColor("")}
+                className="whitespace-nowrap rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+          {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
+          {done && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">Default color saved ✓</p>}
+          <button type="submit" disabled={busy} className={btn}>
+            {busy ? "Saving…" : "Save default color"}
+          </button>
+        </form>
+      )}
     </Card>
   );
 }

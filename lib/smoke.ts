@@ -39,6 +39,7 @@ function rowToUser(r: any): AppUser {
     partnerId: r.partner_id ?? null,
     companyName: r.company_name ?? "",
     businessName: r.business_name ?? "",
+    defaultCustomerAccentColor: r.default_customer_accent_color ?? "",
     upgradeViewsToTrigger: r.upgrade_views_to_trigger == null ? null : Number(r.upgrade_views_to_trigger),
     upgradeMinDaysBetween: r.upgrade_min_days_between == null ? null : Number(r.upgrade_min_days_between),
     upgradeIdleSeconds: r.upgrade_idle_seconds == null ? null : Number(r.upgrade_idle_seconds),

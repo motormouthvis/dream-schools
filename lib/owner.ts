@@ -201,10 +201,11 @@ export async function updateCustomerAccount(
  */
 export async function activateCustomerWidget(
   id: string,
-  input: { authorizedDomain?: string; defaultAddress?: string; enabled?: boolean }
+  input: { authorizedDomain?: string; defaultAddress?: string; enabled?: boolean; accentColor?: string }
 ): Promise<{ ok: true } | { ok: false; conflict: string[] }> {
   const existing = await getByPartner(id, 1);
   const base = existing ?? { ...DEFAULT_PRESENTATION, defaultAddress: "", enabled: false };
+  const accentColor = (input.accentColor || "").trim() || base.accentColor;
   const allowedHosts =
     input.authorizedDomain !== undefined
       ? [normalizeHost(String(input.authorizedDomain))].filter(Boolean)
@@ -219,7 +220,7 @@ export async function activateCustomerWidget(
     allowedHosts,
     defaultAddress:
       typeof input.defaultAddress === "string" ? input.defaultAddress : existing?.defaultAddress ?? "",
-    accentColor: base.accentColor,
+    accentColor,
     position: base.position,
     bottomOffset: base.bottomOffset,
     tooltipMessage: base.tooltipMessage,
@@ -269,7 +270,8 @@ export interface ManagedCustomerResult {
 export async function createManagedCustomer(
   input: ManagedCustomerInput,
   partnerId: string | null,
-  by: "partner" | "admin"
+  by: "partner" | "admin",
+  defaults?: { accentColor?: string }
 ): Promise<ManagedCustomerResult> {
   const email = String(input.email || "").trim().toLowerCase();
   if (!isValidEmail(email)) {
@@ -279,12 +281,19 @@ export async function createManagedCustomer(
   if (existing) {
     return { email, status: "skipped", reason: "An account with this email already exists" };
   }
-  const user = await createManagedUser({ email, partnerId, realtorName: input.name });
+  // White label defaults to the company/realtor name (request: mirror the name).
+  const user = await createManagedUser({
+    email,
+    partnerId,
+    realtorName: input.name,
+    businessName: input.name,
+  });
   logUserEventAsync(user.id, "account_created", `imported by ${by}${input.name ? ` — ${input.name}` : ""}`);
   const widget = await activateCustomerWidget(user.id, {
     authorizedDomain: input.authorizedDomain,
     defaultAddress: input.defaultAddress,
     enabled: true,
+    accentColor: defaults?.accentColor,
   });
   if (!widget.ok) {
     // Account still created; report the domain clash so the partner can fix it.

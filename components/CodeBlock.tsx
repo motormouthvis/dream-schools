@@ -8,6 +8,11 @@ export const POPUP_SNIPPET = `<script src="https://www.dreamneighborhoodschools.
 export const INLINE_SNIPPET = `<div id="dream-schools-explorer"></div>
 <script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
 
+// "Dual": the floating popup AND an inline embed on the same page. data-with-popup
+// keeps the popup visible even though an inline embed is present.
+export const DUAL_SNIPPET = `<div id="dream-schools-explorer" data-with-popup="true"></div>
+<script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
+
 export function CodeBlock({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
   return (

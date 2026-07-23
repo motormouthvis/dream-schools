@@ -31,6 +31,8 @@ export interface AppUser {
   partnerId: string | null;
   companyName: string;
   businessName: string;
+  /** Owner/partner preference: default widget accent color for NEW customers they create. */
+  defaultCustomerAccentColor: string;
   upgradeViewsToTrigger: number | null;
   upgradeMinDaysBetween: number | null;
   upgradeIdleSeconds: number | null;
@@ -55,6 +57,7 @@ async function ensureTables(): Promise<void> {
            partner_id     TEXT,
            company_name   TEXT NOT NULL DEFAULT '',
            business_name  TEXT NOT NULL DEFAULT '',
+           default_customer_accent_color TEXT NOT NULL DEFAULT '',
            upgrade_views_to_trigger INTEGER,
            upgrade_min_days_between INTEGER,
            upgrade_idle_seconds INTEGER,
@@ -73,6 +76,7 @@ async function ensureTables(): Promise<void> {
              ADD COLUMN IF NOT EXISTS partner_id TEXT,
              ADD COLUMN IF NOT EXISTS company_name TEXT NOT NULL DEFAULT '',
              ADD COLUMN IF NOT EXISTS business_name TEXT NOT NULL DEFAULT '',
+             ADD COLUMN IF NOT EXISTS default_customer_accent_color TEXT NOT NULL DEFAULT '',
              ADD COLUMN IF NOT EXISTS upgrade_views_to_trigger INTEGER,
              ADD COLUMN IF NOT EXISTS upgrade_min_days_between INTEGER,
              ADD COLUMN IF NOT EXISTS upgrade_idle_seconds INTEGER,
@@ -166,6 +170,7 @@ function rowToUser(r: any): AppUser {
     partnerId: r.partner_id ?? null,
     companyName: r.company_name ?? "",
     businessName: r.business_name ?? "",
+    defaultCustomerAccentColor: r.default_customer_accent_color ?? "",
     upgradeViewsToTrigger: r.upgrade_views_to_trigger == null ? null : Number(r.upgrade_views_to_trigger),
     upgradeMinDaysBetween: r.upgrade_min_days_between == null ? null : Number(r.upgrade_min_days_between),
     upgradeIdleSeconds: r.upgrade_idle_seconds == null ? null : Number(r.upgrade_idle_seconds),
@@ -234,17 +239,46 @@ export async function createManagedUser(input: {
   email: string;
   partnerId?: string | null;
   realtorName?: string;
+  businessName?: string;
 }): Promise<AppUser> {
   await ensureTables();
   const pool = getPool();
   const id = randomUUID();
   const owner = isOwnerEmail(input.email);
   const { rows } = await pool.query(
-    `INSERT INTO app_users (id, email, password_hash, email_verified, is_owner, partner_id, company_name)
-     VALUES ($1,$2,'',TRUE,$3,$4,$5) RETURNING *`,
-    [id, normalizeEmail(input.email), owner, input.partnerId || null, (input.realtorName || "").trim()]
+    `INSERT INTO app_users (id, email, password_hash, email_verified, is_owner, partner_id, company_name, business_name)
+     VALUES ($1,$2,'',TRUE,$3,$4,$5,$6) RETURNING *`,
+    [
+      id,
+      normalizeEmail(input.email),
+      owner,
+      input.partnerId || null,
+      (input.realtorName || "").trim(),
+      (input.businessName ?? input.realtorName ?? "").trim(),
+    ]
   );
   return rowToUser(rows[0]);
+}
+
+/** Read an owner/partner's preferred default widget accent color for new customers. */
+export async function getCustomerDefaultAccentColor(userId: string): Promise<string> {
+  if (!hasDatabase() || !userId) return "";
+  await ensureTables();
+  const { rows } = await getPool().query(
+    `SELECT default_customer_accent_color FROM app_users WHERE id = $1`,
+    [userId]
+  );
+  return String(rows[0]?.default_customer_accent_color || "").trim();
+}
+
+/** Save an owner/partner's preferred default widget accent color (or "" to reset). */
+export async function setCustomerDefaultAccentColor(userId: string, color: string): Promise<void> {
+  if (!hasDatabase() || !userId) return;
+  await ensureTables();
+  await getPool().query(
+    `UPDATE app_users SET default_customer_accent_color = $1 WHERE id = $2`,
+    [String(color || "").trim(), userId]
+  );
 }
 
 /** True when the account has never set a password (managed/imported realtor). */
