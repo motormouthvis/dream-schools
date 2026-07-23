@@ -34,7 +34,10 @@ export function MapView({
         mapRef.current.remove();
         mapRef.current = null;
       }
-      const map = L.map(ref.current, { scrollWheelZoom: false });
+      // Scroll-wheel zoom is active only while the cursor is over the map, so
+      // hovering the map + scrolling zooms it (in the popup and both embeds);
+      // scrolling elsewhere still scrolls the page normally.
+      const map = L.map(ref.current, { scrollWheelZoom: true });
       mapRef.current = map;
       // Give the map a valid view BEFORE adding any vector layers (e.g. the
       // district-boundary polygon). Without an initial view the map has no pixel
