@@ -895,6 +895,8 @@ export default function EmbedExplorer() {
             isInline ? "" : "min-h-0 flex-1"
           }`}
         >
+          {/* Minimalist hides the address/Change bar entirely for a cleaner look. */}
+          {!isMinimal && (
           <div className="mb-3 flex shrink-0 items-center gap-2">
             {!isNative && (
               <button
@@ -948,6 +950,7 @@ export default function EmbedExplorer() {
               </form>
             )}
           </div>
+          )}
 
           {/* Scroll region: only the results/detail scroll, chrome stays put.
               Popup fills the SDK-set panel (flex-1); inline caps the list.
