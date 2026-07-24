@@ -11,7 +11,7 @@ export function NearbySchools({
   onToggleCompare,
   twoCol = false,
   showCompare = true,
-  unratedGradCap = false,
+  unratedGradCap = true,
 }: {
   schools: NearbySchool[];
   onSelect: (ncesId: string) => void;
@@ -167,10 +167,23 @@ function ScrollName({ name }: { name: string }) {
 }
 
 function GradCapIcon() {
+  // A jaunty, tilted mortarboard with a hanging tassel.
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6" aria-hidden="true">
-      <path d="M22 10 12 5 2 10l10 5 10-5z" />
-      <path d="M6 12v5c0 1 2.5 2.5 6 2.5s6-1.5 6-2.5v-5" />
+    <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
+      <g transform="rotate(-10 12 10)">
+        <path d="M12 4 21 8 12 12 3 8z" fill="currentColor" />
+        <path
+          d="M6.5 9.4V13c0 1.3 2.5 2.3 5.5 2.3s5.5-1 5.5-2.3V9.4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
+      {/* Tassel: string from the cap's corner + a knot at the end. */}
+      <path d="M20 8.4V13.4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <circle cx="20" cy="14.4" r="1.1" fill="currentColor" />
     </svg>
   );
 }

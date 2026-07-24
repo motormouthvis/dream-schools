@@ -102,7 +102,8 @@
       inlineMinHeight: typeof inline.minHeight === "number" ? Math.max(200, inline.minHeight | 0) : DEFAULTS.inlineMinHeight,
       inlineMinHeightExplicit: false,
       inlineShowHeader: typeof inline.showHeader === "boolean" ? inline.showHeader : DEFAULTS.inlineShowHeader,
-      inlineVariant: inline.variant === "full" ? "full" : DEFAULTS.inlineVariant,
+      inlineVariant:
+        inline.variant === "full" ? "full" : inline.variant === "minimalist" ? "minimalist" : DEFAULTS.inlineVariant,
       neighborhoodExplorerGraceMs: Math.max(2000, Math.min(15000, grace | 0) || DEFAULTS.neighborhoodExplorerGraceMs),
     };
   }
@@ -131,7 +132,8 @@
     var sh = boolAttr(el, "data-show-header");
     if (sh !== null) next.inlineShowHeader = sh;
     if (el.hasAttribute("data-variant")) {
-      next.inlineVariant = (el.getAttribute("data-variant") || "").trim().toLowerCase() === "full" ? "full" : "classic";
+      var v = (el.getAttribute("data-variant") || "").trim().toLowerCase();
+      next.inlineVariant = v === "full" ? "full" : v === "minimalist" ? "minimalist" : "classic";
     }
     return next;
   }
@@ -448,7 +450,9 @@
       return typeof value === "number" && isFinite(value) ? value : fallback;
     }
     if (mode === "inline" && config.inlineShowHeader) url += "&header=1";
-    if (mode === "inline" && config.inlineVariant === "full") url += "&variant=full";
+    if (mode === "inline" && (config.inlineVariant === "full" || config.inlineVariant === "minimalist")) {
+      url += "&variant=" + config.inlineVariant;
+    }
     if (config.showExternalLinks) url += "&links=1";
     if (config.providerName) url += "&provider=" + encodeURIComponent(config.providerName);
     if (config.businessName) url += "&business=" + encodeURIComponent(config.businessName);
@@ -883,10 +887,12 @@
       iframe.setAttribute("loading", "eager");
       // Width: default caps at 840px; partner can set data-max-width="720" (px).
       var maxW = intAttr(container, "data-max-width", 280);
-      var maxWidthCss = maxW != null ? maxW + "px" : (config.inlineVariant === "full" ? "1040px" : "840px");
-      // The "full" (Nearby Schools) design is meant to sit natively in the page —
-      // flat, no card border/shadow, and it flows with the page (auto-height).
-      var flat = frameless || config.inlineVariant === "full";
+      var wideVariant = config.inlineVariant === "full" || config.inlineVariant === "minimalist";
+      var maxWidthCss = maxW != null ? maxW + "px" : (wideVariant ? "1040px" : "840px");
+      // The "full" and "minimalist" designs sit natively in the page — flat, no
+      // card border/shadow. (Full is a fixed-height window; minimalist flows with
+      // the page like the classic inline embed.)
+      var flat = frameless || config.inlineVariant === "full" || config.inlineVariant === "minimalist";
       var chrome = flat
         ? "display:block;width:100%;max-width:" + maxWidthCss + ";margin:0;border:0;border-radius:0;background:#fff;color-scheme:light;overflow:hidden;box-shadow:none"
         : "display:block;width:100%;max-width:" + maxWidthCss + ";margin:20px auto;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color-scheme:light;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.08)";

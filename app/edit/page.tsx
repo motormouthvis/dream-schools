@@ -34,7 +34,7 @@ const BLANK: Form = {
 
 export default function EditPage() {
   const [form, setForm] = useState<Form>(BLANK);
-  const [fullEmbed, setFullEmbed] = useState(true);
+  const [embedStyle, setEmbedStyle] = useState<"showcase" | "compact" | "minimalist">("showcase");
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -271,28 +271,36 @@ export default function EditPage() {
                   </OptionBlock>
                   <OptionBlock title="School Explorer embed code">
                     <div className="mb-2 inline-flex rounded-full bg-slate-100 p-0.5 text-[11px] font-semibold">
-                      <button
-                        type="button"
-                        onClick={() => setFullEmbed(true)}
-                        className={`rounded-full px-3 py-1.5 transition ${fullEmbed ? "bg-white text-brand-700 shadow-sm" : "text-slate-500"}`}
-                      >
-                        Showcase
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setFullEmbed(false)}
-                        className={`rounded-full px-3 py-1.5 transition ${!fullEmbed ? "bg-white text-brand-700 shadow-sm" : "text-slate-500"}`}
-                      >
-                        Compact
-                      </button>
+                      {(["showcase", "minimalist", "compact"] as const).map((k) => (
+                        <button
+                          key={k}
+                          type="button"
+                          onClick={() => setEmbedStyle(k)}
+                          className={`rounded-full px-3 py-1.5 capitalize transition ${
+                            embedStyle === k ? "bg-white text-brand-700 shadow-sm" : "text-slate-500"
+                          }`}
+                        >
+                          {k}
+                        </button>
+                      ))}
                     </div>
-                    <CodeBlock code={fullEmbed ? SCHOOL_EMBED_FULL_SNIPPET : SCHOOL_EMBED_SNIPPET} />
+                    <CodeBlock
+                      code={
+                        embedStyle === "showcase"
+                          ? SCHOOL_EMBED_FULL_SNIPPET
+                          : embedStyle === "minimalist"
+                            ? SCHOOL_EMBED_MINIMALIST_SNIPPET
+                            : SCHOOL_EMBED_SNIPPET
+                      }
+                    />
                     <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
                       Renders the <strong>School Explorer</strong> inline where you place the{" "}
                       <code className="rounded bg-white px-1">&lt;div&gt;</code> — e.g. a dedicated{" "}
                       <strong>“Schools”</strong> page.{" "}
-                      {fullEmbed ? (
-                        <><strong>Showcase</strong> — a polished “Nearby Schools” section with the school list and map side by side, filters, and a map on/off toggle. Best for a dedicated Schools page.</>
+                      {embedStyle === "showcase" ? (
+                        <><strong>Showcase</strong> — a polished “Nearby Schools” section with the school list and map side by side, filters, and a map on/off toggle.</>
+                      ) : embedStyle === "minimalist" ? (
+                        <><strong>Minimalist</strong> — a clean, subdued multi-column list (no map) where each school links to its full detail on Dream Neighborhood Schools. Great for a compact spot on a page.</>
                       ) : (
                         <><strong>Compact</strong> — the same searchable explorer as the popup, dropped inline in a small box.</>
                       )}
@@ -328,6 +336,9 @@ const SCHOOL_EMBED_SNIPPET = `<div id="dream-schools-explorer"></div>
 <script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
 // New "Nearby Schools" inline design (opt-in via data-variant="full").
 const SCHOOL_EMBED_FULL_SNIPPET = `<div id="dream-schools-explorer" data-variant="full"></div>
+<script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
+// Minimalist inline design (subdued multi-column list, links to full detail).
+const SCHOOL_EMBED_MINIMALIST_SNIPPET = `<div id="dream-schools-explorer" data-variant="minimalist"></div>
 <script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
 // Static inline Neighborhood Explorer (e.g. a "The Neighborhood" page).
 const NEIGHBORHOOD_EMBED_SNIPPET = `<div id="dn-explorer"></div>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SchoolsTab } from "@/components/SchoolsTab";
 import { NearbySchoolsFull } from "@/components/embed/NearbySchoolsFull";
+import { MinimalistSchools } from "@/components/embed/MinimalistSchools";
 import { SchoolDetailModal } from "@/components/SchoolDetailModal";
 import { SchoolhouseMark } from "@/components/Logo";
 import { InsightsMarquee } from "@/components/InsightsMarquee";
@@ -27,7 +28,7 @@ interface EmbedParams {
   lon: number | null;
   accent: string;
   mode: "popup" | "inline";
-  variant: "classic" | "full";
+  variant: "classic" | "full" | "minimalist";
   header: boolean;
   links: boolean;
   provider: string;
@@ -68,6 +69,11 @@ function peekIsFull(): boolean {
   return new URLSearchParams(window.location.search).get("variant") === "full";
 }
 
+function peekIsMinimal(): boolean {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).get("variant") === "minimalist";
+}
+
 function readParams(): EmbedParams {
   const p = new URLSearchParams(window.location.search);
   const num = (v: string | null) => {
@@ -85,7 +91,8 @@ function readParams(): EmbedParams {
     lon: num(p.get("lon") ?? p.get("lng")),
     accent: p.get("accent") || "#1fa55f",
     mode: p.get("mode") === "inline" ? "inline" : "popup",
-    variant: p.get("variant") === "full" ? "full" : "classic",
+    variant:
+      p.get("variant") === "full" ? "full" : p.get("variant") === "minimalist" ? "minimalist" : "classic",
     header: p.get("header") === "1",
     links: p.get("links") === "1",
     provider: (p.get("provider") || "").trim(),
@@ -174,6 +181,9 @@ export default function EmbedExplorer() {
   const accent = params?.accent || "#1fa55f";
   const isInline = params?.mode === "inline";
   const isFull = params?.variant === "full";
+  const isMinimal = params?.variant === "minimalist";
+  // Flat, native, page-flow variants (no accent header, no Home button).
+  const isNative = isFull || isMinimal;
   const headerTitle = `Dream Neighborhood School Explorer${params?.provider ? ` provided by ${params.provider}` : ""}`;
 
   const upgradeKey = params?.customer ? `dse-upgrade-prompt:${params.customer}` : "";
@@ -674,7 +684,7 @@ export default function EmbedExplorer() {
         className={`flex flex-col bg-white ${mounted && !inlineBoot ? "h-screen overflow-hidden" : "min-h-[540px]"}`}
         aria-busy="true"
       >
-        {mounted && isInline && !peekIsFull() && (
+        {mounted && isInline && !peekIsFull() && !peekIsMinimal() && (
           <header
             className="flex shrink-0 items-center gap-2 px-4 py-1.5 text-white"
             style={{ background: accent }}
@@ -728,9 +738,9 @@ export default function EmbedExplorer() {
           }
         }
       `}</style>
-      {/* Inline embeds have no SDK chrome, so brand the iframe itself.
-          The "full" variant uses its own editorial "Nearby Schools" heading. */}
-      {isInline && !isFull && (
+      {/* Inline embeds have no SDK chrome, so brand the iframe itself. The
+          "full"/"minimalist" variants use their own native heading instead. */}
+      {isInline && !isNative && (
         <header
           className="flex shrink-0 items-center gap-2 px-4 py-1.5 text-white"
           style={{ background: accent }}
@@ -746,8 +756,8 @@ export default function EmbedExplorer() {
         </header>
       )}
 
-      {/* ---- FULL variant home: compact search only (no hero, no Home button) ---- */}
-      {screen === "home" && isFull && (
+      {/* ---- Native (full/minimalist) home: compact search (no hero, no Home) ---- */}
+      {screen === "home" && isNative && (
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 py-6">
           <div>
             <h2 className="text-lg font-extrabold tracking-tight text-slate-900">Nearby Schools</h2>
@@ -777,7 +787,7 @@ export default function EmbedExplorer() {
       )}
 
       {/* ---- HOME SCREEN (fits without scrolling on desktop) ---- */}
-      {screen === "home" && !isFull && (
+      {screen === "home" && !isNative && (
         <div
           className={`mx-auto flex w-full max-w-3xl flex-col gap-3 px-4 py-3 ${
             isInline ? "" : "min-h-0 flex-1 justify-start"
@@ -847,7 +857,7 @@ export default function EmbedExplorer() {
           }`}
         >
           <div className="mb-3 flex shrink-0 items-center gap-2">
-            {!isFull && (
+            {!isNative && (
               <button
                 type="button"
                 onClick={goHome}
@@ -935,6 +945,18 @@ export default function EmbedExplorer() {
                   }}
                 />
               )}
+            </div>
+          ) : isMinimal ? (
+            <div className="pb-4">
+              {loading && (
+                <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
+                  Looking up schools…
+                </div>
+              )}
+              {!loading && error && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>
+              )}
+              {!loading && !error && <MinimalistSchools data={data} />}
             </div>
           ) : (
             <div
