@@ -56,6 +56,8 @@ export interface GraduationRecord {
   source: string;
   gradRate4yr: number;
   cohortSize: number;
+  /** 4-year grad rate for economically-disadvantaged students (equity signal). */
+  gradRateDisadvantaged?: number | null;
 }
 
 export interface GeocodeResult {

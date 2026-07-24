@@ -165,11 +165,12 @@ create table if not exists school_safety (
 );
 
 create table if not exists school_graduation (
-    nces_id            text primary key,
-    school_year        text,
-    source             text,
-    grad_rate_4yr      numeric,
-    cohort_size        integer
+    nces_id                 text primary key,
+    school_year             text,
+    source                  text,
+    grad_rate_4yr           numeric,
+    cohort_size             integer,
+    grad_rate_disadvantaged numeric   -- economically-disadvantaged subgroup (equity)
 );
 """
 
@@ -365,6 +366,21 @@ def main():
             mid = None
         if mid is not None and mid >= 0:
             grad[r["ncessch"]] = (mid, num(r.get("cohort_num")))
+    # Equity: economically-disadvantaged subgroup grad rate (econ_disadvantaged=1,
+    # other dims held at total). "Not disadvantaged" (=2) isn't served, so the app
+    # compares this to the school's OVERALL rate above.
+    log("  Downloading EDFacts graduation rates (economically disadvantaged) ...")
+    grad_disadv = {}
+    disadv_filt = dict(filt, race=99, sex=99, disability=99, lep=99,
+                       econ_disadvantaged=1, foster_care=99, homeless=99)
+    for r in http_get_all(f"/schools/edfacts/grad-rates/{args.year_grad}/", disadv_filt, "grad disadv"):
+        mid = r.get("grad_rate_midpt")
+        try:
+            mid = int(mid)
+        except (TypeError, ValueError):
+            mid = None
+        if mid is not None and mid >= 0:
+            grad_disadv[r["ncessch"]] = mid
 
     log("  Downloading CCD enrollment by race (all grades) ...")
     # race codes: 1 White, 2 Black, 3 Hispanic, 4 Asian, 5 Am.Indian/AK,
@@ -491,7 +507,8 @@ def main():
 
         if nces in grad:
             rate, cohort = grad[nces]
-            grad_rows.append([nces, f"{args.year_grad}-{str(args.year_grad+1)[2:]}", grad_src, rate, cohort])
+            grad_rows.append([nces, f"{args.year_grad}-{str(args.year_grad+1)[2:]}", grad_src,
+                              rate, cohort, grad_disadv.get(nces)])
 
     district_rows = [[did, name or did, None, state, enr, cnt, ""]
                      for did, (name, state, enr, cnt) in districts.items()]
@@ -536,7 +553,8 @@ def main():
                       safety_rows)
             log("  COPY school_graduation ...")
             copy_rows(cur, "school_graduation",
-                      ["nces_id", "school_year", "source", "grad_rate_4yr", "cohort_size"],
+                      ["nces_id", "school_year", "source", "grad_rate_4yr", "cohort_size",
+                       "grad_rate_disadvantaged"],
                       grad_rows)
             log("  ANALYZE ...")
             cur.execute("ANALYZE schools; ANALYZE school_safety; ANALYZE school_graduation; ANALYZE school_districts;")

@@ -188,7 +188,7 @@ async function getFromDb(ncesId: string): Promise<SchoolDetail | null> {
         sf.firearm_explosive_possession, sf.firearm_incident, sf.out_of_school_suspensions,
         sf.harassment_bullying_allegations,
         g.nces_id as g_nces_id, g.school_year as g_school_year, g.source as g_source,
-        g.grad_rate_4yr, g.cohort_size
+        g.grad_rate_4yr, g.cohort_size, g.grad_rate_disadvantaged
       from schools s
       left join school_districts d on d.district_id = s.district_id
       left join school_safety sf on sf.nces_id = s.nces_id
@@ -238,6 +238,8 @@ async function getFromDb(ncesId: string): Promise<SchoolDetail | null> {
         source: r.g_source,
         gradRate4yr: Number(r.grad_rate_4yr),
         cohortSize: r.cohort_size,
+        gradRateDisadvantaged:
+          r.grad_rate_disadvantaged == null ? null : Number(r.grad_rate_disadvantaged),
       }
     : undefined;
 

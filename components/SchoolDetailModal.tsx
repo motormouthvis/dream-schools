@@ -447,6 +447,17 @@ function DetailBody({
           </Section>
         )}
 
+        {/* Equity — high schools only, income-based (Fair-Housing-safe), shown
+            only when we have both the overall and disadvantaged graduation rate. */}
+        {servesHigh &&
+          detail.graduation?.gradRate4yr != null &&
+          detail.graduation?.gradRateDisadvantaged != null && (
+            <EquityCallout
+              overall={detail.graduation.gradRate4yr}
+              disadvantaged={detail.graduation.gradRateDisadvantaged}
+            />
+          )}
+
         {/* Safety — at-a-glance summary, key comparisons, details on demand.
             For private schools with no safety data, this is moved to the bottom
             (as a "not collected — ask the school" note) rather than shown here. */}
@@ -1001,6 +1012,70 @@ function DiversitySection({
         </div>
       )}
     </Section>
+  );
+}
+
+function EquityCallout({ overall, disadvantaged }: { overall: number; disadvantaged: number }) {
+  const gap = Math.round(overall - disadvantaged);
+  let tag: string;
+  let tagClass: string;
+  let sentence: string;
+  if (gap <= 0) {
+    tag = "Strong";
+    tagClass = "bg-emerald-100 text-emerald-700";
+    sentence = "Low-income students here graduate at least as often as their peers.";
+  } else if (gap <= 3) {
+    tag = "Strong";
+    tagClass = "bg-emerald-100 text-emerald-700";
+    sentence = `Low-income students here graduate about as often as their peers — a ${gap}-point gap.`;
+  } else if (gap <= 9) {
+    tag = "Moderate";
+    tagClass = "bg-amber-100 text-amber-700";
+    sentence = `Low-income students here graduate somewhat less often — a ${gap}-point gap.`;
+  } else {
+    tag = "Notable gap";
+    tagClass = "bg-rose-100 text-rose-700";
+    sentence = `Low-income students here graduate notably less often — a ${gap}-point gap.`;
+  }
+  const Bar = ({ label, value, hex }: { label: string; value: number; hex: string }) => (
+    <div>
+      <div className="flex items-center justify-between text-[12px]">
+        <span className="text-slate-600">{label}</span>
+        <span className="font-bold text-slate-900">{Math.round(value)}%</span>
+      </div>
+      <div className="mt-1 h-2 rounded-full bg-slate-200">
+        <div
+          className="h-2 rounded-full"
+          style={{ width: `${Math.max(0, Math.min(100, value))}%`, backgroundColor: hex }}
+        />
+      </div>
+    </div>
+  );
+  return (
+    <div className="mt-4 rounded-xl bg-slate-50/70 p-3.5 sm:p-4">
+      <div className="mb-0.5 flex items-center gap-2">
+        <h3 className="text-sm font-bold text-ink-900">Equity</h3>
+        <span
+          className="cursor-help text-slate-400"
+          title="How economically-disadvantaged students graduate compared with the school's overall rate. High school only; income is not a protected class, so it's shown even in Fair Housing mode."
+        >
+          ⓘ
+        </span>
+        <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${tagClass}`}>
+          {tag}
+        </span>
+      </div>
+      <p className="mb-3 text-[12px] text-slate-500">How low-income students graduate here</p>
+      <div className="space-y-2.5">
+        <Bar label="School overall" value={overall} hex="#12854c" />
+        <Bar label="Low-income students" value={disadvantaged} hex="#1fa55f" />
+      </div>
+      <p className="mt-3 text-[13px] leading-relaxed text-slate-700">{sentence}</p>
+      <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+        Based on the 4-year graduation rate (economically disadvantaged vs. the school average) ·
+        EDFacts · high schools only.
+      </p>
+    </div>
   );
 }
 
