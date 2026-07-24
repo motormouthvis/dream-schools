@@ -40,3 +40,6 @@ pipeline/raw/
 scripts/smoke-shots/
 scripts/smoke-report.json
 scripts/smoke-widgets-report.json
+
+# Local data-exploration output (equity gatherer, etc.)
+pipeline/out/
