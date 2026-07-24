@@ -453,6 +453,10 @@
     if (mode === "inline" && (config.inlineVariant === "full" || config.inlineVariant === "minimalist")) {
       url += "&variant=" + config.inlineVariant;
     }
+    // The "full" design is a fixed-height window; pass its height (data-min-height, default 640).
+    if (mode === "inline") {
+      url += "&h=" + (config.inlineMinHeightExplicit ? config.inlineMinHeight : 640);
+    }
     if (config.showExternalLinks) url += "&links=1";
     if (config.providerName) url += "&provider=" + encodeURIComponent(config.providerName);
     if (config.businessName) url += "&business=" + encodeURIComponent(config.businessName);
@@ -865,8 +869,6 @@
     window.addEventListener("message", function (e) {
       if (!currentIframe || e.source !== currentIframe.contentWindow) return;
       if (e.data && e.data.type === "dse:height") {
-        // The "full" design is a FIXED-height window (set below); never auto-grow it.
-        if (config.inlineVariant === "full") return;
         var h = Math.max(200, Math.min(1400, parseInt(e.data.height, 10) || 0));
         currentIframe.style.height = h + "px";
         // Keep a sensible floor so auto-boot loaders don't collapse to a white sliver.
@@ -899,14 +901,6 @@
       iframe.style.cssText = config.inlineMinHeightExplicit
         ? chrome + ";min-height:" + config.inlineMinHeight + "px"
         : chrome + ";min-height:" + DEFAULTS.inlineMinHeight + "px";
-      // The "full" (Nearby Schools) design is a FIXED-height window whose height
-      // is set by data-min-height on the container (default 640). Content scrolls
-      // inside it — so long lists never get clipped and it never balloons.
-      if (config.inlineVariant === "full") {
-        var fullH = config.inlineMinHeightExplicit ? config.inlineMinHeight : 640;
-        iframe.style.height = fullH + "px";
-        iframe.style.minHeight = fullH + "px";
-      }
       container.appendChild(iframe);
 
       // data-address / data-lat / data-lng on the container bypass scraping.

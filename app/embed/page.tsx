@@ -29,6 +29,7 @@ interface EmbedParams {
   accent: string;
   mode: "popup" | "inline";
   variant: "classic" | "full" | "minimalist";
+  fullHeight: number;
   header: boolean;
   links: boolean;
   provider: string;
@@ -74,6 +75,33 @@ function peekIsMinimal(): boolean {
   return new URLSearchParams(window.location.search).get("variant") === "minimalist";
 }
 
+function peekNative(): boolean {
+  const c = readAppearanceCookie();
+  const v = c ?? (peekIsFull() ? "full" : peekIsMinimal() ? "minimalist" : "classic");
+  return v === "full" || v === "minimalist";
+}
+
+// Temporary appearance switcher (footer): remembers the chosen inline variant in
+// a cookie so it can be compared across the three designs.
+const APPEARANCE_COOKIE = "dse_embed_appearance";
+type Variant = "classic" | "full" | "minimalist";
+const VARIANTS: Variant[] = ["classic", "full", "minimalist"];
+const VARIANT_LABEL: Record<Variant, string> = {
+  classic: "Compact",
+  full: "Showcase",
+  minimalist: "Minimalist",
+};
+function readAppearanceCookie(): Variant | null {
+  if (typeof document === "undefined") return null;
+  const m = document.cookie.match(new RegExp("(?:^|; )" + APPEARANCE_COOKIE + "=([^;]*)"));
+  const v = m ? decodeURIComponent(m[1]) : "";
+  return v === "classic" || v === "full" || v === "minimalist" ? v : null;
+}
+function writeAppearanceCookie(v: Variant): void {
+  if (typeof document === "undefined") return;
+  document.cookie = `${APPEARANCE_COOKIE}=${v};path=/;max-age=31536000;samesite=lax`;
+}
+
 function readParams(): EmbedParams {
   const p = new URLSearchParams(window.location.search);
   const num = (v: string | null) => {
@@ -93,6 +121,7 @@ function readParams(): EmbedParams {
     mode: p.get("mode") === "inline" ? "inline" : "popup",
     variant:
       p.get("variant") === "full" ? "full" : p.get("variant") === "minimalist" ? "minimalist" : "classic",
+    fullHeight: Math.max(360, Math.min(1200, intParam("h", 640, 360))),
     header: p.get("header") === "1",
     links: p.get("links") === "1",
     provider: (p.get("provider") || "").trim(),
@@ -180,10 +209,23 @@ export default function EmbedExplorer() {
 
   const accent = params?.accent || "#1fa55f";
   const isInline = params?.mode === "inline";
-  const isFull = params?.variant === "full";
-  const isMinimal = params?.variant === "minimalist";
+  // Appearance override (footer switcher, cookie-backed) wins over the snippet's variant.
+  const [appearance, setAppearance] = useState<Variant | null>(null);
+  useEffect(() => {
+    setAppearance(readAppearanceCookie());
+  }, []);
+  const effVariant: Variant = appearance ?? params?.variant ?? "classic";
+  const isFull = effVariant === "full";
+  const isMinimal = effVariant === "minimalist";
   // Flat, native, page-flow variants (no accent header, no Home button).
   const isNative = isFull || isMinimal;
+  function cycleAppearance() {
+    const idx = VARIANTS.indexOf(effVariant);
+    const next = VARIANTS[(idx + 1) % VARIANTS.length];
+    writeAppearanceCookie(next);
+    setAppearance(next);
+    setSelected(null);
+  }
   const headerTitle = `Dream Neighborhood School Explorer${params?.provider ? ` provided by ${params.provider}` : ""}`;
 
   const upgradeKey = params?.customer ? `dse-upgrade-prompt:${params.customer}` : "";
@@ -371,9 +413,6 @@ export default function EmbedExplorer() {
   //    recent-searches dropdown, and a viewport-sized "expanded" size for results.
   //    Auto-boot uses "expanded" so the panel doesn't flash home→results size.
   useEffect(() => {
-    // The "full" design is a fixed-height window sized by the SDK; it neither
-    // auto-grows (inline height) nor uses the popup screen sizes.
-    if (isFull || peekIsFull()) return;
     const inline = isInline || peekIsInline();
     if (inline) {
       // Measure the FULL page including the recents/autocomplete dropdowns, which
@@ -408,7 +447,7 @@ export default function EmbedExplorer() {
       },
       "*"
     );
-  }, [isInline, screen, selected, loading, view, error, focused, showSuggest, address, recents.length]);
+  }, [isInline, screen, selected, loading, view, error, focused, showSuggest, address, recents.length, appearance]);
 
   const runLookup = useCallback(async (query: string, picked?: Suggestion, opts?: { fromAuto?: boolean }) => {
     const q = query.trim();
@@ -684,7 +723,7 @@ export default function EmbedExplorer() {
         className={`flex flex-col bg-white ${mounted && !inlineBoot ? "h-screen overflow-hidden" : "min-h-[540px]"}`}
         aria-busy="true"
       >
-        {mounted && isInline && !peekIsFull() && !peekIsMinimal() && (
+        {mounted && isInline && !peekNative() && (
           <header
             className="flex shrink-0 items-center gap-2 px-4 py-1.5 text-white"
             style={{ background: accent }}
@@ -724,7 +763,7 @@ export default function EmbedExplorer() {
   }
 
   return (
-    <main className={`flex flex-col bg-white ${isInline && !isFull ? "" : "h-screen overflow-hidden"}`}>
+    <main className={`flex flex-col bg-white ${isInline ? "" : "h-screen overflow-hidden"}`}>
       <style>{`
         @keyframes dse-inline-title-marquee {
           0%, 15% { transform: translateX(0); }
@@ -853,7 +892,7 @@ export default function EmbedExplorer() {
       {screen === "results" && data && (
         <div
           className={`mx-auto flex w-full max-w-5xl flex-col px-3 pt-3 sm:px-4 ${
-            isInline && !isFull ? "" : "min-h-0 flex-1"
+            isInline ? "" : "min-h-0 flex-1"
           }`}
         >
           <div className="mb-3 flex shrink-0 items-center gap-2">
@@ -914,7 +953,7 @@ export default function EmbedExplorer() {
               Popup fills the SDK-set panel (flex-1); inline caps the list.
               The "full" variant manages its own list+map layout / heights. */}
           {isFull ? (
-            <div className="flex min-h-0 flex-1 flex-col pb-2">
+            <div className="flex flex-col pb-2" style={{ height: params?.fullHeight ?? 640 }}>
               {loading && (
                 <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
                   Looking up schools…
@@ -1025,6 +1064,19 @@ export default function EmbedExplorer() {
         >
           Privacy
         </a>
+        {isInline && (
+          <>
+            {" "}·{" "}
+            <button
+              type="button"
+              onClick={cycleAppearance}
+              title="Temporary: cycle the inline appearance (Compact → Showcase → Minimalist). Saved in this browser."
+              className="font-medium text-slate-600 underline decoration-dotted underline-offset-2 hover:text-brand-700"
+            >
+              Appearance: {VARIANT_LABEL[effVariant]}
+            </button>
+          </>
+        )}
       </footer>
 
       {upgradeVisible && (
