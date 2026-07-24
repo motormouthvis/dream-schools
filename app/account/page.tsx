@@ -118,7 +118,7 @@ function PartnerDesignation({
     <Card title="Partner Name">
       <div className="mb-3 rounded-lg bg-brand-50 px-3 py-2 text-[12px] text-brand-800">
         {isPartner
-          ? "This account is a Partner. Customers who sign up through your Partner Login link will be associated with your account."
+          ? "This account is a Partner. Realtors who sign up through your self-signup link are automatically associated with your account."
           : "Admin account: you can set a company name here if needed, but partner branding applies to accounts marked Partner."}
       </div>
       <form onSubmit={save} className="space-y-3">
@@ -131,7 +131,7 @@ function PartnerDesignation({
             placeholder="Your Company Name"
           />
           <p className="mt-1 text-[11px] text-slate-400">
-            Used for your Partner Login signup list and as a fallback banner name when White Label is
+            Used for your realtor self-signup list and as a fallback banner name when White Label is
             blank for you or your realtors. The popup/embed banner uses White Label first.
           </p>
         </div>
@@ -159,11 +159,18 @@ function PartnerSignupLink({ partnerId }: { partnerId: string }) {
   }
 
   return (
-    <Card title="Partner Signup Link">
+    <Card title="Realtor self-signup link">
       <p className="text-[12px] leading-relaxed text-slate-500">
-        Copy this link and email it to your Realtor clients. Anyone who signs up with it is
-        automatically connected to your Partner account.
+        A public link for realtors to <strong>create their own account</strong> under you. Anyone who
+        signs up with it is automatically connected to your Partner account. Share it in a newsletter
+        or on a page when you want realtors to sign themselves up.
       </p>
+      <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[12px] leading-relaxed text-amber-800 ring-1 ring-inset ring-amber-500/25">
+        <strong>Not the same as “Send Login Link.”</strong> If you add or import a realtor yourself on
+        the <strong>Customer List</strong>, don’t send them this signup link — use the{" "}
+        <strong>Send Login Link</strong> button next to their name instead, which sends a personalized
+        first-time login link for the account you already created.
+      </div>
       <div className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-[12px] leading-relaxed text-brand-800">
         Suggested message: “Click here to add free school data to your website — no credit card,
         full-feature school data free forever, zero website redesign.”
@@ -366,11 +373,12 @@ function CustomerLoginEmailSettings() {
   }
 
   return (
-    <Card title="Customer login link email">
+    <Card title="“Send Login Link” email message">
       <p className="mb-3 text-[12px] leading-relaxed text-slate-500">
-        The message in the branded email sent when you use <strong>Send login link</strong> on the
-        Customer List. The email includes a secure button for the realtor to set a password and manage
-        their School Explorer. Use <code className="rounded bg-slate-100 px-1">{"{company}"}</code> for
+        This is the message in the branded email that goes out when you click{" "}
+        <strong>Send Login Link</strong> for a customer on the <strong>Customer List</strong>. That
+        email gives the realtor a secure, one-time first-login link to set a password and manage their
+        own School Explorer. Use <code className="rounded bg-slate-100 px-1">{"{company}"}</code> for
         your business name. Leave blank to use the default.
       </p>
       {!loaded ? (
@@ -642,7 +650,7 @@ function UpgradePromptSettings({ isOwner, isPartner }: { isOwner: boolean; isPar
   return (
     <Card title={isOwner ? "Upgrade Prompt Defaults" : "Upgrade Prompt Settings"}>
       <p className="mb-3 text-[12px] leading-relaxed text-slate-500">
-        Controls when the Neighborhood Explorer Upgrade prompt appears. It only appears during an idle break, never while a visitor is actively clicking or scrolling. If they request the Upgrade, it is suppressed for 90 days. Set minimum days to 0 for testing/repeated requests.
+        Controls when the Neighborhood Explorer upgrade prompt appears during School Explorer usage. It only appears during an idle break, never while a visitor is actively clicking or scrolling. If they request the upgrade, it is suppressed for 90 days. Set minimum days to 0 for testing/repeated requests.
       </p>
       {!loaded ? (
         <p className="text-sm text-slate-400">Loading…</p>

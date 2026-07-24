@@ -67,11 +67,12 @@ function PartnerGuide() {
             the School Explorer is live on their site. It keeps working whether or not they ever
             log in.
           </p>
-          <p className="mt-3">You have three tools:</p>
+          <p className="mt-3">You have four tools:</p>
           <ul className="mt-2 space-y-1.5">
             <Li><strong>Add customer</strong> — set up one realtor by hand.</Li>
-            <Li><strong>Import</strong> — set up many realtors at once from a pasted list.</Li>
+            <Li><strong>Import</strong> — set up many realtors at once from a CSV file or pasted list.</Li>
             <Li><strong>View as</strong> — step into a realtor's account and configure everything for them.</Li>
+            <Li><strong>Send Login Link</strong> — email a realtor you already added a personalized, one-time link so they can sign in and manage their own account.</Li>
           </ul>
         </Section>
 
@@ -147,10 +148,30 @@ john@sunsethomes.com, John Smith, sunsethomes.com, 742 Evergreen Ter, Springfiel
           </ol>
         </Section>
 
+        <Section title="Option 4 — Let a realtor manage their own account (“Send Login Link”)">
+          <p>
+            Use this <strong>after</strong> you've added a realtor, when you want them to be able to
+            sign in and change their own settings. It is <strong>not</strong> the self-signup link from
+            your Account Settings — that link is for realtors creating a brand-new account themselves.
+          </p>
+          <ol className="mt-2 space-y-1.5">
+            <Li ordered>On <strong>Customer List</strong>, find the realtor (or tick several).</Li>
+            <Li ordered>Click <strong>Send Login Link</strong> (per row, or the bulk button when multiple are selected).</Li>
+            <Li ordered>
+              They get a branded email with a <strong>personalized, one-time first-login link</strong>.
+              Clicking it lets them set a password and manage their own School Explorer.
+            </Li>
+          </ol>
+          <Callout>
+            You can edit the wording of that email under <strong>Account Settings → “Send Login Link”
+            email message</strong>. Their Explorer keeps working whether or not they ever log in.
+          </Callout>
+        </Section>
+
         <Section title="What the realtor experiences">
           <ul className="space-y-1.5">
             <Li><strong>They don't need to do anything for the product to work.</strong> Once the domain is set and the snippet is on their site, the School Explorer runs on their listings automatically.</Li>
-            <Li><strong>No password until they want one.</strong> The first time a realtor visits app.dreamneighborhoodschools.com and tries to sign in, we email them a secure link to set their password. Until then, their Explorer keeps working.</Li>
+            <Li><strong>No password until they want one.</strong> You can proactively email them a first-login link with <strong>Send Login Link</strong> (above). Or, the first time a realtor visits app.dreamneighborhoodschools.com and tries to sign in, we email them the same secure link to set their password. Until then, their Explorer keeps working.</Li>
             <Li><strong>No verification email to chase.</strong> Accounts you create are already verified and active.</Li>
           </ul>
         </Section>

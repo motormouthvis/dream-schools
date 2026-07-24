@@ -457,9 +457,10 @@ function OwnerAdmin() {
           </span>
           <button
             onClick={sendBulkLoginLinks}
+            title="Emails each selected customer their own personalized, one-time first-time login link so they can set a password and manage their own account."
             className="rounded-md border border-brand-300 bg-white px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-50"
           >
-            Send login link
+            Send Login Link
           </button>
           <button
             onClick={() => setBulkAction("disable")}
@@ -634,10 +635,10 @@ function OwnerAdmin() {
                         {!c.deletedAt && !c.isOwner && !c.isPartner && (
                           <button
                             onClick={() => sendSingleLoginLink(c)}
-                            title="Email this realtor a secure link to set a password and manage their settings"
+                            title="Emails this customer their personalized, one-time first-time login link — just for their first sign-in. They set a password and can then manage their own School Explorer settings."
                             className="ml-2 rounded-md border border-brand-300 px-2.5 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50"
                           >
-                            Send link
+                            Send Login Link
                           </button>
                         )}
                         <button
@@ -1009,7 +1010,7 @@ function EditModal({
                   if (e.target.checked && !customer.isPartner) {
                     const ok = window.confirm(
                       "Change this customer's status to PARTNER?\n\n" +
-                        "Partners can see EVERY customer assigned to them and get a Partner Login link that auto-associates new signups.\n\n" +
+                        "Partners can see EVERY customer assigned to them and get a realtor self-signup link that auto-associates new signups.\n\n" +
                         "Only do this for real business partners — never a regular customer. Continue?"
                     );
                     if (!ok) return;
@@ -1022,7 +1023,7 @@ function EditModal({
               Change Customer Status to Partner
             </label>
             <p className="mt-1 pl-6 text-[11px] leading-relaxed text-rose-700/90">
-              This grants access to a partner-scoped Customer List and a Partner Login link. It changes
+              This grants access to a partner-scoped Customer List and a realtor self-signup link. It changes
               what this account can see and do. Assigned customers are keyed to the partner’s account —
               renaming the company later is safe and updates everywhere automatically.
             </p>

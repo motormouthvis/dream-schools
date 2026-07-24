@@ -391,9 +391,9 @@ function PartnerStart({ isAdmin }: { isAdmin: boolean }) {
             <strong>View as</strong> to configure it for them). Their School Explorer works immediately.
           </>,
           <>
-            Use <strong>Send login link</strong> (single or bulk) so the realtor gets a branded email with a
-            secure link to manage their own settings. You can edit that email’s message under{" "}
-            <a href="/account" className="font-semibold text-brand-700 hover:underline">Account Settings</a>.
+            Use <strong>Send Login Link</strong> (single or bulk) so the realtor gets a branded email with a
+            personalized, one-time first-login link to manage their own settings. You can edit that email’s
+            message under <a href="/account" className="font-semibold text-brand-700 hover:underline">Account Settings</a>.
           </>,
           <>
             Give the realtor the <strong>Popup snippet</strong> below to paste on their site — or paste it for

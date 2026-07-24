@@ -15,11 +15,15 @@ verification, no password required. The moment you add them with their website
 domain, the School Explorer is live on their site. They don't have to do
 anything — and it keeps working whether or not they ever log in.
 
-You have three tools:
+You have four tools:
 
 1. **Add customer** — set up one realtor by hand.
-2. **Import** — set up many realtors at once from a pasted list.
+2. **Import** — set up many realtors at once from a CSV file or pasted list.
 3. **View as** — step into a realtor's account and configure everything for them.
+4. **Send Login Link** — email a realtor you already added a personalized, one-time
+   link so they can sign in and manage their own account. (This is different from
+   the self-signup link in your Account Settings, which is for realtors creating a
+   brand-new account themselves.)
 
 ---
 

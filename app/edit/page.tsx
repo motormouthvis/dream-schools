@@ -276,14 +276,14 @@ export default function EditPage() {
                         onClick={() => setFullEmbed(true)}
                         className={`rounded-full px-3 py-1.5 transition ${fullEmbed ? "bg-white text-brand-700 shadow-sm" : "text-slate-500"}`}
                       >
-                        New “Nearby Schools” design
+                        Showcase
                       </button>
                       <button
                         type="button"
                         onClick={() => setFullEmbed(false)}
                         className={`rounded-full px-3 py-1.5 transition ${!fullEmbed ? "bg-white text-brand-700 shadow-sm" : "text-slate-500"}`}
                       >
-                        Classic
+                        Compact
                       </button>
                     </div>
                     <CodeBlock code={fullEmbed ? SCHOOL_EMBED_FULL_SNIPPET : SCHOOL_EMBED_SNIPPET} />
@@ -292,9 +292,9 @@ export default function EditPage() {
                       <code className="rounded bg-white px-1">&lt;div&gt;</code> — e.g. a dedicated{" "}
                       <strong>“Schools”</strong> page.{" "}
                       {fullEmbed ? (
-                        <>The <strong>new design</strong> shows a refined “Nearby Schools” list and map together, built to sit natively on your page.</>
+                        <><strong>Showcase</strong> — a polished “Nearby Schools” section with the school list and map side by side, filters, and a map on/off toggle. Best for a dedicated Schools page.</>
                       ) : (
-                        <>The <strong>classic</strong> design mirrors the popup explorer.</>
+                        <><strong>Compact</strong> — the same searchable explorer as the popup, dropped inline in a small box.</>
                       )}
                     </p>
                   </OptionBlock>
