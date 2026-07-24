@@ -26,6 +26,7 @@ export function MapView({
 
   useEffect(() => {
     let cancelled = false;
+    let wheelCleanup = () => {};
     (async () => {
       const L = (await import("leaflet")).default;
       if (cancelled || !ref.current) return;
@@ -34,16 +35,11 @@ export function MapView({
         mapRef.current.remove();
         mapRef.current = null;
       }
-      // Scroll-wheel zoom is active only while the cursor is over the map, so
-      // hovering the map + scrolling zooms it (in the popup and both embeds);
-      // scrolling elsewhere still scrolls the page normally. Small zoom steps
-      // (zoomSnap/zoomDelta) + a higher wheel threshold make it smooth, not jerky.
-      const map = L.map(ref.current, {
-        scrollWheelZoom: true,
-        zoomSnap: 0.25,
-        zoomDelta: 0.5,
-        wheelPxPerZoomLevel: 140,
-      });
+      // Custom smooth, speed-based wheel zoom (Google-Maps feel): Leaflet's
+      // built-in wheel zoom snaps in steps. We disable it and animate a fractional
+      // target zoom toward the cursor, accelerating with faster scrolling.
+      // zoomSnap:0 allows fractional zoom levels for smoothness.
+      const map = L.map(ref.current, { scrollWheelZoom: false, zoomSnap: 0 });
       mapRef.current = map;
       // Give the map a valid view BEFORE adding any vector layers (e.g. the
       // district-boundary polygon). Without an initial view the map has no pixel
@@ -57,6 +53,43 @@ export function MapView({
         attribution: "&copy; OpenStreetMap contributors",
         maxZoom: 19,
       }).addTo(map);
+
+      // --- Smooth, speed-based wheel zoom (Google-Maps feel) ---------------
+      const container = map.getContainer();
+      let targetZoom = map.getZoom();
+      let raf = 0;
+      let focusPoint: any = null;
+      const animate = () => {
+        const cur = map.getZoom();
+        const diff = targetZoom - cur;
+        if (Math.abs(diff) < 0.008) {
+          map.setZoomAround(focusPoint, targetZoom, { animate: false });
+          raf = 0;
+          return;
+        }
+        // Ease toward the target each frame → smooth glide instead of steps.
+        map.setZoomAround(focusPoint, cur + diff * 0.2, { animate: false });
+        raf = requestAnimationFrame(animate);
+      };
+      const onWheel = (e: WheelEvent) => {
+        e.preventDefault();
+        if (!raf) targetZoom = map.getZoom(); // resync when idle
+        const rect = container.getBoundingClientRect();
+        focusPoint = L.point(e.clientX - rect.left, e.clientY - rect.top);
+        // Normalize delta across mouse (px) / trackpad / line & page modes.
+        let delta = e.deltaY;
+        if (e.deltaMode === 1) delta *= 16;
+        else if (e.deltaMode === 2) delta *= container.clientHeight;
+        // Magnitude = scroll speed → bigger jump on a fast flick, gentle on a nudge.
+        const step = Math.max(-1.6, Math.min(1.6, -delta / 240));
+        targetZoom = Math.max(map.getMinZoom() ?? 0, Math.min(map.getMaxZoom() ?? 19, targetZoom + step));
+        if (!raf) raf = requestAnimationFrame(animate);
+      };
+      container.addEventListener("wheel", onWheel, { passive: false });
+      wheelCleanup = () => {
+        container.removeEventListener("wheel", onWheel);
+        if (raf) cancelAnimationFrame(raf);
+      };
 
       // District boundary (non-critical — never let it block school markers).
       if (data.districtBoundary) {
@@ -116,6 +149,7 @@ export function MapView({
 
     return () => {
       cancelled = true;
+      wheelCleanup();
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;

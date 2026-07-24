@@ -119,6 +119,17 @@ scales with **partner sites × pageviews**. Watch that path first.
 17. [ ] **Marketing hamburger polish:** font-size/accessibility options; Terms &
     Privacy shortcuts.
 
+### UX / terminology
+- [ ] **Rename "Customer" → "Realtor" across the app UI.** Today the admin/partner UI
+      calls the accounts **"customers"** ("Customer List", "+ Add customer", "customer
+      name", "Customer of This Partner"), while the guides and product copy call the same
+      people **"realtors."** For partners these are the same person, but the split wording
+      can confuse a newcomer. Standardize on **"Realtor"** in user-facing UI (e.g.
+      "Realtor List", "+ Add realtor", "realtor name"), keeping internal DB fields/API
+      names as-is. Do it as one deliberate pass (nav label, Customer List page, Add/Import
+      modals, column headers, guides, help) so nothing reads half-renamed. Keep "customer"
+      only where it genuinely means a paying/account relationship if any.
+
 ### Tech debt / cleanup (low priority)
 - [ ] **Decide on editable email templates.** The Email Templates admin UI was removed
    (we use fixed, code-driven emails), but the backend (`EmailTemplateManager`,
