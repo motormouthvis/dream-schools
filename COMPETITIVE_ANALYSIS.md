@@ -40,7 +40,7 @@ surface on a school profile, whether we now match it, and the data source.
 | **Test Scores rating** | ✅ Test-score rating + % proficient (math/reading) | EDFacts assessments |
 | **Student/Academic Progress** | ⚠️ Partial — growth needs multi-year state data | EDFacts (year-over-year) — roadmap |
 | **College Readiness rating** (HS) | ✅ Grad rate + AP/IB participation + SAT/ACT participation | EDFacts + CRDC |
-| **Equity rating** (subgroup gaps) | ⚠️ Partial — low-income % + discipline shown; full subgroup test gaps = roadmap | CRDC/EDFacts subgroups |
+| **Equity rating** (subgroup gaps) | ✅ Shipped for HS — low-income **graduation gap** (overall vs. economically disadvantaged), shown as an "Equity" callout. Test-score subgroup gaps are not available for free (EDFacts assessments subgroup returns empty), so elementary/middle equity remains a roadmap item pending state report cards. | EDFacts grad subgroup |
 
 ## School profile sections
 

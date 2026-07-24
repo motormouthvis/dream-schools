@@ -51,6 +51,15 @@ Pipelines that load this data live in `pipeline/`:
   - `/schools/edfacts/assessments/2018/grade-99/` and `/2020/grade-99/`
 - **Used for:** **4-year graduation rate** and **state test-score proficiency**
   (% proficient in reading/ELA and math) → the **Test Scores** rating.
+- **Equity signal (added):** we also pull the graduation rate for the
+  **economically-disadvantaged** subgroup (`econ_disadvantaged=1`, other dims held
+  at total) from the same grad-rate endpoint. Comparing it to the school's overall
+  rate yields the **Equity indicator** on high-school profiles. Notes verified from
+  the live API: the assessments (test-score) endpoint does **not** serve usable
+  subgroup breakdowns (returns empty/500), and the "not disadvantaged" grad subgroup
+  (`econ_disadvantaged=2`) is not served — so the equity measure is
+  **overall − disadvantaged graduation rate, high schools only**. Stored in
+  `school_graduation.grad_rate_disadvantaged`.
 
 ## 4. NCES Private School Survey (PSS) — private schools
 - **What:** The universe of US private schools that responded to the survey.

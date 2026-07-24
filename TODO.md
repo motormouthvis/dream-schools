@@ -141,6 +141,13 @@ scales with **partner sites × pageviews**. Watch that path first.
 
 # Recently shipped
 
+- [x] **Equity indicator (HS low-income graduation gap)** — first step of the
+      "Fresh & Fair Ratings" data upgrade. Free EDFacts economically-disadvantaged
+      grad subgroup → `school_graduation.grad_rate_disadvantaged`; "Equity" callout
+      on high-school detail (overall vs. disadvantaged, Strong/Moderate/Notable-gap,
+      Fair-Housing-safe). Verified free-data limits: test-score subgroups are NOT
+      available (assessments subgroup empty), so elementary/middle equity + freshness
+      still need state report cards (Track A). See `docs/DATA_REFRESH.md`.
 - [x] **NE ↔ School popup coexistence via ready signal** — `__DN_NEIGHBORHOOD_EXPLORER_READY__`
       / `dn:neighborhood-explorer-ready`, admin-configurable grace period, popup only,
       old suppress toggle + script-tag heuristics removed (`EMBED.md`).

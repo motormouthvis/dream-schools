@@ -16,7 +16,15 @@ proficiency** (EDFacts), **college readiness** (grad rate + AP/IB + SAT/ACT),
 **advanced courses**, **low-income & English-learner %**, **teacher certification
 / counselors / security**, full **CRDC safety**, race/gender **demographics**, an
 interactive **map** with the district boundary, **public + private** schools
-(~119k), a **Fair Housing Compliant** mode, and **community reviews**.
+(~119k), a **Fair Housing Compliant** mode, **community reviews**, and an
+**Equity** indicator on high schools (the graduation gap for economically
+disadvantaged students vs. the school average — a free signal GreatSchools
+licenses; income-based, so it stays visible in Fair Housing mode).
+
+> **Data freshness & how to upgrade:** every figure is public federal data with a
+> fixed vintage and refresh cadence. See **`docs/DATA_REFRESH.md`** for exactly
+> what to re-run, when, and why (annual CCD/EDFacts, biennial CRDC/PSS, etc.), plus
+> the roadmap to current-year state report-card data.
 
 A user types an address; the app finds the **school district** (point‑in‑polygon),
 shows an **overall quality score**, a **3‑category quality index** (Academic &
