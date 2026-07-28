@@ -369,8 +369,80 @@
     return null;
   }
 
+  // IDX Broker (idxbroker.com) powers a large share of realtor sites. Its
+  // listing detail pages put only an MLS id in the <title>/URL and emit
+  // WordPress-only JSON-LD, so none of the generic sources above find the
+  // address. It does, however, reliably expose the full address (+ lat/lng)
+  // in a global `coords` array and in the lead-capture form's hidden inputs.
+  function inputVal(sel) {
+    var el = document.querySelector(sel);
+    var v = el && (el.value || el.getAttribute("value"));
+    return v ? String(v).trim() : null;
+  }
+  function idxAddrFromObj(c) {
+    if (!c || typeof c !== "object") return null;
+    var street = (c.address || "").toString().trim();
+    if (!street && (c.streetNumber || c.streetName)) {
+      street = [c.streetNumber, c.streetDirection, c.streetName, c.unitNumber]
+        .map(function (x) { return x == null ? "" : String(x).trim(); })
+        .filter(Boolean)
+        .join(" ");
+    }
+    if (!street || !/\d/.test(street)) return null;
+    var city = (c.cityName || c.city || "").toString().trim();
+    var state = (c.stateAbrv || c.stateAbbr || c.state || "").toString().trim();
+    var zip = (c.zipcode || c.zip || c.postalCode || "").toString().trim();
+    var out = street;
+    if (city) out += ", " + city;
+    if (state) out += ", " + state;
+    if (zip) out += " " + zip;
+    out = out.trim();
+    return out || null;
+  }
+  function fromIdxBroker() {
+    // 1) Global `coords` binding IDX declares at page top (best: has stateAbrv).
+    try {
+      var g = typeof coords !== "undefined" && coords ? coords : window.coords || null;
+      var a = idxAddrFromObj(Array.isArray(g) ? g[0] : g);
+      if (a) return a;
+    } catch (e) {}
+    // 2) Parse the inline `coords = [ {...} ];` script text (scope-independent).
+    try {
+      var scripts = document.getElementsByTagName("script");
+      for (var i = 0; i < scripts.length; i++) {
+        var txt = scripts[i].textContent || "";
+        if (txt.indexOf("coords") === -1) continue;
+        var m = txt.match(/coords\s*=\s*(\[[\s\S]*?\]|\{[\s\S]*?\})\s*;/);
+        if (!m) continue;
+        try {
+          var data = JSON.parse(m[1]);
+          var a2 = idxAddrFromObj(Array.isArray(data) ? data[0] : data);
+          if (a2) return a2;
+        } catch (e2) {}
+      }
+    } catch (e) {}
+    // 3) IDX lead-capture hidden inputs.
+    try {
+      var street = inputVal('input[name="address"]');
+      if (street && /\d/.test(street)) {
+        var city = inputVal('input[name="cityName"]') || inputVal('input[name="city"]');
+        var state = inputVal('input[name="state"]');
+        var zip = inputVal('input[name="zipcode"]') || inputVal('input[name="zip"]');
+        var out = street;
+        if (city) out += ", " + city;
+        if (state) out += ", " + state;
+        if (zip) out += " " + zip;
+        out = out.trim();
+        if (out) return out;
+      }
+    } catch (e) {}
+    return null;
+  }
+
   function scrapeAddress(opts) {
     var a = fromTitle();
+    if (a) return a;
+    a = fromIdxBroker();
     if (a) return a;
     a = fromJsonLd() || fromOg() || fromMicrodata();
     if (a) return a;
