@@ -391,6 +391,12 @@ Everything else checked against your source rather than the prose: `Authorizatio
   DN's own `__dnSchoolExplorerLoaded` flag was the only thing preventing this in practice.
 - **`embed_last_seen` is our column name** for what you call `inline_last_seen`. Mapped on send;
   no change wanted on your side.
+- **"Frequency is yours" turned out to mean building the schedule too.** Neither Heroku app has
+  the Scheduler add-on, and there is no clock dyno — only `web`. An endpoint nobody calls would
+  have made "at least daily" aspirational, so the web process now wakes hourly and asks the
+  database whether a push is due, with a conditional `UPDATE` as the lease so two dynos cannot
+  both push. It does nothing until `DN_INGEST_API_KEY` is set, and `DN_INGEST_TIMER=0` hands the
+  job back to `/api/cron/dn-ingest` if a Scheduler entry is added later.
 - **`source` values we actually store** are `popup` and `inline`, from the explorer's `mode`
   parameter — they already match. We only rewrite what we are certain about (our demo site, our
   smoke sites, rows the end-to-end suite tagged); real visitor traffic passes through untouched

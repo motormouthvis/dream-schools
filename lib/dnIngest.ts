@@ -35,8 +35,15 @@ const MAX_ROWS_PER_REQUEST = 500;
  */
 const INITIAL_OVERLAP = Math.max(0, Number(process.env.DN_INGEST_INITIAL_OVERLAP) || 200);
 
-/** Piggybacked callers must not hammer DN; a dedicated cron run can force. */
+/** Repeat callers must not hammer DN; a dedicated cron run can force. */
 const MIN_INTERVAL_MS = Math.max(0, Number(process.env.DN_INGEST_MIN_INTERVAL_HOURS ?? 6)) * 3600_000;
+
+/**
+ * How often the in-process timer wakes to ask the database whether a push is
+ * due. The database lease decides whether anything is actually sent, so this
+ * only sets how promptly `DN_INGEST_MIN_INTERVAL_HOURS` is noticed.
+ */
+const TIMER_TICK_MS = Math.max(5_000, Number(process.env.DN_INGEST_TICK_MS) || 3600_000);
 
 const REQUEST_TIMEOUT_MS = Math.max(5_000, Number(process.env.DN_INGEST_TIMEOUT_MS) || 20_000);
 
@@ -134,6 +141,25 @@ interface IngestState {
   lastRequestId: number;
   lastRunAt: Date | null;
   lastOkAt: Date | null;
+}
+
+/**
+ * Claim this run by stamping `last_run_at`, but only if nobody else has within
+ * `minIntervalMs`. One conditional UPDATE rather than a read-then-write, so two
+ * web dynos waking at the same moment cannot both push. Both DN endpoints are
+ * idempotent, so this is about not making pointless calls and about keeping the
+ * "last run" timestamp honest, rather than about correctness.
+ */
+async function claimRun(minIntervalMs: number): Promise<boolean> {
+  const { rowCount } = await getPool().query(
+    `UPDATE dn_ingest_state
+        SET last_run_at = NOW()
+      WHERE key = 'global'
+        AND (last_run_at IS NULL OR last_run_at < NOW() - ($1::bigint * INTERVAL '1 millisecond'))
+      RETURNING 1`,
+    [Math.max(0, Math.floor(minIntervalMs))]
+  );
+  return (rowCount ?? 0) > 0;
 }
 
 async function readState(): Promise<IngestState> {
@@ -403,21 +429,13 @@ export async function runDnIngest(
   const pool = getPool();
   const state = await readState();
 
-  if (!opts.force && !opts.dryRun && state.lastRunAt && MIN_INTERVAL_MS > 0) {
-    const since = Date.now() - new Date(state.lastRunAt).getTime();
-    if (since < MIN_INTERVAL_MS) {
-      summary.skippedReason = `last run ${Math.round(since / 60000)}m ago`;
-      return summary;
-    }
+  if (!opts.dryRun && !(await claimRun(opts.force ? 0 : MIN_INTERVAL_MS))) {
+    const since = state.lastRunAt ? Date.now() - new Date(state.lastRunAt).getTime() : 0;
+    summary.skippedReason = `last run ${Math.round(since / 60000)}m ago`;
+    return summary;
   }
 
   summary.ran = true;
-  if (!opts.dryRun) {
-    await pool.query(
-      `INSERT INTO dn_ingest_state (key, last_run_at) VALUES ('global', NOW())
-       ON CONFLICT (key) DO UPDATE SET last_run_at = NOW()`
-    );
-  }
 
   // --- usage ---------------------------------------------------------------
   try {
@@ -483,4 +501,52 @@ export async function runDnIngest(
     );
   }
   return summary;
+}
+
+// ---------------------------------------------------------------------------
+// Trigger
+//
+// There is no Heroku Scheduler add-on on either app and no clock dyno — only
+// `web` — so an endpoint alone would never be called and "at least daily" would
+// not hold. The web process therefore wakes on a timer and asks the database
+// whether a push is due; `claimRun` is what makes that safe across dynos.
+//
+// This does nothing at all until DN_INGEST_API_KEY is set, so production is
+// unaffected until somebody deliberately turns it on. Set DN_INGEST_TIMER=0 to
+// drive /api/cron/dn-ingest from Heroku Scheduler instead, which is the more
+// conventional arrangement if you would rather see the runs in one place.
+// ---------------------------------------------------------------------------
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __dnIngestTimer: ReturnType<typeof setInterval> | undefined;
+}
+
+function unref(timer: { unref?: () => void }): void {
+  if (typeof timer?.unref === "function") timer.unref();
+}
+
+export function startDnIngestTimer(): void {
+  if (process.env.DN_INGEST_TIMER === "0") return;
+  if (!hasDatabase() || !dnIngestConfigured()) return;
+  if (globalThis.__dnIngestTimer) return;
+
+  const tick = () => {
+    void runDnIngest().then(
+      (s) => {
+        if (s.ran) console.info("[dn-ingest]", JSON.stringify(s));
+      },
+      (err) => console.error("[dn-ingest] run failed:", err)
+    );
+  };
+  // Not immediately on boot: a deploy restarts every dyno at once, and there is
+  // nothing to report in the first minute that cannot wait.
+  unref(setTimeout(tick, Math.min(60_000, TIMER_TICK_MS)));
+  const timer = setInterval(tick, TIMER_TICK_MS);
+  unref(timer);
+  globalThis.__dnIngestTimer = timer;
+  console.info(
+    `[dn-ingest] enabled: waking every ${Math.round(TIMER_TICK_MS / 1000)}s, pushing at most every ` +
+      `${Math.round(MIN_INTERVAL_MS / 3600_000)}h to ${dnOrigin()}`
+  );
 }

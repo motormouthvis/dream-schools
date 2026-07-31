@@ -3,14 +3,17 @@ import { runDnIngest } from "@/lib/dnIngest";
 
 export const dynamic = "force-dynamic";
 
-// Push usage + upgrade requests to Dream Neighborhood. Call at least daily
-// (Heroku Scheduler); /api/cron/upgrade-digest also piggybacks on this, subject
-// to DN_INGEST_MIN_INTERVAL_HOURS.
+// Push usage + upgrade requests to Dream Neighborhood.
 //
 //   GET /api/cron/dn-ingest?secret=<CRON_SECRET>[&force=1][&dry=1]
 //
+// The web process already runs this on a timer (lib/dnIngest.ts), so this
+// endpoint is for running it on demand — and for driving it from Heroku
+// Scheduler instead, with DN_INGEST_TIMER=0.
+//
 // `dry=1` builds and counts the payloads without contacting DN — useful for
-// checking what would be sent before an API key exists.
+// checking what would be sent before an API key exists. `force=1` ignores
+// DN_INGEST_MIN_INTERVAL_HOURS.
 
 function authorized(request: Request): boolean {
   const secret = process.env.CRON_SECRET;

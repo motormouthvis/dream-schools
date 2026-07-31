@@ -351,6 +351,35 @@ async function run() {
     record("DN never rejected a payload", received.rejected.length === 0, received.rejected.join("; "));
   } finally {
     app.child.kill("SIGTERM");
+  }
+
+  // --- the web process pushes on its own, with nobody calling the endpoint ---
+  // There is no Heroku Scheduler on either app, so this is what makes "at least
+  // daily" true rather than aspirational.
+  const timed = startApp({
+    PORT: "4001",
+    DATABASE_URL,
+    DN_ORIGIN: dnBase,
+    DN_INGEST_API_KEY: API_KEY,
+    CRON_SECRET,
+    DN_INGEST_MIN_INTERVAL_HOURS: "0",
+    DN_INGEST_TICK_MS: "5000",
+  });
+  try {
+    await waitForApp("http://127.0.0.1:4001");
+    const before = received.usage.length;
+    let grew = false;
+    for (let i = 0; i < 30 && !grew; i += 1) {
+      await new Promise((r) => setTimeout(r, 1000));
+      grew = received.usage.length > before;
+    }
+    record(
+      "the web process pushes on a timer, with no cron call and no scheduler",
+      grew,
+      grew ? `${received.usage.length - before} usage rows arrived unprompted` : "nothing arrived in 30s"
+    );
+  } finally {
+    timed.child.kill("SIGTERM");
     server.close();
     await pool.end();
   }

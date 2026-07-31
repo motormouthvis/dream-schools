@@ -15,9 +15,8 @@ export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const digest = await runScheduledUpgradeDigest();
   const reminders = await runDueCustomerReminders();
-  // Piggyback the DN push on whatever schedule already calls this, so "at least
-  // daily" holds even if nobody adds a second Heroku Scheduler entry. Rate
-  // limited internally, and a DN failure must not fail the digest run.
+  // Also nudge the DN push, so a manual digest run reports current numbers.
+  // Rate limited internally, and a DN failure must not fail the digest run.
   const dnIngest = await runDnIngest().catch((err) => ({
     ran: false,
     skippedReason: err instanceof Error ? err.message : String(err),

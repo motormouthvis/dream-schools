@@ -232,8 +232,15 @@ Environments diverge on purpose, gated on `DN_ENVIRONMENT=staging` (see
 | Unregistered host in `/api/embed/config` | enabled — DN decides | disabled, as before |
 | DN reachability | — | never a hard dependency |
 
-Config vars: `DN_ENVIRONMENT`, `DN_ORIGIN` (defaults per environment),
-`DN_INGEST_API_KEY` (the push is off until it is set), `CRON_SECRET`.
+Config vars (also described in `app.json`): `DN_ENVIRONMENT`, `DN_ORIGIN`
+(defaults per environment), `DN_INGEST_API_KEY` (the push is off until it is
+set), `CRON_SECRET`, `DN_INGEST_TIMER=0` to disable the built-in schedule.
+
+**There is no Heroku Scheduler add-on and no clock dyno on either app** — only
+`web`. Nothing calls `/api/cron/*` on a schedule. The DN push therefore runs
+from a timer started in `instrumentation.ts`, leased through the
+`dn_ingest_state` row so multiple dynos are safe. Worth knowing before assuming
+any other `/api/cron/*` endpoint runs on its own: `upgrade-digest` does not.
 
 Test scripts (Playwright + a stub origin; none needs a deployed environment
 except the last):
