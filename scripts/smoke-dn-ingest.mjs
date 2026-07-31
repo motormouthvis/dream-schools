@@ -150,6 +150,7 @@ async function seed(pool) {
     ('acct-ann', 2, ARRAY['annsrealty.com']),
     ('acct-demo', 1, ARRAY['dreamneighborhoodschools.com']),
     ('acct-smoke', 1, ARRAY['dream-schools-smoke-ind.herokuapp.com']),
+    ('acct-e2e', 1, ARRAY['e2e-realtor.test']),
     ('acct-nodomain', 1, ARRAY[]::text[])`);
 
   await pool.query(`INSERT INTO embed_usage (partner_id, widget_number, views, first_seen, last_seen, popup_last_seen, embed_last_seen) VALUES
@@ -159,6 +160,7 @@ async function seed(pool) {
     ('host:other-realty.com', 1, 12, NOW(), NOW(), NOW(), NULL),
     ('acct-demo', 1, 500, NOW(), NOW(), NOW(), NULL),
     ('acct-smoke', 1, 70, NOW(), NOW(), NOW(), NULL),
+    ('acct-e2e', 1, 14, NOW(), NOW(), NOW(), NULL),
     ('acct-nodomain', 1, 33, NOW(), NOW(), NOW(), NULL)`);
 
   await pool.query(`INSERT INTO app_upgrade_requests (customer_id, requester_key, address, source, requested_at) VALUES
@@ -249,8 +251,8 @@ async function run() {
       ann ? `inline_last_seen=${ann.inline_last_seen}` : ""
     );
     record(
-      "usage: our own demo and smoke domains are left out",
-      !received.usage.some((u) => /dreamneighborhoodschools\.com|herokuapp\.com/.test(u.domain)),
+      "usage: our own demo, smoke and reserved test domains are left out",
+      !received.usage.some((u) => /dreamneighborhoodschools\.com|herokuapp\.com|\.test$/.test(u.domain)),
       received.usage.map((u) => u.domain).join(", ")
     );
     record(

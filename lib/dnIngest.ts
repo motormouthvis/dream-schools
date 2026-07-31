@@ -51,7 +51,13 @@ const REQUEST_TIMEOUT_MS = Math.max(5_000, Number(process.env.DN_INGEST_TIMEOUT_
 // figure. `source` carries this for upgrade requests; the usage payload has no
 // equivalent field, so those rows are left out of the usage push entirely.
 const OWN_DEMO_HOST_RE = /(^|\.)dreamneighborhoodschools\.com$/i;
-const OWN_TEST_HOST_RE = /(^|\.)herokuapp\.com$/i;
+// Our smoke sites, plus the reserved names RFC 2606 and RFC 6761 set aside for
+// testing. A domain under one of these can never be a real customer site, so a
+// row under it is ours — the end-to-end suite creates usage under
+// `e2e-realtor.test` on every run. Sending those would put fictional prospects
+// in front of whoever reads DN's unmatched-domain list.
+const OWN_TEST_HOST_RE =
+  /(^|\.)herokuapp\.com$|\.(test|local|localhost|invalid|example)$|(^|\.)example\.(com|net|org)$/i;
 
 export interface DnIngestSummary {
   ran: boolean;
