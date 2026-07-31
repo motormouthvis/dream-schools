@@ -71,6 +71,21 @@ export function dnIngestConfigured(): boolean {
   return Boolean((process.env.DN_INGEST_API_KEY || "").trim());
 }
 
+/**
+ * DN mints keys with `python manage.py create_ingest_key` and prints them as
+ * `<prefix>.<secret>`; the dashboard and later log lines show a masked
+ * `<prefix>.<first few>...` instead. Copying the masked form into the config
+ * var gets a `401` that reads exactly like a rotated or wrong-environment key,
+ * which is a slow thing to work out. Name it instead.
+ */
+function maskedKeyProblem(): string | null {
+  const key = (process.env.DN_INGEST_API_KEY || "").trim();
+  if (key.endsWith("...")) {
+    return "DN_INGEST_API_KEY holds the masked form DN prints after minting (ends in '...'), not the key itself";
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // State: how far through app_upgrade_requests we have pushed.
 // ---------------------------------------------------------------------------
@@ -358,6 +373,13 @@ export async function runDnIngest(
   if (!opts.dryRun && !dnIngestConfigured()) {
     summary.skippedReason = "DN_INGEST_API_KEY is not set";
     return summary;
+  }
+  if (!opts.dryRun) {
+    const masked = maskedKeyProblem();
+    if (masked) {
+      summary.skippedReason = masked;
+      return summary;
+    }
   }
 
   await ensureState();
