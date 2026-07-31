@@ -353,6 +353,27 @@ That silently disagrees with what your own backfill would compute from the same 
 the sort of difference that gets noticed six months later. **Adding `source` to the usage rows
 would be better**, and it is the kind of change that is cheap now. Until then we filter.
 
+## One bug this document would have caused
+
+**`unmatched_domains` is a count, not a list.** The document says an unrecognised domain is
+"reported back in `unmatched_domains`", which reads as the domains themselves.
+`apps/explorer_popup/ingest.py` returns `unmatched` — an integer — from both endpoints. A
+client that took the document at its word and iterated the field would throw a `TypeError` on
+its first *successful* call, and only on a successful one, so no amount of testing against a
+stub written from the document would have found it. Ours did exactly that until we read your
+source. It now accepts either shape and reports a count.
+
+Worth deciding which you meant. The names of the unmatched domains are the more useful answer —
+they are the list of "customers who have not saved their domain yet" that the document describes
+— but the count is what is deployed, and either is fine as long as the document matches it.
+
+We also now surface your `skipped` counter in our run summary. A row DN refuses is a row we
+built wrong, and it should not be silent on our side.
+
+Everything else checked against your source rather than the prose: `Authorization: Api-Key
+<key>`, the 500-row cap, `already_had`, `INTERNAL_SOURCES = ("demo", "smoke-e2e")`, and
+`normalize_domain` (which strips `www.` and lowercases, the same as our `normalizeHost`).
+
 ## Smaller notes
 
 - **A staging `enabled` gate had to go.** `/api/embed/config` answers `enabled: false` for any
@@ -379,7 +400,11 @@ would be better**, and it is the kind of change that is cheap now. Until then we
   proves too much: by it, *any* setting a customer turns off could be replaced with a lesser
   version of itself. Leave it as it is.
 - **The staging ingest key in our config is the masked form** Django prints after minting
-  (`xxxxxxxx.xxxx...`, ends in a literal ellipsis). It returns `401`. We need the real one.
+  (`xxxxxxxx.xxxx...`, ends in a literal ellipsis, 16 characters). It returns `401` — from our
+  laptop, and from the preview dyno, with `Api-Key`, `Bearer` and `X-Api-Key` alike. Your
+  `create_ingest_key` says the value "is shown once and cannot be recovered", so this one cannot
+  be un-masked: it needs `create_ingest_key --revoke-existing`. Our job now names this case
+  rather than emitting a bare `401`, which would otherwise read like a rotated key.
 
 ## What was verified, and how
 

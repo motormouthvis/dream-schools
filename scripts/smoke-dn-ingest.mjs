@@ -80,7 +80,9 @@ function startDnStub() {
         }
         received.usage.push(...rows);
         res.writeHead(200, { "content-type": "application/json" });
-        return res.end(JSON.stringify({ ok: true, unmatched_domains: ["never-heard-of-it.test"] }));
+        // The shape DN's apps/explorer_popup/ingest.py actually returns:
+        // unmatched_domains is a COUNT, not the list its document implies.
+        return res.end(JSON.stringify({ written: rows.length, unmatched_domains: 1, skipped: 0 }));
       }
       if (req.url.startsWith("/explorer/ingest/upgrade-requests/")) {
         const rows = parsed.requests || [];
@@ -100,7 +102,16 @@ function startDnStub() {
         }
         received.requests.push(...rows);
         res.writeHead(200, { "content-type": "application/json" });
-        return res.end(JSON.stringify({ ok: true, already_had: alreadyHad }));
+        // The document describes unmatched_domains as a list, the code returns a
+        // count. Answer with the list here so both shapes are exercised.
+        return res.end(
+          JSON.stringify({
+            created: rows.length - alreadyHad,
+            already_had: alreadyHad,
+            unmatched_domains: ["never-heard-of-it.test"],
+            skipped: 0,
+          })
+        );
       }
       res.writeHead(404).end();
     });
@@ -286,9 +297,9 @@ async function run() {
       `skippedNoDomain=${first.upgradeRequests.skippedNoDomain}`
     );
     record(
-      "unmatched_domains from DN are surfaced in the run summary",
-      (first.unmatchedDomains || []).includes("never-heard-of-it.test"),
-      JSON.stringify(first.unmatchedDomains)
+      "unmatched_domains is surfaced whether DN sends a count or a list",
+      first.unmatchedDomains === 2 && first.skippedByDn === 0,
+      `unmatchedDomains=${first.unmatchedDomains} (1 as a count from usage + 1 as a list from requests), skippedByDn=${first.skippedByDn}`
     );
     record("authorization header is Api-Key <key>", received.auth.every((a) => a === `Api-Key ${API_KEY}`));
 

@@ -51,7 +51,10 @@ export interface DnIngestSummary {
   skippedReason?: string;
   usage: { rows: number; sent: number; batches: number };
   upgradeRequests: { rows: number; sent: number; batches: number; skippedNoDomain: number; fromId: number; toId: number };
-  unmatchedDomains: string[];
+  /** How many rows DN could not attach to an account. Stored anyway on its side. */
+  unmatchedDomains: number;
+  /** How many rows DN refused outright — a row we sent that it could not use. */
+  skippedByDn: number;
   alreadyHad: number;
   errors: string[];
 }
@@ -61,10 +64,24 @@ function emptySummary(): DnIngestSummary {
     ran: false,
     usage: { rows: 0, sent: 0, batches: 0 },
     upgradeRequests: { rows: 0, sent: 0, batches: 0, skippedNoDomain: 0, fromId: 0, toId: 0 },
-    unmatchedDomains: [],
+    unmatchedDomains: 0,
+    skippedByDn: 0,
     alreadyHad: 0,
     errors: [],
   };
+}
+
+/**
+ * DN's document describes `unmatched_domains` as the domains it did not
+ * recognise; `apps/explorer_popup/ingest.py` returns how many there were.
+ * Accept either shape rather than depending on which one is deployed — the
+ * count is all we do anything with.
+ */
+function countUnmatched(res: Record<string, unknown>): number {
+  const v = res.unmatched_domains;
+  if (typeof v === "number") return v;
+  if (Array.isArray(v)) return v.length;
+  return 0;
 }
 
 export function dnIngestConfigured(): boolean {
@@ -402,8 +419,6 @@ export async function runDnIngest(
     );
   }
 
-  const unmatched = new Set<string>();
-
   // --- usage ---------------------------------------------------------------
   try {
     const usage = await buildUsageRows();
@@ -416,7 +431,8 @@ export async function runDnIngest(
       }
       const res = await post(USAGE_PATH, { usage: batch });
       summary.usage.sent += batch.length;
-      for (const d of (res.unmatched_domains as string[]) || []) unmatched.add(d);
+      summary.unmatchedDomains += countUnmatched(res);
+      summary.skippedByDn += Number(res.skipped) || 0;
     }
   } catch (err) {
     summary.errors.push(`usage: ${err instanceof Error ? err.message : String(err)}`);
@@ -438,7 +454,8 @@ export async function runDnIngest(
         if (!opts.dryRun) {
           const res = await post(UPGRADE_PATH, { requests: rows });
           summary.alreadyHad += Number(res.already_had) || 0;
-          for (const d of (res.unmatched_domains as string[]) || []) unmatched.add(d);
+          summary.unmatchedDomains += countUnmatched(res);
+          summary.skippedByDn += Number(res.skipped) || 0;
         }
         summary.upgradeRequests.sent += rows.length;
       }
@@ -455,7 +472,6 @@ export async function runDnIngest(
     summary.errors.push(`upgrade-requests: ${err instanceof Error ? err.message : String(err)}`);
   }
   summary.upgradeRequests.toId = cursor;
-  summary.unmatchedDomains = Array.from(unmatched);
 
   if (!opts.dryRun) {
     await pool.query(
