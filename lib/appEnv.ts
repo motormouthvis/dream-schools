@@ -11,14 +11,15 @@
 // The divergence is gated here rather than by holding a branch back, so the two
 // environments can run the same code.
 //
-// Anything other than an explicit APP_ENV=staging is production. Forgetting the
-// config var must never be what makes production behave like staging.
+// Anything other than an explicit DN_ENVIRONMENT=staging is production.
+// Forgetting the config var must never be what makes production behave like
+// staging. APP_ENV is accepted as an alias for the same reason.
 // ---------------------------------------------------------------------------
 
 export type AppEnv = "production" | "staging";
 
 export function appEnv(): AppEnv {
-  const raw = (process.env.APP_ENV || "").trim().toLowerCase();
+  const raw = (process.env.DN_ENVIRONMENT || process.env.APP_ENV || "").trim().toLowerCase();
   return raw === "staging" || raw === "preview" ? "staging" : "production";
 }
 

@@ -9,10 +9,11 @@ import { dashboardRetired, dnOrigin } from "@/lib/appEnv";
 //
 // Shared public support pages (/contact, /feedback) stay on www.
 //
-// On staging the account app is retired entirely and Dream Neighborhood
-// configures the School Explorer instead — see docs/DN_INTEGRATION.md. The
-// widget itself (/embed, /embed.js, /api/embed/config, /api/embed/scrape,
-// /api/upgrade/*) is the product, not the dashboard, and keeps working there.
+// On staging (DN_ENVIRONMENT=staging) the account app is retired entirely and
+// Dream Neighborhood configures the School Explorer instead — see
+// docs/DN_INTEGRATION.md. The widget itself (/embed, /embed.js,
+// /api/embed/config, /api/embed/scrape, /api/upgrade/*) is the product, not the
+// dashboard, and keeps working there.
 
 const ADMIN_PATH = "/embed-admin";
 const APP_ORIGIN = "https://app.dreamneighborhoodschools.com";
