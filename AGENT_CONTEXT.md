@@ -202,6 +202,49 @@ Owner decisions (final):
   (store in Postgres).
 - Set `Content-Security-Policy: frame-ancestors` to allow embedding on allowed hosts.
 
+## DREAM NEIGHBORHOOD INTEGRATION — branch `cursor/dn-integration-bd38`
+
+Read **`docs/DN_INTEGRATION.md`** first. It is the context document written by
+the agent in `motormouthvis/dreamneighborhood`, committed here so this repo does
+not depend on a branch in that repo, with our reply appended at the end.
+
+- **Do not merge this branch to `main`.** Both products merge and deploy
+  together, later, as a deliberate decision. `main` is what production deploys
+  from and has to stay safe to ship a hotfix from. If `main` moves, **rebase**.
+- **There is no staging branch.** Staging is the Heroku app
+  `dream-schools-preview`, not connected to GitHub — merging a PR deploys
+  nothing. Test with
+  `git push https://git.heroku.com/dream-schools-preview.git HEAD:main --force`.
+- **DN production is frozen.** Test only against
+  `https://staging.dreamneighborhood.com`.
+
+The model: the **popup** is one shared snippet (DN's `sdk.js`) and the server
+picks the product per page load from entitlement; **embeds** are two separate
+snippets and the realtor picks by choosing which to paste. DN's inline bundle
+has no hand-off to ours, so our inline embed is untouched by any of this.
+
+Environments diverge on purpose, gated on `DN_ENVIRONMENT=staging` (see
+`lib/appEnv.ts`, and note that anything else means production):
+
+| | staging (`dream-schools-preview`) | production (`dream-schools`) |
+| --- | --- | --- |
+| Dashboard + `/embed-admin` | retired; redirects to DN | unchanged, fully working |
+| Unregistered host in `/api/embed/config` | enabled — DN decides | disabled, as before |
+| DN reachability | — | never a hard dependency |
+
+Config vars: `DN_ENVIRONMENT`, `DN_ORIGIN` (defaults per environment),
+`DN_INGEST_API_KEY` (the push is off until it is set), `CRON_SECRET`.
+
+Test scripts (Playwright + a stub origin; none needs a deployed environment
+except the last):
+
+- `scripts/smoke-dn-handoff.mjs` — `data-via="dn-explorer"`, runtime `<head>`
+  injection, double load.
+- `scripts/smoke-dn-ingest.mjs` — seeds a throwaway Postgres and a stub of DN's
+  ingest endpoints, drives the real cron route. Needs `DATABASE_URL`.
+- `scripts/smoke-dn-e2e.mjs` — the six-step check, against preview and DN
+  staging.
+
 ## Conventions / cautions
 - Don't change the reference repo. Ask the owner before destructive or paid actions.
 - Keep the unified `N/10` rating scale and "NR/Limited data" honesty.

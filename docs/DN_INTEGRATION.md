@@ -314,3 +314,83 @@ Against staging only — `https://staging.dreamneighborhood.com` paired with
 If anything here does not match how DNS actually works, say so rather than working around it.
 DN's ingest endpoints are new and nothing depends on their shape yet — changing them is cheap
 now and expensive later.
+
+---
+
+# Reply from the DNS side
+
+Everything above matched the code, including the line references, with the exceptions below.
+Implemented on `cursor/dn-integration-bd38`; running on `dream-schools-preview`.
+
+## Two things that need a decision from DN
+
+### 1. `views` cannot be attributed to a domain. Ours are keyed by customer.
+
+`embed_usage` is keyed `(partner_id, widget_number)` and never records which host a view
+happened on — `/api/embed/config` knows the host, but only the customer is stored. So "send the
+host the activity happened on" is not something we can honour: for a customer with several
+authorized domains there is nothing to split.
+
+What we send instead: **one row per customer**, under the shortest of their authorized domains
+(alphabetical tie-break). Deterministic, so DN is never left with a stale row on the other
+domain — which matters precisely because DN *sets* `views` rather than adding. It is continuous
+with your own backfill, which reads the same table.
+
+The cost: a customer with two domains that are two different DN accounts gives one of them
+everything and the other nothing. Recording the host per view would fix it going forward, but it
+would also mean the per-domain counter starts near zero while your backfill has the real total —
+and since you set rather than add, DN's numbers would visibly *drop* at cutover and climb back.
+That seemed worse than the attribution error. Say if you would rather have it the other way.
+
+### 2. The usage payload has no `source`, so we cannot mark our own traffic.
+
+The upgrade-request payload can carry `demo` / `smoke-e2e` and does. The usage payload cannot,
+so the only way to keep DN's customer-facing figures honest is to **leave our own domains out of
+the usage push entirely** — `dreamneighborhoodschools.com` (the demo) and `*.herokuapp.com` (the
+smoke sites, three of them, listed in `docs/SMOKE_TEST_PLAN.md`).
+
+That silently disagrees with what your own backfill would compute from the same table, which is
+the sort of difference that gets noticed six months later. **Adding `source` to the usage rows
+would be better**, and it is the kind of change that is cheap now. Until then we filter.
+
+## Smaller notes
+
+- **A staging `enabled` gate had to go.** `/api/embed/config` answers `enabled: false` for any
+  host not authorized in our admin. With the dashboard retired on staging there is nobody to
+  authorize a domain, so every hand-off would have rendered nothing. On staging an unregistered
+  host now resolves enabled — DN only hands off for domains it has already resolved, so a second
+  check nobody can satisfy was only ever going to mean silence. Production is untouched.
+- **`data-via` fits our code fine** — no counter-proposal. One addition: when the hand-off lands
+  *after* we have already started waiting (a site on the old two-snippet install, our tag parsed
+  early and DN's injected later), the attribute now ends that wait early rather than being
+  ignored. It is published as `window.__DSE_VIA_DN_EXPLORER__` plus a `dse:via-dn-explorer`
+  event, so a second `embed.js` load can tell the running instance.
+- **Loading `embed.js` twice was not harmless.** Inline mode was already idempotent, but a second
+  popup boot appended a second `#dse-root` and a second bubble. Guarded now. Worth knowing that
+  DN's own `__dnSchoolExplorerLoaded` flag was the only thing preventing this in practice.
+- **`embed_last_seen` is our column name** for what you call `inline_last_seen`. Mapped on send;
+  no change wanted on your side.
+- **`source` values we actually store** are `popup` and `inline`, from the explorer's `mode`
+  parameter — they already match. We only rewrite what we are certain about (our demo site, our
+  smoke sites, rows the end-to-end suite tagged); real visitor traffic passes through untouched
+  rather than being bucketed into something DN would count as `other`.
+- **The archived-Explorer decision looks right to us.** A realtor who switches their Explorer off
+  and finds a different one in its place would be entitled to be annoyed. The counter-argument
+  proves too much: by it, *any* setting a customer turns off could be replaced with a lesser
+  version of itself. Leave it as it is.
+- **The staging ingest key in our config is the masked form** Django prints after minting
+  (`xxxxxxxx.xxxx...`, ends in a literal ellipsis). It returns `401`. We need the real one.
+
+## What was verified, and how
+
+`scripts/smoke-dn-e2e.mjs` runs the real DN staging `sdk.js` and the real preview `embed.js`,
+with the realtor's site served on a fake origin because the whole thing keys on
+`location.hostname`. Steps 1–5 of the check above pass.
+
+`GET /explorer/resolve/` is stubbed per case, with the bodies copied out of your table, because
+**DN staging has no unentitled-customer fixture** — every host we tried answers `404` except
+`staging.dreamneighborhood.com` itself, which is entitled. Everything downstream of that
+response is real code. If you create an unentitled staging customer with a saved domain we will
+re-run it unstubbed; step 4 already uses the live resolve.
+
+Step 6 is blocked on the API key.
