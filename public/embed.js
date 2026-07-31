@@ -15,6 +15,10 @@
  *   data-search-page-content, data-suppress-on-inline, data-min-height,
  *   data-show-header, data-address, data-lat, data-lng, data-api-base
  *
+ * data-via="dn-explorer" on the <script> marks a hand-off: Dream Neighborhood's
+ * sdk.js loaded us because it evaluated entitlement and decided its own
+ * Neighborhood Explorer will not render. See VIA_DN_EXPLORER below.
+ *
  * The SDK resolves per-host config from /api/embed/config, best-effort scrapes
  * the listing address from the page, and opens a chrome-less explorer iframe
  * (/embed) scoped to that address. Self-contained: no external CSS/deps.
@@ -28,6 +32,44 @@
     ".dream-schools-explorer",
     "[data-dream-schools-explorer]",
   ];
+
+  // Hand-off from Dream Neighborhood's sdk.js. Under the shared-popup model a
+  // realtor pastes only DN's tag; DN resolves entitlement and, when the answer
+  // is "not entitled", injects this script with data-via="dn-explorer". The
+  // attribute therefore means DN has ALREADY decided its Neighborhood Explorer
+  // will not render — no ready signal is coming.
+  //
+  // Published on window as well as read off our own tag, so a page carrying the
+  // old two-snippet install (our tag parsed early, DN's hand-off injected
+  // later) can tell its already-running instance to stop waiting.
+  var VIA_DN_EXPLORER_FLAG = "__DSE_VIA_DN_EXPLORER__";
+  var VIA_DN_EXPLORER_EVENT = "dse:via-dn-explorer";
+
+  function viaDnExplorer() {
+    try {
+      return !!window[VIA_DN_EXPLORER_FLAG];
+    } catch (e) {
+      return false;
+    }
+  }
+
+  try {
+    if (String((SCRIPT_EL && SCRIPT_EL.getAttribute("data-via")) || "").trim().toLowerCase() === "dn-explorer") {
+      window[VIA_DN_EXPLORER_FLAG] = true;
+      window.dispatchEvent(new Event(VIA_DN_EXPLORER_EVENT));
+    }
+  } catch (e) {}
+
+  // Loading embed.js twice must be harmless. DN guards with its own window flag,
+  // but a site can still end up with two tags (their own popup snippet plus DN's
+  // hand-off). Inline mode is already idempotent; the floating popup is not — a
+  // second boot would append a second #dse-root and a second bubble. Bail after
+  // publishing the hand-off flag above, so the running instance still benefits.
+  var LOADED_FLAG = "__DSE_EMBED_LOADED__";
+  try {
+    if (window[LOADED_FLAG]) return;
+    window[LOADED_FLAG] = true;
+  } catch (e) {}
 
   function deriveApiBase(el) {
     var attr = el && el.getAttribute("data-api-base");
@@ -716,6 +758,7 @@
     var neSuppressed = false;
     var graceDone = false;
     var geoDone = false;
+    var graceTimer = null;
     var graceMs = typeof config.neighborhoodExplorerGraceMs === "number"
       ? config.neighborhoodExplorerGraceMs
       : DEFAULTS.neighborhoodExplorerGraceMs;
@@ -723,6 +766,14 @@
     function onNeighborhoodExplorerReady() {
       neSuppressed = true;
       hidePopup();
+    }
+
+    // The hand-off arrived after we started waiting (old two-snippet install).
+    function endGraceEarly() {
+      if (graceDone) return;
+      if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
+      graceDone = true;
+      tryRevealPopup();
     }
 
     var style = document.createElement("style");
@@ -876,11 +927,24 @@
     // the vast majority, show with no artificial delay.
     try {
       // Always listen: if NE loads late and signals, we hide even after showing.
+      // This holds even for a hand-off — a page can carry both DN's hand-off and
+      // a separately installed DN popup, and stepping aside is still right.
       window.addEventListener(NE_READY_EVENT, onNeighborhoodExplorerReady, { once: true });
       if (window[NE_READY_FLAG]) {
         onNeighborhoodExplorerReady();
+      } else if (viaDnExplorer()) {
+        // DN handed off to us, so it has already evaluated entitlement and
+        // decided not to render. Waiting for a signal that cannot come would
+        // delay every hand-off by the full grace period: DN's injected
+        // __DN_EXPLORER_API_BASE__ and its own script tag both make
+        // neighborhoodExplorerMaybePresent() true on every such page.
+        graceDone = true;
       } else if (neighborhoodExplorerMaybePresent()) {
-        setTimeout(function () {
+        // No hand-off, but DN might be here and might still announce itself.
+        // Still the right behaviour for the old two-snippet install.
+        window.addEventListener(VIA_DN_EXPLORER_EVENT, endGraceEarly, { once: true });
+        graceTimer = setTimeout(function () {
+          graceTimer = null;
           graceDone = true;
           tryRevealPopup();
         }, graceMs);
