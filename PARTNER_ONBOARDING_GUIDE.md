@@ -61,7 +61,8 @@ them), the School Explorer is now working.
 Best when you're onboarding many realtors at once.
 
 1. On **Customer List**, click **Import**.
-2. Paste one realtor per line in this order:
+2. Either click **Choose file…** and select a **.csv**, **.tsv**, or **.txt** file,
+   or paste one realtor per line in this order:
 
    ```
    email, customer name, authorized domain, default address
@@ -82,7 +83,7 @@ Notes:
 
 - A header row (e.g. a line starting with "email") is ignored automatically.
 - Duplicate emails are skipped, so it's safe to re-run an import.
-- You can paste straight from a spreadsheet (tabs work too).
+- You can upload a CSV from Excel/Sheets, or paste straight from a spreadsheet (tabs work too).
 
 ---
 

@@ -119,7 +119,9 @@ function PartnerGuide() {
           <ol className="mt-2 space-y-1.5">
             <Li ordered>On <strong>Customer List</strong>, click <strong>Import</strong>.</Li>
             <Li ordered>
-              Paste one realtor per line in this order:
+              Either click <strong>Choose file…</strong> and select a <strong>.csv</strong>,{" "}
+              <strong>.tsv</strong>, or <strong>.txt</strong> file, or paste one realtor per line
+              in this order:
               <CodeBlock>{`email, customer name, authorized domain, default address`}</CodeBlock>
               Example:
               <CodeBlock>{`jane@coastalrealty.com, Jane Doe, coastalrealty.com, 1500 N 23rd St, Fort Pierce, FL
@@ -134,7 +136,7 @@ john@sunsethomes.com, John Smith, sunsethomes.com, 742 Evergreen Ter, Springfiel
           <ul className="mt-3 space-y-1.5">
             <Li>A header row (e.g. a line starting with "email") is ignored automatically.</Li>
             <Li>Duplicate emails are skipped, so it's safe to re-run an import.</Li>
-            <Li>You can paste straight from a spreadsheet (tabs work too).</Li>
+            <Li>You can upload a CSV from Excel/Sheets, or paste straight from a spreadsheet (tabs work too).</Li>
           </ul>
         </Section>
 

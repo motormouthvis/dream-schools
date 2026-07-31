@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { AppShell } from "@/components/app/AppShell";
 import { AddressAutocomplete } from "@/components/app/AddressAutocomplete";
 
@@ -1241,17 +1241,49 @@ function ImportModal({
   onDone: () => void;
 }) {
   const [text, setText] = useState("");
+  const [fileName, setFileName] = useState<string | null>(null);
   const [partnerId, setPartnerId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<null | { created: number; skipped: number; errored: number; results: ImportResult[] }>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   useEscapeKey(onClose);
 
   const parsed = useMemo(() => parseImport(text), [text]);
 
+  function onFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    // Allow re-selecting the same file later.
+    e.target.value = "";
+    if (!file) return;
+    const name = file.name || "import.csv";
+    const lower = name.toLowerCase();
+    if (!/\.(csv|txt|tsv)$/.test(lower) && file.type && !/text|csv|tab-separated/i.test(file.type)) {
+      setError("Choose a .csv, .tsv, or .txt file.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const content = typeof reader.result === "string" ? reader.result : "";
+      if (!content.trim()) {
+        setError("That file looks empty.");
+        setFileName(null);
+        return;
+      }
+      setText(content.replace(/^\uFEFF/, "")); // strip BOM from Excel exports
+      setFileName(name);
+      setError(null);
+    };
+    reader.onerror = () => {
+      setError("Could not read that file.");
+      setFileName(null);
+    };
+    reader.readAsText(file);
+  }
+
   async function run() {
     if (!parsed.length) {
-      setError("Paste at least one row with an email.");
+      setError("Upload or paste at least one row with an email.");
       return;
     }
     setBusy(true);
@@ -1281,17 +1313,40 @@ function ImportModal({
       <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-extrabold text-ink-900">Import customers</h2>
         <p className="mt-0.5 text-[12px] text-slate-500">
-          One realtor per line: <code className="rounded bg-slate-100 px-1">email, customer name, authorized domain, default address</code>.
+          Upload a CSV or paste one realtor per line:{" "}
+          <code className="rounded bg-slate-100 px-1">email, customer name, authorized domain, default address</code>.
           Accounts are created verified and active — no email verification needed.
         </p>
 
         {!summary ? (
           <div className="-mr-2 mt-4 flex-1 space-y-3 overflow-y-auto pr-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain"
+                className="hidden"
+                onChange={onFileChange}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Choose file…
+              </button>
+              <span className="min-w-0 truncate text-[12px] text-slate-500">
+                {fileName ? fileName : "CSV, TSV, or TXT — or paste below"}
+              </span>
+            </div>
             <textarea
               rows={9}
               className={`${inp} resize-y font-mono text-[12px]`}
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => {
+                setText(e.target.value);
+                if (fileName) setFileName(null);
+              }}
               placeholder={"jane@agency.com, Jane Doe, janeagency.com, 1500 N 23rd St, Fort Pierce, FL\njohn@homes.com, John Smith, johnhomes.com, 742 Evergreen Ter, Springfield, IL"}
             />
             <p className="text-[12px] text-slate-500">{parsed.length} row{parsed.length === 1 ? "" : "s"} detected.</p>
