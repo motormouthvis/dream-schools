@@ -1,4 +1,5 @@
 import { getPool, hasDatabase } from "@/lib/db";
+import { dashboardRetired } from "@/lib/appEnv";
 
 // ---------------------------------------------------------------------------
 // Embeddable "School Rating Explorer" widget — per-partner configuration.
@@ -209,6 +210,12 @@ function rowToConfig(r: any): PartnerConfig {
  * Default config for an UN-registered host. Disabled by default: the popup/embed
  * only turns on once a customer has authorized their domain in the admin. (Each
  * customer's own domain resolves to their enabled config via resolveByHost.)
+ *
+ * Except on staging, where the dashboard is retired and there is no admin to
+ * authorize a domain in — Dream Neighborhood decides who gets the School
+ * Explorer, and it only hands off to us for domains it has already resolved.
+ * A second authorization check that nobody can satisfy would just mean nothing
+ * renders. Production is unaffected: an unregistered host stays disabled there.
  */
 export function defaultConfigForHost(host: string, widgetNumber: number): PartnerConfig {
   return {
@@ -217,7 +224,7 @@ export function defaultConfigForHost(host: string, widgetNumber: number): Partne
     widgetNumber,
     allowedHosts: [normalizeHost(host)].filter(Boolean),
     defaultAddress: "",
-    enabled: false,
+    enabled: dashboardRetired(),
   };
 }
 
