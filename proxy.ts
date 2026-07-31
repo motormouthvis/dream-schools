@@ -116,8 +116,11 @@ export function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // ADMIN_ENFORCE_HOST can only ever point at the production `app.` host, which
+  // is the wrong place to send anyone on staging.
   if (
     enforce &&
+    !dashboardRetired() &&
     (pathname === ADMIN_PATH ||
       pathname.startsWith(`${ADMIN_PATH}/`) ||
       matchesPath(pathname, APP_PAGES))
