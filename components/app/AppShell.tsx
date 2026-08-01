@@ -13,6 +13,8 @@ interface Me {
   partnerId: string | null;
   companyName: string;
   businessName: string;
+  /** Shared with Dream Neighborhood, e.g. `DN-100042`. Null until DN has one. */
+  customerNumber?: string | null;
   /** Partner white-label (or partner name) when this realtor leaves White Label blank. */
   inheritedWhiteLabel?: string;
   createdAt?: string;

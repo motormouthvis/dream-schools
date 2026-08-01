@@ -1,6 +1,7 @@
 import { getPool, hasDatabase } from "@/lib/db";
 import { dnOrigin } from "@/lib/appEnv";
 import { normalizeHost } from "@/lib/embedConfig";
+import { formatCustomerNumber } from "@/lib/customerNumber";
 
 // ---------------------------------------------------------------------------
 // Push School Explorer usage and upgrade requests to Dream Neighborhood.
@@ -246,6 +247,24 @@ async function multiDomainCustomers(): Promise<string[]> {
     .map((r: { partner_id: string }) => r.partner_id);
 }
 
+/**
+ * customer id → the number DN minted for them. Absent for a legacy `host:`
+ * partner, which has no account here at all, and for any customer who has no DN
+ * account yet — two thirds of ours are School-Explorer-only. Those rows still
+ * go, matched on domain, which is what the fallback is for.
+ */
+async function customerNumberByPartnerId(): Promise<Map<string, string>> {
+  const { rows } = await getPool().query(
+    `SELECT id, customer_number FROM app_users WHERE customer_number IS NOT NULL`
+  );
+  const out = new Map<string, string>();
+  for (const r of rows) {
+    const formatted = formatCustomerNumber(r.customer_number);
+    if (formatted) out.set(r.id, formatted);
+  }
+  return out;
+}
+
 function resolveDomain(partnerId: string, map: Map<string, string>): string {
   if (!partnerId) return "";
   if (partnerId.startsWith("host:")) return normalizeHost(partnerId.slice(5));
@@ -280,6 +299,8 @@ function ingestSource(storedSource: string, domain: string): string {
 
 export interface UsageRow {
   domain: string;
+  /** DN prefers this over the domain when it is present. */
+  customer_number?: string;
   views: number;
   first_seen: string | null;
   last_seen: string | null;
@@ -308,6 +329,7 @@ function earlierOf(a: string | null, b: string | null): string | null {
 export async function buildUsageRows(): Promise<UsageRow[]> {
   const pool = getPool();
   const map = await domainByPartnerId();
+  const numbers = await customerNumberByPartnerId();
   // A DN account has one Explorer, so collapse our per-widget rows first.
   const { rows } = await pool.query(
     `SELECT partner_id,
@@ -330,8 +352,10 @@ export async function buildUsageRows(): Promise<UsageRow[]> {
     // customer-facing figures honest. See the note in docs/DN_INTEGRATION.md.
     if (isOwnDemoDomain(domain) || isOwnTestDomain(domain)) continue;
     const existing = byDomain.get(domain);
+    const customerNumber = numbers.get(r.partner_id);
     const next: UsageRow = {
       domain,
+      ...(customerNumber ? { customer_number: customerNumber } : {}),
       views: Number(r.views) || 0,
       first_seen: iso(r.first_seen),
       last_seen: iso(r.last_seen),
@@ -341,6 +365,11 @@ export async function buildUsageRows(): Promise<UsageRow[]> {
     if (!existing) {
       byDomain.set(domain, next);
     } else {
+      // A legacy `host:` partner and the account that later claimed the same
+      // domain both report under it; only the account carries a number.
+      if (!existing.customer_number && next.customer_number) {
+        existing.customer_number = next.customer_number;
+      }
       existing.views += next.views;
       existing.first_seen = earlierOf(existing.first_seen, next.first_seen);
       existing.last_seen = laterOf(existing.last_seen, next.last_seen);
@@ -354,6 +383,8 @@ export async function buildUsageRows(): Promise<UsageRow[]> {
 export interface UpgradeRequestRow {
   external_id: string;
   domain: string;
+  /** DN prefers this over the domain when it is present. */
+  customer_number?: string;
   requester_key: string;
   address: string;
   source: string;
@@ -366,6 +397,7 @@ export async function buildUpgradeRequestRows(
 ): Promise<{ rows: UpgradeRequestRow[]; maxId: number; skippedNoDomain: number }> {
   const pool = getPool();
   const map = await domainByPartnerId();
+  const numbers = await customerNumberByPartnerId();
   const { rows } = await pool.query(
     `SELECT id, customer_id, requester_key, address, source, requested_at
        FROM app_upgrade_requests
@@ -380,14 +412,18 @@ export async function buildUpgradeRequestRows(
   for (const r of rows) {
     maxId = Math.max(maxId, Number(r.id));
     const domain = resolveDomain(r.customer_id, map);
-    // Without a domain DN has nothing to join on. Skipping beats guessing.
-    if (!domain) {
+    const customerNumber = numbers.get(r.customer_id);
+    // With neither a number nor a domain DN has nothing to join on. Skipping
+    // beats guessing: a wrong match attributes one realtor's homebuyers to
+    // another, and nothing downstream would flag it.
+    if (!domain && !customerNumber) {
       skippedNoDomain += 1;
       continue;
     }
     out.push({
       external_id: String(r.id),
       domain,
+      ...(customerNumber ? { customer_number: customerNumber } : {}),
       requester_key: r.requester_key || "",
       address: r.address || "",
       source: ingestSource(r.source, domain),

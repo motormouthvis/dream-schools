@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { AppShell } from "@/components/app/AppShell";
 import { AddressAutocomplete } from "@/components/app/AddressAutocomplete";
+import { customerNumberMatches } from "@/lib/customerNumber";
 
 // Close a modal when the Escape key is pressed.
 function useEscapeKey(onClose: () => void) {
@@ -25,6 +26,7 @@ interface Customer {
   partnerName: string | null;
   companyName: string;
   businessName: string;
+  customerNumber: string | null;
   createdAt: string;
   deletedAt: string | null;
   authorizedDomain: string | null;
@@ -147,6 +149,7 @@ function OwnerAdmin() {
             (q === "active" && !c.deletedAt) ||
             ((q === "disabled" || q === "deleted") && Boolean(c.deletedAt)) ||
             c.email.toLowerCase().includes(q) ||
+            customerNumberMatches(c.customerNumber, q) ||
             (c.authorizedDomain || "").toLowerCase().includes(q) ||
             (c.partnerName || "").toLowerCase().includes(q) ||
             (c.companyName || "").toLowerCase().includes(q) ||
@@ -414,7 +417,7 @@ function OwnerAdmin() {
           name="customer-list-filter"
           autoComplete="off"
           readOnly={modalOpen}
-          placeholder="Search email, domain, month, or year…"
+          placeholder="Search customer number, email, domain, month, or year…"
           className="w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
         />
         <span className="text-[12px] text-slate-400">{rows.length} shown</span>
@@ -553,6 +556,20 @@ function OwnerAdmin() {
                         <>
                           <div className="font-semibold text-ink-900">{name || c.email}</div>
                           {name && <div className="text-[11px] text-slate-500">{c.email}</div>}
+                          {c.customerNumber ? (
+                            <div className="text-[11px] font-semibold tracking-wide text-slate-400">
+                              {c.customerNumber}
+                            </div>
+                          ) : (
+                            !c.isOwner && (
+                              <div
+                                className="text-[11px] text-slate-300"
+                                title="No Dream Neighborhood account yet — numbers are issued there, never here."
+                              >
+                                No customer number
+                              </div>
+                            )
+                          )}
                         </>
                       );
                     })()}

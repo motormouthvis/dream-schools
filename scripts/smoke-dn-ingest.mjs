@@ -126,7 +126,14 @@ function startDnStub() {
 // ---------------------------------------------------------------------------
 
 async function seed(pool) {
-  await pool.query(`DROP TABLE IF EXISTS dn_ingest_state, embed_usage, embed_partners, app_upgrade_requests`);
+  await pool.query(`DROP TABLE IF EXISTS dn_ingest_state, embed_usage, embed_partners, app_upgrade_requests, app_users`);
+  await pool.query(`CREATE TABLE app_users (
+    id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, customer_number TEXT)`);
+  // acct-ann has a DN account and a number; acct-nonumber is School-Explorer-
+  // only, which is two thirds of the real book, and still reports by domain.
+  await pool.query(`INSERT INTO app_users (id, email, customer_number) VALUES
+    ('acct-ann', 'ann@annsrealty.com', 'DN-100042'),
+    ('acct-nonumber', 'no@other-realty.com', NULL)`);
   await pool.query(`CREATE TABLE embed_partners (
     partner_id TEXT NOT NULL, widget_number INTEGER NOT NULL DEFAULT 1,
     allowed_hosts TEXT[] NOT NULL DEFAULT '{}',
@@ -292,6 +299,21 @@ async function run() {
       "requests: a legacy host: customer resolves to its domain",
       byId.get("5")?.domain === "other-realty.com",
       `id 5 domain=${byId.get("5")?.domain}`
+    );
+    record(
+      "customer number is sent on upgrade requests when we have one",
+      byId.get("1")?.customer_number === "DN-100042",
+      `id 1 customer_number=${byId.get("1")?.customer_number}`
+    );
+    record(
+      "customer number is sent on usage rows when we have one",
+      ann?.customer_number === "DN-100042",
+      `annsrealty.com customer_number=${ann?.customer_number}`
+    );
+    record(
+      "a School-Explorer-only customer still reports, by domain alone",
+      received.usage.some((u) => u.domain === "other-realty.com" && !u.customer_number),
+      "other-realty.com sent with no customer_number"
     );
     record(
       "requests: a customer with no domain is skipped, not guessed at",
