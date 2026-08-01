@@ -5,18 +5,13 @@
  * dream-schools.
  *
  * Runs the REAL Dream Neighborhood staging sdk.js and the REAL Dream Schools
- * preview embed.js. The pages themselves are served by Playwright on a fake
- * origin, because the whole thing keys on `location.hostname` and the test
- * needs to be a specific realtor's domain.
+ * preview embed.js, against DN's REAL staging customer fixtures. Nothing is
+ * stubbed: every entitlement answer comes from DN deciding for itself.
  *
- * `GET /explorer/resolve/` is stubbed per case, because DN staging has no
- * unentitled customer fixture and creating one is DN's side of the fence. The
- * stub bodies are copied verbatim from the "how DN decides" table in the
- * document; everything downstream of the response — DN's decision to hand off,
- * the attributes it sets, our reaction to them — is real code.
- *
- * Case 4 uses the real, un-stubbed resolve for `staging.dreamneighborhood.com`,
- * which is an entitled DN staging account.
+ * The realtor's pages are served by Playwright on the fixture's own hostname,
+ * because the whole thing keys on `location.hostname` and there is no other way
+ * to be a specific customer's website. The fixtures use `.invalid`, which can
+ * never resolve publicly, so nothing here can reach a real site.
  *
  * Usage:
  *   node scripts/smoke-dn-e2e.mjs
@@ -37,8 +32,14 @@ if (/app\.dreamneighborhood\.com/.test(DN_BASE) || /dream-schools-c2ccd302adef|w
   process.exit(2);
 }
 
-const REALTOR_HOST = "e2e-realtor.test";
-const REALTOR_ORIGIN = `https://${REALTOR_HOST}`;
+// DN staging's customer fixtures. Every one of these is a real DN account whose
+// entitlement DN evaluates for itself; we only choose which customer we are.
+const FIXTURE = {
+  unentitled: "free-tier.invalid", // never had a trial → hand-off
+  expiredTrial: "expired-trial.invalid", // trial ran out → hand-off
+  entitled: "solo-paying.invalid", // subscribed → Neighborhood Explorer
+  disabled: "disabled.invalid", // switched off → nothing at all
+};
 const ADDRESS = "1500 N 23rd St, Fort Pierce, FL 34950";
 
 const results = [];
@@ -46,13 +47,6 @@ function record(name, ok, detail = "") {
   results.push({ name, ok });
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? "  — " + detail : ""}`);
 }
-
-// Bodies straight out of the "how DN decides" table.
-const RESOLVE = {
-  never_had_trial: { enabled: false, reason: "subscription_required", product: "school" },
-  trial_expired: { enabled: false, reason: "trial_expired", product: "school" },
-  no_widget: { enabled: false, reason: "no_widget" },
-};
 
 function page(kind) {
   const body = {
@@ -84,33 +78,26 @@ async function loadChromium() {
 }
 
 /**
+ * Open a page on one of DN's fixture customers' websites. Only the fixture's
+ * own origin is served locally; DN and Dream Schools are both hit for real.
+ *
  * @param {object} browser
- * @param {{ resolve?: object|null, path?: string }} opts
+ * @param {{ host: string, path?: string }} opts
  */
-async function openRealtorPage(browser, opts = {}) {
+async function openRealtorPage(browser, opts) {
+  const origin = `https://${opts.host}`;
   const context = await browser.newContext({ ignoreHTTPSErrors: true });
-  // Serve the realtor's site ourselves; everything else goes to the real hosts.
-  await context.route(`${REALTOR_ORIGIN}/**`, (route) => {
+  await context.route(`${origin}/**`, (route) => {
     const path = new URL(route.request().url()).pathname;
     const kind = path.includes("schools") ? "schools" : path.includes("neighborhood") ? "neighborhood" : "listing";
     return route.fulfill({ status: 200, contentType: "text/html", body: page(kind) });
   });
-  if (opts.resolve) {
-    await context.route(`${DN_BASE}/explorer/resolve/**`, (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        headers: { "access-control-allow-origin": "*", "cache-control": "no-store" },
-        body: JSON.stringify(opts.resolve),
-      })
-    );
-  }
   const p = await context.newPage();
   p.on("console", (m) => {
     if (process.env.VERBOSE) console.log("   [page]", m.text());
   });
-  await p.goto(`${REALTOR_ORIGIN}${opts.path || "/listings/1500-n-23rd-st"}`, { waitUntil: "load", timeout: 45000 });
-  return { context, page: p };
+  await p.goto(`${origin}${opts.path || "/listings/1500-n-23rd-st"}`, { waitUntil: "load", timeout: 45000 });
+  return { context, page: p, origin };
 }
 
 async function waitForSchoolPopup(page, budgetMs) {
@@ -144,22 +131,18 @@ async function run() {
   try {
     // --- 1. DN answers "product": "school" for an unentitled customer -------
     {
-      const res = await fetch(`${DN_BASE}/explorer/resolve/?host=${REALTOR_HOST}&widget_number=1`);
-      const live = await res.text();
+      const res = await fetch(`${DN_BASE}/explorer/resolve/?host=${FIXTURE.unentitled}&widget_number=1`);
+      const body = await res.json();
       record(
-        "1. DN staging resolve is reachable and answers a negative for an unknown host",
-        res.status === 404,
-        `HTTP ${res.status} ${live.slice(0, 80)}`
-      );
-      console.log(
-        "     note: DN staging has no unentitled-customer fixture, so cases 1-3 stub the\n" +
-          "     resolve body from the document's table and let the real sdk.js decide."
+        `1. DN answers "product": "school" for an unsubscribed customer`,
+        res.ok && body.enabled === false && body.product === "school",
+        `${FIXTURE.unentitled} → ${JSON.stringify(body)}`
       );
     }
 
     // --- 2. Hand-off, with no four-second pause ----------------------------
     {
-      const { context, page: p } = await openRealtorPage(browser, { resolve: RESOLVE.never_had_trial });
+      const { context, page: p } = await openRealtorPage(browser, { host: FIXTURE.unentitled });
       const ms = await waitForSchoolPopup(p, 20000);
       const handed = await handOffHappened(p);
       record("2. DN hands off to the School Explorer when unentitled", handed);
@@ -186,7 +169,7 @@ async function run() {
 
     // Same again for an expired trial, the other route to "product": "school".
     {
-      const { context, page: p } = await openRealtorPage(browser, { resolve: RESOLVE.trial_expired });
+      const { context, page: p } = await openRealtorPage(browser, { host: FIXTURE.expiredTrial });
       const ms = await waitForSchoolPopup(p, 20000);
       record(
         "2b. an expired trial also hands off, and also without the pause",
@@ -197,8 +180,11 @@ async function run() {
     }
 
     // --- 3. Explorer switched off → nothing at all -------------------------
+    // A soft-disabled account. Until DN fixed this it answered
+    // subscription_required with product "school", so a customer switched off
+    // for non-payment was handed a working free School Explorer.
     {
-      const { context, page: p } = await openRealtorPage(browser, { resolve: RESOLVE.no_widget });
+      const { context, page: p } = await openRealtorPage(browser, { host: FIXTURE.disabled });
       await p.waitForTimeout(8000);
       const handed = await handOffHappened(p);
       const popup = await p.evaluate(() => {
@@ -206,22 +192,16 @@ async function run() {
         return !!root && getComputedStyle(root).display !== "none";
       });
       record(
-        "3. an Explorer switched off in DN shows nothing, not even schools",
+        "3. a switched-off account shows nothing, not even schools",
         !handed && !popup,
         `hand-off=${handed}, school popup=${popup}`
       );
       await context.close();
     }
 
-    // --- 4. Entitled → Neighborhood Explorer, real resolve ------------------
+    // --- 4. Entitled → Neighborhood Explorer -------------------------------
     {
-      const context = await browser.newContext({ ignoreHTTPSErrors: true });
-      // An entitled DN staging account, resolved for real: DN's own domain.
-      await context.route(`${DN_BASE}/e2e/**`, (route) =>
-        route.fulfill({ status: 200, contentType: "text/html", body: page("listing") })
-      );
-      const p = await context.newPage();
-      await p.goto(`${DN_BASE}/e2e/listing`, { waitUntil: "load", timeout: 45000 });
+      const { context, page: p } = await openRealtorPage(browser, { host: FIXTURE.entitled });
       await p.waitForTimeout(9000);
       const ne = await neighborhoodExplorerMounted(p);
       const handed = await handOffHappened(p);
@@ -240,8 +220,8 @@ async function run() {
     // --- 5. A schools embed and a neighborhood embed coexist ---------------
     {
       // The schools page carries OUR inline snippet and none of DN's.
-      const { context, page: schoolsPage } = await openRealtorPage(browser, {
-        resolve: RESOLVE.never_had_trial,
+      const { context, page: schoolsPage, origin } = await openRealtorPage(browser, {
+        host: FIXTURE.unentitled,
         path: "/schools",
       });
       let inlineMounted = false;
@@ -264,7 +244,7 @@ async function run() {
       // The neighborhood page carries DN's snippet with DN's inline container.
       // Unentitled, so DN renders nothing there — and must NOT be replaced by us.
       const neighborhoodPage = await context.newPage();
-      await neighborhoodPage.goto(`${REALTOR_ORIGIN}/neighborhoods/downtown`, { waitUntil: "load", timeout: 45000 });
+      await neighborhoodPage.goto(`${origin}/neighborhoods/downtown`, { waitUntil: "load", timeout: 45000 });
       await neighborhoodPage.waitForTimeout(9000);
       const swapped = await neighborhoodPage.evaluate(() =>
         Boolean(document.querySelector("#dn-explorer iframe[src*='dreamneighborhoodschools'], #dn-explorer iframe[src*='dream-schools']"))
