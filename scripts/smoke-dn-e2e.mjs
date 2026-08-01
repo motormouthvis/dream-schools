@@ -49,19 +49,30 @@ function record(name, ok, detail = "") {
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? "  — " + detail : ""}`);
 }
 
+// The install shapes, matching the fixture pages on the smoke sites. DN's popup
+// snippet and DN's inline bundle are different files and behave differently:
+// `sdk.js` is the one shared popup and hands off to us when unentitled,
+// `inline.js` mounts a neighborhood embed and deliberately never hands off.
+const POPUP_SNIPPET = `<script src="${DN_BASE}/explorer/sdk.js" async></script>`;
+const NEIGHBORHOOD_EMBED = `<div id="dn-explorer"></div>
+    <script src="${DN_BASE}/explorer/inline.js" async></script>`;
+const SCHOOL_EMBED = `<div id="dream-schools-explorer"></div>
+    <script src="${DNS_BASE}/embed.js" async></script>`;
+
 function page(kind) {
-  const body = {
-    listing: `<h1>${ADDRESS}</h1><p>3 bed · 2 bath · $312,000</p>`,
-    schools: `<h1>Schools near ${ADDRESS}</h1><div id="dream-schools-explorer"></div>
-              <script src="${DNS_BASE}/embed.js" async></script>`,
-    neighborhood: `<h1>Neighborhood: ${ADDRESS}</h1><div id="dn-explorer"></div>`,
-  }[kind];
-  // The neighborhood page carries DN's tag (its inline embed); the listing page
-  // carries DN's tag as the one shared popup snippet; the schools page carries
-  // OUR embed snippet and nothing of DN's.
-  const dnTag = kind === "schools" ? "" : `<script src="${DN_BASE}/explorer/sdk.js" async></script>`;
+  const shapes = {
+    // A listing page with the one shared popup snippet and nothing else.
+    listing: { head: POPUP_SNIPPET, body: `<h1>${ADDRESS}</h1><p>3 bed · 2 bath · $312,000</p>` },
+    // The realtor's schools page: our embed, none of DN's.
+    schools: { head: "", body: `<h1>Schools near ${ADDRESS}</h1>${SCHOOL_EMBED}` },
+    // Their neighborhood page: DN's embed, none of ours.
+    neighborhood: { head: "", body: `<h1>Neighborhood: ${ADDRESS}</h1>${NEIGHBORHOOD_EMBED}` },
+    // The shared popup alongside a neighborhood embed on one page.
+    "popup-and-embed": { head: POPUP_SNIPPET, body: `<h1>Neighborhood: ${ADDRESS}</h1>${NEIGHBORHOOD_EMBED}` },
+  };
+  const shape = shapes[kind] || shapes.listing;
   return `<!doctype html><html><head><meta charset="utf-8">
-<title>${ADDRESS} | E2E Realty</title>${dnTag}</head><body>${body}</body></html>`;
+<title>${ADDRESS} | E2E Realty</title>${shape.head}</head><body>${shape.body}</body></html>`;
 }
 
 async function loadChromium() {
@@ -93,7 +104,13 @@ async function openRealtorPage(browser, opts) {
   const context = await browser.newContext({ ignoreHTTPSErrors: true });
   await context.route(`${origin}/**`, (route) => {
     const path = new URL(route.request().url()).pathname;
-    const kind = path.includes("schools") ? "schools" : path.includes("neighborhood") ? "neighborhood" : "listing";
+    const kind = path.includes("popup-and-embed")
+      ? "popup-and-embed"
+      : path.includes("schools")
+        ? "schools"
+        : path.includes("neighborhood")
+          ? "neighborhood"
+          : "listing";
     return route.fulfill({ status: 200, contentType: "text/html", body: page(kind) });
   });
   if (opts.breakResolve === "error") {
@@ -137,9 +154,42 @@ async function neighborhoodExplorerMounted(page) {
   );
 }
 
+/**
+ * The explorer iframe must load without throwing. It threw React #418 on every
+ * customer page carrying the inline embed for as long as the embed has existed:
+ * /embed is prerendered with no query string, and the first client render read
+ * window.location.search, so the two disagreed whenever an address was passed.
+ * It still mounted and worked, which is why nobody noticed — an uncaught
+ * exception on someone else's website that costs nothing visible until React
+ * tightens, and then costs interactivity.
+ */
+async function checkExplorerPageIsClean(browser) {
+  const cases = [
+    ["inline, with an address", `${DNS_BASE}/embed?mode=inline&accent=%231fa55f&h=640&address=${encodeURIComponent(ADDRESS)}`],
+    ["popup, with an address", `${DNS_BASE}/embed?mode=popup&accent=%231fa55f&address=${encodeURIComponent(ADDRESS)}`],
+    ["inline, no address", `${DNS_BASE}/embed?mode=inline&accent=%231fa55f&h=640`],
+  ];
+  for (const [label, url] of cases) {
+    const context = await browser.newContext();
+    const p = await context.newPage();
+    const thrown = [];
+    p.on("pageerror", (e) => thrown.push(e.message.split("\n")[0]));
+    await p.goto(url, { waitUntil: "load", timeout: 45000 });
+    await p.waitForTimeout(6000);
+    record(
+      `the explorer page throws nothing (${label})`,
+      thrown.length === 0,
+      thrown[0] ? thrown[0].slice(0, 150) : "clean"
+    );
+    await context.close();
+  }
+}
+
 async function run() {
   const browser = await loadChromium();
   try {
+    await checkExplorerPageIsClean(browser);
+
     // --- 1. DN answers "product": "school" for an unentitled customer -------
     {
       const res = await fetch(`${DN_BASE}/explorer/resolve/?host=${FIXTURE.unentitled}&widget_number=1`);
@@ -252,29 +302,59 @@ async function run() {
         `mounted=${inlineMounted}, substituted=${schoolsSubstituted}`
       );
 
-      // The neighborhood page carries DN's snippet with DN's inline container.
-      // Unentitled, so DN renders nothing there — and must NOT be replaced by us.
+      // Their neighborhood page: DN's inline bundle, none of our code. Unentitled,
+      // so it renders nothing — and must never be replaced with a schools embed.
       const neighborhoodPage = await context.newPage();
       await neighborhoodPage.goto(`${origin}/neighborhoods/downtown`, { waitUntil: "load", timeout: 45000 });
       await neighborhoodPage.waitForTimeout(9000);
       const swapped = await neighborhoodPage.evaluate(() =>
         Boolean(document.querySelector("#dn-explorer iframe[src*='dreamneighborhoodschools'], #dn-explorer iframe[src*='dream-schools']"))
       );
-      const schoolPopupOverEmbed = await neighborhoodPage.evaluate(() => {
-        const root = document.getElementById("dse-root");
-        return !!root && getComputedStyle(root).display !== "none";
-      });
       record(
         "5. the neighborhood embed is never substituted with a schools one",
         !swapped,
         `schools iframe inside #dn-explorer=${swapped}`
       );
-      record(
-        "5. no floating school popup appears over a neighborhood embed",
-        !schoolPopupOverEmbed,
-        `popup=${schoolPopupOverEmbed}`
-      );
       await context.close();
+    }
+
+    // --- 5b. The shared popup on a page that also has a neighborhood embed --
+    {
+      // Unentitled: the embed renders nothing, so the popup SHOULD appear.
+      // There is nothing to cover, and the realtor pasted the one-line popup
+      // precisely so something would always be there. Suppressing it here left
+      // the page blank, which is the bug DN's install-shape fixtures found.
+      const un = await openRealtorPage(browser, { host: FIXTURE.unentitled, path: "/popup-and-embed" });
+      await un.page.waitForTimeout(10000);
+      const unentitled = await un.page.evaluate(() => {
+        const root = document.getElementById("dse-root");
+        return { popup: !!root && getComputedStyle(root).display !== "none" };
+      });
+      record(
+        "5b. popup + an unentitled neighborhood embed does not leave the page blank",
+        unentitled.popup,
+        `schools popup=${unentitled.popup}`
+      );
+      await un.context.close();
+
+      // Entitled: the embed renders, which is the case the rule exists for.
+      // Nothing of ours may appear over it — and DN never hands off, so our
+      // code is not loaded at all.
+      const ent = await openRealtorPage(browser, { host: FIXTURE.entitled, path: "/popup-and-embed" });
+      await ent.page.waitForTimeout(10000);
+      const entitled = await ent.page.evaluate(() => {
+        const root = document.getElementById("dse-root");
+        return {
+          neighborhood: !!document.querySelector("#dn-explorer iframe"),
+          popup: !!root && getComputedStyle(root).display !== "none",
+        };
+      });
+      record(
+        "5b. no floating school popup over a neighborhood embed that renders",
+        entitled.neighborhood && !entitled.popup,
+        `NE embed=${entitled.neighborhood}, schools popup=${entitled.popup}`
+      );
+      await ent.context.close();
     }
 
     // --- 6. A 404 is an answer; a 500 is the absence of one ----------------
