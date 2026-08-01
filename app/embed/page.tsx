@@ -710,8 +710,16 @@ export default function EmbedExplorer() {
   // Don't SSR the home search UI — that HTML flashes inside the iframe before
   // client auto-lookup runs. Until mount (and during auto-boot), show a neutral
   // loader — never the search-bar home screen.
+  //
+  // Before mount this branch IS the prerendered HTML for /embed, and /embed is
+  // built statically, with no query string. Reading window.location here made
+  // the first client render disagree with that HTML whenever an address was
+  // passed — React #418, thrown on every customer page carrying the inline
+  // embed. Both branches below are neutral loaders, so deferring the peek to
+  // after mount costs a frame rather than a flash: the home search UI is still
+  // never server-rendered, which is the thing this block exists to prevent.
   if (!mounted || screen === "boot") {
-    const peek = !mounted ? peekAutoTarget() : { address, hasTarget: autoBoot };
+    const peek = mounted ? { address, hasTarget: autoBoot } : { address: "", hasTarget: false };
     const label = (peek.address || address).trim()
       ? `Looking up schools near ${(peek.address || address).split(",")[0].trim()}…`
       : "Looking up schools…";
