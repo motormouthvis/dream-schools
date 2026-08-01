@@ -126,7 +126,11 @@ function startDnStub() {
 // ---------------------------------------------------------------------------
 
 async function seed(pool) {
-  await pool.query(`DROP TABLE IF EXISTS dn_ingest_state, embed_usage, embed_partners, app_upgrade_requests, app_users`);
+  // CASCADE because the job now ensures the auth tables before reading customer
+  // numbers, and app_sessions / app_verify_tokens carry foreign keys to app_users.
+  await pool.query(
+    `DROP TABLE IF EXISTS dn_ingest_state, embed_usage, embed_partners, app_upgrade_requests, app_users CASCADE`
+  );
   await pool.query(`CREATE TABLE app_users (
     id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, customer_number TEXT)`);
   // acct-ann has a DN account and a number; acct-nonumber is School-Explorer-
