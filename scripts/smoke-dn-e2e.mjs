@@ -39,6 +39,7 @@ const FIXTURE = {
   expiredTrial: "expired-trial.invalid", // trial ran out → hand-off
   entitled: "solo-paying.invalid", // subscribed → Neighborhood Explorer
   disabled: "disabled.invalid", // switched off → nothing at all
+  unknown: "nosuch.invalid", // not a DN customer → 404 → nothing at all
 };
 const ADDRESS = "1500 N 23rd St, Fort Pierce, FL 34950";
 
@@ -276,11 +277,33 @@ async function run() {
       await context.close();
     }
 
-    // --- 6. DN unreachable --------------------------------------------------
+    // --- 6. A 404 is an answer; a 500 is the absence of one ----------------
+    // The distinction that makes the fallback safe. "Nobody has registered this
+    // domain" is a decision, and folding it into the fallback would quietly
+    // overturn it — every unregistered site on the internet would start showing
+    // a School Explorer. Only the absence of an answer falls back.
+    {
+      const { context, page: p } = await openRealtorPage(browser, { host: FIXTURE.unknown });
+      await p.waitForTimeout(8000);
+      const state = await p.evaluate(() => {
+        const root = document.getElementById("dse-root");
+        return {
+          handedOff: !!document.querySelector('script[data-via="dn-explorer"]'),
+          schoolPopup: !!root && getComputedStyle(root).display !== "none",
+        };
+      });
+      record(
+        "6. a 404 is an answer: an unregistered domain still renders nothing",
+        !state.handedOff && !state.schoolPopup,
+        `hand-off=${state.handedOff}, school popup=${state.schoolPopup}`
+      );
+      await context.close();
+    }
+
     // DN's TEST_PLAN requires that an entitlement lookup failing behaves as
-    // though unentitled and shows schools — never a blank page. Under the
-    // shared snippet we cannot honour that: DN's sdk.js is the thing that loads
-    // our embed.js, so if DN cannot answer, our code never runs at all.
+    // though unentitled and shows schools — never a blank page. We could not
+    // honour that from here: DN's sdk.js is what loads our embed.js, so if DN
+    // could not answer, our code never ran. Fixed on the DN side.
     for (const mode of ["error", "timeout"]) {
       const { context, page: p } = await openRealtorPage(browser, {
         host: FIXTURE.unentitled,

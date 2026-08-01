@@ -698,9 +698,20 @@
   // Neighborhood Explorer coexistence is handled separately via the ready signal.
   // The floating School popup must never appear over an inline embed on the same
   // page — whether that's a School embed OR a Neighborhood Explorer embed.
+  //
+  // Except on a hand-off. `data-via="dn-explorer"` means DN evaluated this
+  // customer's entitlement and found them unentitled, so their Neighborhood
+  // Explorer embed will render nothing — DN's inline bundle has no hand-off of
+  // its own, by design. Stepping aside for an empty container would leave the
+  // page with nothing at all, on a page where the realtor pasted the one-line
+  // popup precisely so that something would always be there.
+  function neighborhoodEmbedBlocksPopup() {
+    if (!neighborhoodExplorerInlinePresent()) return false;
+    return !viaDnExplorer();
+  }
   function popupShouldStepAsideForInline() {
-    if (neighborhoodExplorerInlinePresent()) return true; // NE embed on the page
-    return inlinePresent() && !allowPopupWithInline();     // School embed (unless opt-in)
+    if (neighborhoodEmbedBlocksPopup()) return true;   // NE embed that will render
+    return inlinePresent() && !allowPopupWithInline(); // School embed (unless opt-in)
   }
 
   // Cheap hint: is Neighborhood Explorer plausibly on this page? Used ONLY to
@@ -1087,7 +1098,7 @@
         if (popupStarted) return;
         // Never mount the popup over an inline embed on the page — a Neighborhood
         // Explorer embed, or a School embed (unless the page opts into both).
-        if (neighborhoodExplorerInlinePresent()) return;
+        if (neighborhoodEmbedBlocksPopup()) return;
         if (findContainer() && !allowPopupWithInline()) return;
         popupStarted = true;
         initPopup(config);
