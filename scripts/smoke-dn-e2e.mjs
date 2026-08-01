@@ -81,8 +81,11 @@ async function loadChromium() {
  * Open a page on one of DN's fixture customers' websites. Only the fixture's
  * own origin is served locally; DN and Dream Schools are both hit for real.
  *
+ * `breakResolve` simulates DN being unreachable — the entitlement lookup fails
+ * while DN's sdk.js itself still loads, which is what an outage looks like.
+ *
  * @param {object} browser
- * @param {{ host: string, path?: string }} opts
+ * @param {{ host: string, path?: string, breakResolve?: "timeout" | "error" }} opts
  */
 async function openRealtorPage(browser, opts) {
   const origin = `https://${opts.host}`;
@@ -92,6 +95,13 @@ async function openRealtorPage(browser, opts) {
     const kind = path.includes("schools") ? "schools" : path.includes("neighborhood") ? "neighborhood" : "listing";
     return route.fulfill({ status: 200, contentType: "text/html", body: page(kind) });
   });
+  if (opts.breakResolve === "error") {
+    await context.route(`${DN_BASE}/explorer/resolve/**`, (route) =>
+      route.fulfill({ status: 500, contentType: "text/plain", body: "upstream error" })
+    );
+  } else if (opts.breakResolve === "timeout") {
+    await context.route(`${DN_BASE}/explorer/resolve/**`, (route) => route.abort("timedout"));
+  }
   const p = await context.newPage();
   p.on("console", (m) => {
     if (process.env.VERBOSE) console.log("   [page]", m.text());
@@ -262,6 +272,33 @@ async function run() {
         "5. no floating school popup appears over a neighborhood embed",
         !schoolPopupOverEmbed,
         `popup=${schoolPopupOverEmbed}`
+      );
+      await context.close();
+    }
+
+    // --- 6. DN unreachable --------------------------------------------------
+    // DN's TEST_PLAN requires that an entitlement lookup failing behaves as
+    // though unentitled and shows schools — never a blank page. Under the
+    // shared snippet we cannot honour that: DN's sdk.js is the thing that loads
+    // our embed.js, so if DN cannot answer, our code never runs at all.
+    for (const mode of ["error", "timeout"]) {
+      const { context, page: p } = await openRealtorPage(browser, {
+        host: FIXTURE.unentitled,
+        breakResolve: mode,
+      });
+      await p.waitForTimeout(9000);
+      const state = await p.evaluate(() => {
+        const root = document.getElementById("dse-root");
+        return {
+          handedOff: !!document.querySelector('script[data-via="dn-explorer"]'),
+          schoolPopup: !!root && getComputedStyle(root).display !== "none",
+          neighborhood: !!document.querySelector("#dn-explorer iframe, .dn-explorer iframe"),
+        };
+      });
+      record(
+        `6. DN unreachable (${mode}): the free School Explorer still appears`,
+        state.schoolPopup,
+        `hand-off=${state.handedOff}, school popup=${state.schoolPopup}, NE=${state.neighborhood}`
       );
       await context.close();
     }
