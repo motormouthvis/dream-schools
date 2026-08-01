@@ -373,6 +373,25 @@ async function run() {
     );
 
     record("DN never rejected a payload", received.rejected.length === 0, received.rejected.join("; "));
+
+    // --- the push survives customer numbers being unavailable ---------------
+    // This is not hypothetical. `customer_number` is added by the auth
+    // migrations, which this job never triggers — and on staging never could,
+    // because the dashboard is retired and /api/auth/* answers 410. The first
+    // deploy pushed nothing at all and reported only
+    // `column "customer_number" does not exist`. Numbers are an improvement on
+    // the domain match, not a precondition for it.
+    {
+      await pool.query(`ALTER TABLE app_users DROP COLUMN customer_number`);
+      const before = received.usage.length;
+      const res = await call("&force=1");
+      record(
+        "a missing customer_number column degrades to domain matching, it does not stop the push",
+        received.usage.length > before && res.errors.length === 0,
+        `${received.usage.length - before} usage rows still sent, errors: ${JSON.stringify(res.errors)}`
+      );
+      await pool.query(`ALTER TABLE app_users ADD COLUMN customer_number TEXT`);
+    }
   } finally {
     app.child.kill("SIGTERM");
   }

@@ -2,6 +2,7 @@ import { getPool, hasDatabase } from "@/lib/db";
 import { dnOrigin } from "@/lib/appEnv";
 import { normalizeHost } from "@/lib/embedConfig";
 import { formatCustomerNumber } from "@/lib/customerNumber";
+import { ensureAuthTables } from "@/lib/auth";
 
 // ---------------------------------------------------------------------------
 // Push School Explorer usage and upgrade requests to Dream Neighborhood.
@@ -254,13 +255,24 @@ async function multiDomainCustomers(): Promise<string[]> {
  * go, matched on domain, which is what the fallback is for.
  */
 async function customerNumberByPartnerId(): Promise<Map<string, string>> {
-  const { rows } = await getPool().query(
-    `SELECT id, customer_number FROM app_users WHERE customer_number IS NOT NULL`
-  );
   const out = new Map<string, string>();
-  for (const r of rows) {
-    const formatted = formatCustomerNumber(r.customer_number);
-    if (formatted) out.set(r.id, formatted);
+  try {
+    // `customer_number` is added by the auth migrations, and this job runs
+    // without touching an auth path — on staging it never could, because the
+    // dashboard is retired and /api/auth/* answers 410.
+    await ensureAuthTables();
+    const { rows } = await getPool().query(
+      `SELECT id, customer_number FROM app_users WHERE customer_number IS NOT NULL`
+    );
+    for (const r of rows) {
+      const formatted = formatCustomerNumber(r.customer_number);
+      if (formatted) out.set(r.id, formatted);
+    }
+  } catch (err) {
+    // Numbers are an improvement on the domain match, not a precondition for
+    // it. Losing them costs precision; letting this throw would stop the push
+    // altogether and DN's figures would quietly stop moving.
+    console.error("[dn-ingest] customer numbers unavailable, falling back to domain:", err);
   }
   return out;
 }
