@@ -68,6 +68,13 @@ export interface DnIngestSummary {
   unmatchedDomains: number;
   /** How many rows DN refused outright — a row we sent that it could not use. */
   skippedByDn: number;
+  /**
+   * Customers with more than one authorized domain. Their whole view count goes
+   * to one of those domains, because our counters are keyed by customer and
+   * there is nothing to split. Zero today, which is why we report activity by
+   * domain at all — so this must not become non-zero quietly.
+   */
+  multiDomainCustomers: string[];
   alreadyHad: number;
   errors: string[];
 }
@@ -79,6 +86,7 @@ function emptySummary(): DnIngestSummary {
     upgradeRequests: { rows: 0, sent: 0, batches: 0, skippedNoDomain: 0, fromId: 0, toId: 0 },
     unmatchedDomains: 0,
     skippedByDn: 0,
+    multiDomainCustomers: [],
     alreadyHad: 0,
     errors: [],
   };
@@ -223,6 +231,19 @@ async function domainByPartnerId(): Promise<Map<string, string>> {
     if (hosts[0]) out.set(r.partner_id, hosts[0]);
   }
   return out;
+}
+
+/** Customers whose activity cannot be attributed to a single domain. */
+async function multiDomainCustomers(): Promise<string[]> {
+  const { rows } = await getPool().query(
+    `SELECT partner_id, array_agg(DISTINCT h) AS hosts
+       FROM embed_partners, UNNEST(allowed_hosts) AS h
+      WHERE h <> '' AND partner_id NOT LIKE 'host:%'
+      GROUP BY partner_id`
+  );
+  return rows
+    .filter((r: { hosts: string[] }) => new Set(r.hosts.map(normalizeHost).filter(Boolean)).size > 1)
+    .map((r: { partner_id: string }) => r.partner_id);
 }
 
 function resolveDomain(partnerId: string, map: Map<string, string>): string {
@@ -445,6 +466,14 @@ export async function runDnIngest(
 
   // --- usage ---------------------------------------------------------------
   try {
+    summary.multiDomainCustomers = await multiDomainCustomers();
+    if (summary.multiDomainCustomers.length) {
+      // Reporting activity by domain is only sound while this stays empty.
+      console.warn(
+        "[dn-ingest] customers with more than one authorized domain — their views are " +
+          `all attributed to one of them: ${summary.multiDomainCustomers.join(", ")}`
+      );
+    }
     const usage = await buildUsageRows();
     summary.usage.rows = usage.length;
     for (const batch of chunk(usage, MAX_ROWS_PER_REQUEST)) {
