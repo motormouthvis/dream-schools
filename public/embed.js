@@ -188,35 +188,83 @@
     };
   }
 
-  function fetchConfig(apiBase, host, widgetNumber, surface) {
-    var url = apiBase + "/api/embed/config?host=" + encodeURIComponent(host) + "&widget_number=" + encodeURIComponent(widgetNumber);
-    if (surface) url += "&surface=" + encodeURIComponent(surface);
+  // The customer comes from Dream Neighborhood, keyed on this page's hostname.
+  // DN holds customers; we hold school data and keep no copy of who anybody is.
+  //
+  // Three answers, three meanings. A 404 says "not a customer, switched off, or
+  // offboarded" and must render nothing — that is what makes switching a
+  // customer off actually reach this widget. Anything else that isn't an answer
+  // is an outage, and is handled server-side by falling back to DN's own last
+  // good answer rather than by us guessing.
+  function fetchConfig(apiBase, host) {
+    var url = apiBase + "/api/embed/dn-config?host=" + encodeURIComponent(host);
     return fetch(url, { method: "GET", mode: "cors", credentials: "omit" })
-      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (r) {
+        if (r.status === 404) return { unknownHost: true };
+        if (!r.ok) return null;
+        return r.json();
+      })
       .catch(function () { return null; });
+  }
+
+  /**
+   * DN hands off with the customer's settings already on the tag, so there is
+   * nothing left to look up — asking again would only be a second chance to get
+   * a different answer.
+   */
+  function configFromHandOff(anchorEl) {
+    var pres = applyOverrides(presentationFromRemote(null), anchorEl);
+    var fallback = (SCRIPT_EL && SCRIPT_EL.getAttribute("data-fallback-address")) || "";
+    return {
+      widgetNumber: "1",
+      // Only used when the page itself yields no address — a real listing
+      // address on the page must still win.
+      defaultAddress: fallback,
+      presentation: pres,
+    };
   }
 
   function resolveConfig(anchorEl, apiBase) {
     var identity = readIdentity(anchorEl, apiBase);
     var widgetNumber = identity.widgetNumber;
-    // Report which snippet is present so the admin can see popup vs embed
-    // detection separately. Inline (embed) takes priority when both exist.
-    var surface = inlinePresent() ? "embed" : "popup";
-    return fetchConfig(apiBase, location.hostname, widgetNumber, surface).then(function (remote) {
-      if (remote && remote.enabled === false) return { disabledReason: remote.reason || "disabled" };
-      var partnerId = identity.partnerId || (remote && remote.partnerId) || "";
-      if (remote && remote.widgetNumber != null) widgetNumber = String(remote.widgetNumber);
+
+    if (viaDnExplorer()) {
+      var handed = configFromHandOff(anchorEl);
+      return Promise.resolve(buildConfig(handed.presentation, apiBase, handed.widgetNumber, {
+        defaultAddress: handed.defaultAddress,
+      }));
+    }
+
+    return fetchConfig(apiBase, location.hostname).then(function (remote) {
+      // Not a customer. Nothing renders — this is the off switch reaching us.
+      if (!remote || remote.unknownHost) return { disabledReason: "unknown_host" };
+      if (remote.widgetNumber != null) widgetNumber = String(remote.widgetNumber);
       var pres = applyOverrides(presentationFromRemote(remote), anchorEl);
+      return buildConfig(pres, apiBase, widgetNumber, {
+        defaultAddress: remote.defaultAddress || "",
+        defaultLat: typeof remote.defaultLat === "number" ? remote.defaultLat : null,
+        defaultLng: typeof remote.defaultLng === "number" ? remote.defaultLng : null,
+        partnerId: identity.partnerId || remote.partnerId || "",
+      });
+    });
+  }
+
+  function buildConfig(pres, apiBase, widgetNumber, extra) {
+    extra = extra || {};
+    var partnerId = extra.partnerId || "";
+    return (function () {
       return {
         partnerId: partnerId,
         widgetNumber: widgetNumber,
         apiBase: apiBase,
-        defaultAddress: (remote && remote.defaultAddress) || "",
-        providerName: (remote && remote.providerName) || "",
-        businessName: (remote && remote.businessName) || "",
-        customerId: (remote && (remote.customerId || remote.partnerId)) || partnerId,
-        customerPartnerId: (remote && remote.customerPartnerId) || "",
-        upgradePrompt: (remote && remote.upgradePrompt) || null,
+        defaultAddress: extra.defaultAddress || "",
+        defaultLat: extra.defaultLat != null ? extra.defaultLat : null,
+        defaultLng: extra.defaultLng != null ? extra.defaultLng : null,
+        providerName: "",
+        businessName: "",
+        customerId: partnerId,
+        customerPartnerId: "",
+        upgradePrompt: null,
         accentColor: pres.accentColor,
         position: pres.position,
         bottomOffset: pres.bottomOffset,
@@ -231,7 +279,7 @@
         inlineVariant: pres.inlineVariant,
         neighborhoodExplorerGraceMs: pres.neighborhoodExplorerGraceMs,
       };
-    });
+    })();
   }
 
   // -------------------------------------------------------------------------
@@ -526,6 +574,18 @@
   // with server-side URL/title fallback). Returns {address, lat, lon} or null.
   // Pass opts.spa (with opts.prevAddr / opts.prevTitle) after a client-side
   // navigation so we wait for the new route to render before scraping.
+  /**
+   * Where to point when the page yields no address of its own. DN sends
+   * coordinates alongside the address, so this costs no geocode.
+   */
+  function fallbackTarget(config) {
+    return {
+      address: config.defaultAddress,
+      lat: config.defaultLat != null ? config.defaultLat : null,
+      lon: config.defaultLng != null ? config.defaultLng : null,
+    };
+  }
+
   function geocodePage(config, opts) {
     opts = opts || {};
     var scrapedPromise = opts.spa
@@ -543,12 +603,12 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
           if (d && d.success) return { address: d.address || scraped, lat: d.lat, lon: d.lon };
-          if (config.defaultAddress) return { address: config.defaultAddress, lat: null, lon: null };
+          if (config.defaultAddress) return fallbackTarget(config);
           if (scraped) return { address: scraped, lat: null, lon: null };
           return null;
         })
         .catch(function () {
-          if (config.defaultAddress) return { address: config.defaultAddress, lat: null, lon: null };
+          if (config.defaultAddress) return fallbackTarget(config);
           return scraped ? { address: scraped, lat: null, lon: null } : null;
         });
     });
