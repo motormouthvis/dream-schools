@@ -86,7 +86,8 @@ function startOrigin() {
     };
     if (req.method === "OPTIONS") return send(204, "text/plain", "");
     if (url.pathname === "/embed.js") return send(200, "text/javascript", EMBED_JS);
-    if (url.pathname === "/api/embed/config") return send(200, "application/json", CONFIG_JSON);
+    // The customer comes from DN now, relayed through /api/embed/dn-config.
+    if (url.pathname === "/api/embed/dn-config") return send(200, "application/json", CONFIG_JSON);
     if (url.pathname === "/api/embed/scrape") {
       let body = "";
       req.on("data", (c) => (body += c));

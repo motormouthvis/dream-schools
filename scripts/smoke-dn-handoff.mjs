@@ -3,7 +3,7 @@
  * Dream Neighborhood hand-off smoke test (popup only).
  *
  * Self-contained: spins up a local origin that serves the LOCAL public/embed.js
- * plus stubs for /api/embed/config, /api/embed/scrape and /embed, then drives it
+ * plus stubs for /api/embed/dn-config, /api/embed/scrape and /embed, then drives it
  * with headless Chromium. Nothing here talks to a deployed environment, so it
  * can run on a branch before anything is pushed.
  *
@@ -115,7 +115,8 @@ function startOrigin() {
     };
     if (req.method === "OPTIONS") return send(204, "text/plain", "");
     if (url.pathname === "/embed.js") return send(200, "text/javascript", EMBED_JS);
-    if (url.pathname === "/api/embed/config") return send(200, "application/json", CONFIG_JSON);
+    // The customer comes from DN now, relayed through /api/embed/dn-config.
+    if (url.pathname === "/api/embed/dn-config") return send(200, "application/json", CONFIG_JSON);
     if (url.pathname === "/api/embed/scrape") {
       return send(200, "application/json", JSON.stringify({ success: true, address: ADDRESS, lat: 41.24, lon: -80.82 }));
     }
