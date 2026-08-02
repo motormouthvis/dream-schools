@@ -1093,7 +1093,7 @@ export default function EmbedExplorer() {
         <UpgradePrompt
           accent={accent}
           providerName={params?.provider || params?.business || ""}
-          address={data?.geocode?.matchedAddress || address || params?.address || ""}
+          address={params?.address || address || data?.geocode?.matchedAddress || ""}
           onDismiss={() => dismissUpgradeAd("dismiss")}
           onRequest={requestFullAccess}
         />
@@ -1119,8 +1119,21 @@ const PAID_ANSWERS = [
   "Walk & bike score",
   "Parks & groceries",
   "Homeownership rate",
-  "% of neighbours under 18",
+  "% of neighbors under 18",
 ];
+
+/**
+ * Geocoders hand back SHOUTING ADDRESSES. Only touched when the string has no
+ * lowercase at all, so a properly-cased scrape from the page is left alone.
+ */
+function tidyAddress(raw: string): string {
+  const s = (raw || "").trim();
+  if (!s || /[a-z]/.test(s)) return s;
+  return s
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
 
 function UpgradePrompt({
   accent,
@@ -1141,8 +1154,8 @@ function UpgradePrompt({
     : "Request full access";
   // "Schools are just the start" was true but abstract, and the old headline
   // ("before you tour") assumed a listing page — this widget also runs on home
-  // pages and neighbourhood pages, where there is nothing to tour.
-  const shortAddress = (address || "").split(",")[0].trim();
+  // pages and neighborhood pages, where there is nothing to tour.
+  const shortAddress = tidyAddress((address || "").split(",")[0]);
   const remaining = Math.max(0, NEIGHBORHOOD_INSIGHTS.length - PAID_ANSWERS.length);
 
   return (
@@ -1183,7 +1196,7 @@ function UpgradePrompt({
 
             {/* The argument is the gap between the columns, so they sit side by
                 side at every width — stacking them hides the whole point. */}
-            <div className="mt-5 grid grid-cols-2 gap-2.5">
+            <div className="mt-5 grid grid-cols-2 items-start gap-2.5">
               <div className="rounded-2xl border border-slate-200 bg-white/70 p-3">
                 <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
                   What you see now
