@@ -6,7 +6,6 @@ import { NearbySchoolsFull } from "@/components/embed/NearbySchoolsFull";
 import { MinimalistSchools } from "@/components/embed/MinimalistSchools";
 import { SchoolDetailModal } from "@/components/SchoolDetailModal";
 import { SchoolhouseMark } from "@/components/Logo";
-import { InsightsMarquee } from "@/components/InsightsMarquee";
 import { getRecent, addRecent, removeRecent, type RecentSearch } from "@/lib/recent";
 import { TERMS_URL, PRIVACY_URL } from "@/lib/legalLinks";
 import { NEIGHBORHOOD_INSIGHTS } from "@/lib/neighborhoodInsights";
@@ -1094,6 +1093,7 @@ export default function EmbedExplorer() {
         <UpgradePrompt
           accent={accent}
           providerName={params?.provider || params?.business || ""}
+          address={data?.geocode?.matchedAddress || address || params?.address || ""}
           onDismiss={() => dismissUpgradeAd("dismiss")}
           onRequest={requestFullAccess}
         />
@@ -1102,14 +1102,36 @@ export default function EmbedExplorer() {
   );
 }
 
+// What the free School Explorer already answers, by category. Kept honest and
+// short: overstating the free side weakens the comparison, understating it is a
+// claim a realtor reading their own widget would catch.
+const FREE_ANSWERS = ["School ratings", "Test scores", "Safety & discipline"];
+
+// The paid ones worth naming. Chosen for surprise rather than coverage — the
+// predictable three (price, commute, walkability) are what anyone would guess,
+// so each of these earns its place by being something a buyer would not think
+// to ask for. The rest are counted rather than listed.
+const PAID_ANSWERS = [
+  "Median home price",
+  "Days on market",
+  "Home price trend",
+  "Commute times",
+  "Walk & bike score",
+  "Parks & groceries",
+  "Homeownership rate",
+  "% of neighbours under 18",
+];
+
 function UpgradePrompt({
   accent,
   providerName,
+  address,
   onDismiss,
   onRequest,
 }: {
   accent: string;
   providerName: string;
+  address: string;
   onDismiss: () => void;
   onRequest: () => void;
 }) {
@@ -1117,7 +1139,11 @@ function UpgradePrompt({
   const buttonText = providerName
     ? `Ask ${shortProviderName(providerName)} for full access`
     : "Request full access";
-  const count = NEIGHBORHOOD_INSIGHTS.length;
+  // "Schools are just the start" was true but abstract, and the old headline
+  // ("before you tour") assumed a listing page — this widget also runs on home
+  // pages and neighbourhood pages, where there is nothing to tour.
+  const shortAddress = (address || "").split(",")[0].trim();
+  const remaining = Math.max(0, NEIGHBORHOOD_INSIGHTS.length - PAID_ANSWERS.length);
 
   return (
     <div className="fixed inset-0 z-50 flex bg-[#f7faf6]">
@@ -1140,41 +1166,68 @@ function UpgradePrompt({
                 Neighborhood Explorer
               </p>
               <h2 className="mt-2 text-[1.65rem] font-extrabold leading-[1.15] tracking-tight text-ink-900 sm:text-3xl">
-                See the full picture before you tour
+                You&rsquo;re seeing a third of the picture
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                Schools are just the start. Get{" "}
-                <strong className="font-bold text-slate-800">{count} neighborhood insights</strong>{" "}
-                for this area — prices, commute, walkability, lifestyle, and more.
+                {shortAddress ? (
+                  <>
+                    Schools are one part of{" "}
+                    <strong className="font-bold text-slate-800">{shortAddress}</strong>.
+                  </>
+                ) : (
+                  <>Schools are one part of this neighborhood.</>
+                )}{" "}
+                Here&rsquo;s the rest.
               </p>
             </div>
 
-            {/* Contained marquee — not full-bleed */}
-            <div className="mt-5 overflow-hidden rounded-2xl border border-[#d7e4c8] bg-white p-3 shadow-sm sm:p-3.5">
-              <p className="mb-2.5 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-[#49660f]/80">
-                {count} insights included
-              </p>
-              <InsightsMarquee compact fadeEdges />
-            </div>
+            {/* The argument is the gap between the columns, so they sit side by
+                side at every width — stacking them hides the whole point. */}
+            <div className="mt-5 grid grid-cols-2 gap-2.5">
+              <div className="rounded-2xl border border-slate-200 bg-white/70 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
+                  What you see now
+                </p>
+                <ul className="mt-2.5 space-y-2">
+                  {FREE_ANSWERS.map((t) => (
+                    <li key={t} className="flex items-start gap-1.5 text-[12.5px] leading-snug text-slate-500">
+                      <span aria-hidden className="mt-[3px] text-[10px] leading-none text-slate-300">
+                        ✓
+                      </span>
+                      <span>{t}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
 
-            {/* Buyer benefits — not realtor marketing */}
-            <ul className="mt-5 space-y-2.5">
-              {[
-                "Compare home prices and market trends on this block",
-                "Check commute times to work, school, and errands",
-                "Explore walkability, parks, dining, and everyday conveniences",
-              ].map((t) => (
-                <li key={t} className="flex items-start gap-2.5 text-sm leading-snug text-slate-700">
-                  <span
-                    className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+              <div className="rounded-2xl border border-[#d7e4c8] bg-white p-3 shadow-sm">
+                <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#2f6b3a]">
+                  What you&rsquo;re missing
+                </p>
+                <ul className="mt-2.5 space-y-2">
+                  {PAID_ANSWERS.map((t) => (
+                    <li key={t} className="flex items-start gap-1.5 text-[12.5px] font-medium leading-snug text-slate-700">
+                      <span
+                        aria-hidden
+                        className="mt-[3px] text-[10px] leading-none"
+                        style={{ color: accent }}
+                      >
+                        ✓
+                      </span>
+                      <span>{t}</span>
+                    </li>
+                  ))}
+                </ul>
+                {remaining > 0 && (
+                  <p
+                    className="mt-2.5 inline-block rounded-full px-2 py-0.5 text-[10.5px] font-bold text-white"
                     style={{ backgroundColor: accent }}
                   >
-                    ✓
-                  </span>
-                  <span>{t}</span>
-                </li>
-              ))}
-            </ul>
+                    +{remaining} more
+                  </p>
+                )}
+              </div>
+            </div>
 
             <div className="mt-auto space-y-2 pt-6">
               <button
