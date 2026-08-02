@@ -59,14 +59,29 @@ function cityState(matched: string, fallbackState: string): string {
 // parent-only version (used at /parents): the Realtor & Partner sections are
 // hidden and there is no navigation away from the page. The top of the page
 // (hero + search + Parents section) is identical to the main home page.
-export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents" }) {
+export function HomeExplorer({
+  variant = "full",
+  deepLink,
+}: {
+  variant?: "full" | "parents";
+  /**
+   * Read from the URL on the SERVER by the page that renders us, so the very
+   * first paint is the loading state rather than the landing page. Resolving it
+   * on the client instead means the hero and search box are painted for as long
+   * as the lookup takes, which reads as a flash of the wrong screen.
+   */
+  deepLink?: { address?: string; school?: string };
+}) {
   const parentsOnly = variant === "parents";
   const homeHref = parentsOnly ? "/parents" : "/";
 
-  const [address, setAddress] = useState("");
+  const deepLinkAddress = (deepLink?.address || "").trim();
+  const [address, setAddress] = useState(deepLinkAddress);
   const [data, setData] = useState<LookupResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Start already loading on a deep link: the lookup runs on mount and there is
+  // nothing useful to show before it, so the landing page must never appear.
+  const [loading, setLoading] = useState(Boolean(deepLinkAddress));
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggest, setShowSuggest] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
@@ -86,9 +101,14 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
   const [focused, setFocused] = useState(false);
   const [changing, setChanging] = useState(false);
   // Deep link: ?school=<ncesId> auto-opens that school's detail once results load.
-  const [initialSchoolId, setInitialSchoolId] = useState<string | undefined>(undefined);
+  const [initialSchoolId, setInitialSchoolId] = useState<string | undefined>(
+    deepLink?.school || undefined
+  );
   const fairHousing = audience === "limited";
-  const showSearch = !data || changing;
+  // A deep link goes straight to a school, so neither the hero nor the search
+  // box should be painted on the way there.
+  const booting = Boolean(deepLinkAddress) && !data && !error;
+  const showSearch = (!data || changing) && !booting;
 
   useEffect(() => {
     setRecents(getRecent());
@@ -97,6 +117,11 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
       .then((r) => r.json())
       .then((j) => setNationwide(Boolean(j.nationwide)))
       .catch(() => {});
+    if (deepLinkAddress) {
+      runLookup(deepLinkAddress);
+      return;
+    }
+    // Pages that don't resolve the deep link server-side still support one.
     const params = new URLSearchParams(window.location.search);
     const school = params.get("school");
     if (school) setInitialSchoolId(school);
@@ -247,7 +272,7 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
 
       {/* Line 2 - hero. Landing: one image banner with the heading overlaid;
           results: a slim heading to keep the page compact. */}
-      {!data ? (
+      {!data && !booting ? (
         <div className="relative mt-4 overflow-hidden rounded-3xl ring-1 ring-inset ring-brand-600/10">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
