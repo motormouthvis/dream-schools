@@ -282,7 +282,7 @@ export default function EmbedExplorer() {
 
   function canShowUpgrade(): boolean {
     if (upgradeSuppressedRef.current) return false;
-    if (!promptScope || !upgradeKey || !requestKey) return false;
+    if (!params || !promptScope || !upgradeKey || !requestKey) return false;
     if (schoolViews < params.upgradeViews) return false;
     try {
       const dismissed = Number(localStorage.getItem(upgradeKey) || 0);
@@ -334,7 +334,7 @@ export default function EmbedExplorer() {
   }
 
   useEffect(() => {
-    if (!promptScope) return;
+    if (!params || !promptScope) return;
     // Sync in-memory suppress from storage (e.g. prior request/dismiss this browser).
     try {
       const dismissed = Number(localStorage.getItem(upgradeKey) || 0);
