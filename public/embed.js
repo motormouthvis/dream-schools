@@ -618,6 +618,43 @@
   // Iframe URL
   // -------------------------------------------------------------------------
 
+  /**
+   * A homebuyer asking their realtor for the full Neighborhood Explorer.
+   *
+   * The ask belongs to DN and DN identifies the customer from the Origin of
+   * whoever calls it — which is why this runs here, on the realtor's page,
+   * rather than inside the explorer iframe, whose origin is ours. We send no
+   * identifier of any kind; we do not have one and do not want one.
+   *
+   * Fire and forget. The visitor has already been told nothing is pending, and
+   * DN de-duplicates, so a retry we can't see is not worth a spinner.
+   */
+  function wireUpgradeRequests(apiBase) {
+    var expected;
+    try {
+      expected = new URL(apiBase, location.href).origin;
+    } catch (e) {
+      return;
+    }
+    window.addEventListener("message", function (e) {
+      if (e.origin !== expected) return;
+      if (!e.data || e.data.type !== "dse:upgrade-request") return;
+      try {
+        fetch(apiBase + "/api/embed/upgrade-request", {
+          method: "POST",
+          mode: "cors",
+          credentials: "omit",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            address: String(e.data.address || ""),
+            requester_key: String(e.data.requesterKey || ""),
+            source: e.data.source === "inline" ? "inline" : "popup",
+          }),
+        }).catch(function () {});
+      } catch (err) {}
+    });
+  }
+
   function buildIframeUrl(config, coords, mode) {
     var url = config.apiBase + "/embed?mode=" + encodeURIComponent(mode) + "&accent=" + encodeURIComponent(config.accentColor);
     function promptValue(value, fallback) {
@@ -632,16 +669,10 @@
       url += "&h=" + (config.inlineMinHeightExplicit ? config.inlineMinHeight : 640);
     }
     if (config.showExternalLinks) url += "&links=1";
-    if (config.providerName) url += "&provider=" + encodeURIComponent(config.providerName);
-    if (config.businessName) url += "&business=" + encodeURIComponent(config.businessName);
-    if (config.customerId) url += "&customer=" + encodeURIComponent(config.customerId);
-    if (config.customerPartnerId) url += "&partner=" + encodeURIComponent(config.customerPartnerId);
-    if (config.upgradePrompt) {
-      url += "&uv=" + encodeURIComponent(promptValue(config.upgradePrompt.viewsToTrigger, 2));
-      url += "&ud=" + encodeURIComponent(promptValue(config.upgradePrompt.minDaysBetween, 7));
-      url += "&ui=" + encodeURIComponent(promptValue(config.upgradePrompt.idleSeconds, 8));
-      url += "&ur=" + encodeURIComponent(promptValue(config.upgradePrompt.requestSuppressDays, 90));
-    }
+    // The hostname, not an identity: it namespaces the explorer's own
+    // suppression keys so dismissing the upgrade prompt on one realtor's site
+    // doesn't silence it on another's. Who the customer is stays with DN.
+    url += "&site=" + encodeURIComponent(location.hostname);
     if (coords) {
       if (coords.address) url += "&address=" + encodeURIComponent(coords.address);
       if (coords.lat != null && coords.lon != null) url += "&lat=" + encodeURIComponent(coords.lat) + "&lng=" + encodeURIComponent(coords.lon);
@@ -1146,6 +1177,7 @@
       if (config.disabledReason) { console.info("[Dream Schools Explorer] Disabled by server (" + config.disabledReason + ")."); return; }
 
       var popupStarted = false;
+      wireUpgradeRequests(apiBase);
 
       function ensureInline() {
         var el = findContainer();

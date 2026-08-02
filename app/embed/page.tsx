@@ -27,6 +27,8 @@ interface EmbedParams {
   lon: number | null;
   accent: string;
   mode: "popup" | "inline";
+  /** The hostname of the page hosting us. Namespaces the prompt, identifies nobody. */
+  site: string;
   variant: "classic" | "full" | "minimalist";
   fullHeight: number;
   header: boolean;
@@ -125,6 +127,7 @@ function readParams(): EmbedParams {
     links: p.get("links") === "1",
     provider: (p.get("provider") || "").trim(),
     business: (p.get("business") || "").trim(),
+    site: (p.get("site") || "").trim().toLowerCase(),
     customer: (p.get("customer") || "").trim(),
     partner: (p.get("partner") || "").trim(),
     upgradeViews: intParam("uv", 2, 1),
@@ -227,9 +230,14 @@ export default function EmbedExplorer() {
   }
   const headerTitle = `Dream Neighborhood School Explorer${params?.provider ? ` provided by ${params.provider}` : ""}`;
 
-  const upgradeKey = params?.customer ? `dse-upgrade-prompt:${params.customer}` : "";
-  const requestKey = params?.customer ? `dse-upgrade-requested:${params.customer}` : "";
-  const viewCountKey = params?.customer ? `dse-upgrade-view-count:${params.customer}` : "";
+  // Suppression is per site, not per customer: DN identifies the customer from
+  // the caller's Origin and never tells us who they are. The parent hostname is
+  // passed in the iframe URL purely to namespace these keys, so dismissing the
+  // prompt on one realtor's site does not silence it on another's.
+  const promptScope = params?.site || "";
+  const upgradeKey = promptScope ? `dse-upgrade-prompt:${promptScope}` : "";
+  const requestKey = promptScope ? `dse-upgrade-requested:${promptScope}` : "";
+  const viewCountKey = promptScope ? `dse-upgrade-view-count:${promptScope}` : "";
 
   function incrementUpgradeView() {
     if (!viewCountKey) {
@@ -255,13 +263,13 @@ export default function EmbedExplorer() {
   }, [viewCountKey]);
 
   useEffect(() => {
-    if (!data || !params?.customer) return;
+    if (!data || !promptScope) return;
     const key = data.geocode?.matchedAddress || `${data.center?.lat || ""},${data.center?.lon || ""}`;
     if (!key || key === lastCountedResultRef.current) return;
     lastCountedResultRef.current = key;
     incrementUpgradeView();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, params?.customer]);
+  }, [data, promptScope]);
 
   function isWithinSuppressWindow(ts: number, days: number): boolean {
     if (!ts) return false;
@@ -274,7 +282,7 @@ export default function EmbedExplorer() {
 
   function canShowUpgrade(): boolean {
     if (upgradeSuppressedRef.current) return false;
-    if (!params?.customer || !upgradeKey || !requestKey) return false;
+    if (!promptScope || !upgradeKey || !requestKey) return false;
     if (schoolViews < params.upgradeViews) return false;
     try {
       const dismissed = Number(localStorage.getItem(upgradeKey) || 0);
@@ -326,7 +334,7 @@ export default function EmbedExplorer() {
   }
 
   useEffect(() => {
-    if (!params?.customer) return;
+    if (!promptScope) return;
     // Sync in-memory suppress from storage (e.g. prior request/dismiss this browser).
     try {
       const dismissed = Number(localStorage.getItem(upgradeKey) || 0);
@@ -347,7 +355,7 @@ export default function EmbedExplorer() {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params?.customer, schoolViews, upgradeVisible]);
+  }, [promptScope, schoolViews, upgradeVisible]);
 
   useEffect(() => {
     if (schoolViews >= (params?.upgradeViews || 2)) scheduleUpgradePrompt();
@@ -366,34 +374,41 @@ export default function EmbedExplorer() {
   async function requestFullAccess() {
     // Close immediately — never leave a lingering "Request sent" screen.
     dismissUpgradeAd("request");
-    if (!params?.customer) return;
+    // The ask belongs to Dream Neighborhood, and DN identifies the customer
+    // from the Origin of whoever calls it. This iframe's origin is ours, not
+    // the realtor's, so we cannot make that call from here — the SDK running on
+    // their page can, and does. We hand it the ask and hold nothing.
     try {
-      await fetch("/api/upgrade/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerId: params.customer,
-          partnerId: params.partner,
-          providerName: params.provider || params.business,
-          requesterKey: (() => {
-            try {
-              const key = `dse-visitor:${params.customer}`;
-              let v = localStorage.getItem(key);
-              if (!v) {
-                v = Math.random().toString(36).slice(2) + Date.now().toString(36);
-                localStorage.setItem(key, v);
-              }
-              return v;
-            } catch {
-              return "";
-            }
-          })(),
-          address: params.address || address,
-          source: params.mode,
-        }),
-      });
+      window.parent?.postMessage?.(
+        {
+          type: "dse:upgrade-request",
+          address: params?.address || address,
+          requesterKey: visitorKey(),
+          source: params?.mode === "inline" ? "inline" : "popup",
+        },
+        "*"
+      );
     } catch {
-      // Already dismissed + suppressed; ignore network errors for UX.
+      // Already dismissed and suppressed; a failed ask must not undo that.
+    }
+  }
+
+  /**
+   * A stable per-visitor id, so distinct homebuyers are countable and a repeat
+   * ask from the same person is recognisable as one. Scoped to the site rather
+   * than the customer, since we are no longer told who the customer is.
+   */
+  function visitorKey(): string {
+    try {
+      const key = `dse-visitor:${promptScope || "site"}`;
+      let v = localStorage.getItem(key);
+      if (!v) {
+        v = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem(key, v);
+      }
+      return v;
+    } catch {
+      return "";
     }
   }
   // home = empty search; boot = auto-detected address loading; results = schools ready
