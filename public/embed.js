@@ -245,6 +245,9 @@
         defaultLat: typeof remote.defaultLat === "number" ? remote.defaultLat : null,
         defaultLng: typeof remote.defaultLng === "number" ? remote.defaultLng : null,
         partnerId: identity.partnerId || remote.partnerId || "",
+        // The realtor's own name, never their partner's, for the upgrade
+        // prompt's "Ask <them> for full access". Empty when unset.
+        providerName: remote.displayName || "",
       });
     });
   }
@@ -260,7 +263,7 @@
         defaultAddress: extra.defaultAddress || "",
         defaultLat: extra.defaultLat != null ? extra.defaultLat : null,
         defaultLng: extra.defaultLng != null ? extra.defaultLng : null,
-        providerName: "",
+        providerName: extra.providerName || "",
         businessName: "",
         customerId: partnerId,
         customerPartnerId: "",
@@ -669,6 +672,7 @@
       url += "&h=" + (config.inlineMinHeightExplicit ? config.inlineMinHeight : 640);
     }
     if (config.showExternalLinks) url += "&links=1";
+    if (config.providerName) url += "&provider=" + encodeURIComponent(config.providerName);
     // The hostname, not an identity: it namespaces the explorer's own
     // suppression keys so dismissing the upgrade prompt on one realtor's site
     // doesn't silence it on another's. Who the customer is stays with DN.

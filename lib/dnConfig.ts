@@ -72,9 +72,16 @@ async function ensureTable(): Promise<void> {
   return tableReady;
 }
 
-/** Lowercased, port stripped. DN normalises its side; this matches it. */
+/**
+ * Lowercased, port stripped, `www.` removed — matching DN's own normalisation,
+ * so both spellings of a host share one cache entry and one flush. Keying them
+ * separately would mean flushing `example.com` left `www.example.com` serving
+ * the old answer, which defeats the point of being able to force an
+ * offboarding through.
+ */
 export function normalizeDnHost(raw: string): string {
-  return String(raw || "").trim().toLowerCase().split("/")[0].split(":")[0];
+  const h = String(raw || "").trim().toLowerCase().split("/")[0].split(":")[0];
+  return h.startsWith("www.") ? h.slice(4) : h;
 }
 
 interface CacheRow {
