@@ -223,6 +223,42 @@ picks the product per page load from entitlement; **embeds** are two separate
 snippets and the realtor picks by choosing which to paste. DN's inline bundle
 has no hand-off to ours, so our inline embed is untouched by any of this.
 
+### Who owns what
+
+**DN holds customers. We hold school data.** We do not store, read or guess
+anything about a customer. `embed_partners` was a second copy of every customer
+— nineteen columns, none of them synced, none of them editable once the Schools
+admin app started retiring — and it is gone. `lib/dnConfig.ts` asks DN instead,
+keyed on `location.hostname`, and `dn_config_cache` remembers DN's verbatim
+answer in case DN cannot answer next time. That is a cache, not a copy: never
+edited here, no columns of ours beside it, and nothing reads it as truth.
+
+Three answers, three meanings. Conflating any two breaks something real:
+
+| | |
+| --- | --- |
+| `200` | a customer, and this is their configuration → render |
+| `404` | not a customer, switched off, or offboarded → **render nothing** |
+| no answer at all | DN is down → serve DN's last good answer, up to 24h |
+
+A 404 is a decision and is honoured within the minute, so offboarding reaches
+the widget. An outage is the absence of a decision, so it falls back rather than
+taking every customer's site down with DN's. A 404 is **never** served stale.
+
+### THE PRODUCTION CUTOVER HAS AN ORDERING CONSTRAINT — do not lose it
+
+**Export `embed_usage` joined to hostname BEFORE dropping `embed_partners`.**
+Usage rows are keyed on `partner_id`; the hostname for every view we have ever
+recorded comes from `embed_partners.allowed_hosts`. Drop that table first and
+the history is numbers attached to nothing, unrecoverably. Staging's export has
+been sent; production's must happen in the cutover window while both tables
+still exist. DN loads it as their historical baseline.
+
+Then, and only then, drop `embed_partners`, `embed_usage` and the admin-app
+tables. `/api/embed/config` must keep answering for at least 24 hours after a
+new `embed.js` ships, because the bundle is served with
+`stale-while-revalidate=86400` and browsers run day-old copies.
+
 Environments diverge on purpose, gated on `DN_ENVIRONMENT=staging` (see
 `lib/appEnv.ts`, and note that anything else means production):
 
