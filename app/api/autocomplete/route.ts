@@ -120,7 +120,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ suggestions: [], limited: true });
   }
 
-  // DN_ADDRESS_API is off. Census only, by instruction.
+  // No key, so nothing to ask. Census only.
   const viaCensus = await fromCensus(q);
   autocompleteCache.set(cacheKey, viaCensus);
   return NextResponse.json({ suggestions: viaCensus });

@@ -82,10 +82,18 @@ export type DnAddressOutcome<T> =
   | { status: "not_found" }
   | { status: "unavailable"; reason: string };
 
+/**
+ * Whether we are configured to ask DN at all — which is simply whether we hold
+ * a key.
+ *
+ * There is no on/off switch beyond that, deliberately. A manual switch invites
+ * someone to reach for it during an incident and select the degraded path on
+ * purpose, when the degraded path is already what an outage produces
+ * automatically and immediately. If DN needs us to stop calling, revoking the
+ * key does it without either side deploying, which is the mechanism they built.
+ */
 export function dnAddressEnabled(): boolean {
-  return (
-    process.env.DN_ADDRESS_API === "on" && Boolean((process.env.DN_INGEST_API_KEY || "").trim())
-  );
+  return Boolean((process.env.DN_INGEST_API_KEY || "").trim());
 }
 
 function key(): string {

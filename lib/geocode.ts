@@ -86,7 +86,7 @@ async function censusGeocode(address: string): Promise<GeocodeResult | null> {
 }
 
 export async function geocode(address: string): Promise<GeocodeResult | null> {
-  // Dream Neighborhood first, when DN_ADDRESS_API=on. DN interpolates along the
+  // Dream Neighborhood first. DN interpolates along the
   // real street geometry from the Census TIGER file and agrees with the Census
   // Bureau's own geocoder to a median of 8 metres, in a fraction of the time
   // and without the bill or the borrowed public infrastructure.
