@@ -217,7 +217,11 @@ export function HomeExplorer({
       // Reuse stored coordinates for a previously-searched address (they persist
       // in the recents cookie/localStorage) so re-typing the same place skips the
       // geocode round-trip and its external call.
-      let coordsSrc = picked;
+      // A suggestion may carry no coordinates — Dream Neighborhood's do not,
+      // deliberately, because picking one geocodes it in a single fast call.
+      // Passing NaN through as lat/lon would ask the lookup to find nowhere.
+      let coordsSrc =
+        picked && Number.isFinite(picked.lat) && Number.isFinite(picked.lon) ? picked : undefined;
       if (!coordsSrc) {
         const hit = recents.find(
           (r) => r.label.toLowerCase().trim() === q.toLowerCase() && r.lat != null && r.lon != null

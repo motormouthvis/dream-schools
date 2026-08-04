@@ -1,6 +1,7 @@
 import { ZIPCODES, zipInfo } from "@/lib/data";
 import { logBackendEventAsync } from "@/lib/backendLog";
 import { bumpMetric } from "@/lib/metrics";
+import { dnAddressEnabled, dnLookup } from "@/lib/dnAddress";
 import type { GeocodeResult } from "@/lib/types";
 
 // We use the free U.S. Census Geocoder (no API key required) as the primary
@@ -120,6 +121,31 @@ async function photonGeocode(address: string): Promise<GeocodeResult | null> {
 }
 
 export async function geocode(address: string): Promise<GeocodeResult | null> {
+  // Dream Neighborhood first, when DN_ADDRESS_API=on. DN interpolates along the
+  // real street geometry from the Census TIGER file and agrees with the Census
+  // Bureau's own geocoder to a median of 8 metres, in a fraction of the time
+  // and without the bill or the borrowed public infrastructure.
+  //
+  // Only an outage falls through. A not_found is an answer — DN has already
+  // asked its own data, the Census geocoder and Nominatim — so re-asking the
+  // same services here would at best waste the round trip and at worst find a
+  // confident wrong answer in another state.
+  if (dnAddressEnabled()) {
+    const dn = await dnLookup(address);
+    if (dn.status === "ok") {
+      return {
+        matchedAddress: dn.value.formatted_address,
+        lat: dn.value.lat,
+        lon: dn.value.lng,
+        zip: dn.value.zip,
+        source: "census",
+        approximate: false,
+      };
+    }
+    if (dn.status === "not_found") return null;
+    bumpMetric("geocode_dn_fallthrough");
+  }
+
   // Census is best for US street addresses; Photon covers gaps; zip-centroid is
   // the last resort for the offline demo.
   const viaCensus = await censusGeocode(address);

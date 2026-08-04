@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { TtlCache } from "@/lib/lruCache";
 import { logBackendEventAsync } from "@/lib/backendLog";
+import { dnAddressEnabled, dnSuggest } from "@/lib/dnAddress";
 import { bumpMetric } from "@/lib/metrics";
 
 export const dynamic = "force-dynamic";
@@ -297,6 +298,33 @@ export async function GET(request: Request) {
   }
   bumpMetric("autocomplete_calls");
   bumpMetric("autocomplete_cache_misses");
+
+  // Dream Neighborhood first, when DN_ADDRESS_API=on.
+  //
+  // DN answers from the Census TIGER file it holds locally, and falls through
+  // to outside geocoders itself for anything it does not have — which is where
+  // the slow tail comes from, and why the timeout belongs here rather than on
+  // their side. An empty list is an answer: DN has already asked everyone we
+  // would have asked.
+  //
+  // Suggestions carry no coordinates by design. Nothing here needs them —
+  // picking one geocodes it, which is a single fast call.
+  if (dnAddressEnabled()) {
+    const dn = await dnSuggest(q, bias, 8);
+    if (dn.status === "ok") {
+      const suggestions = dn.value.map((s) => ({
+        label: s.description,
+        lat: NaN,
+        lon: NaN,
+        zip: (s.secondary_text.match(/\b(\d{5})\b/) || [])[1] || "",
+      }));
+      autocompleteCache.set(cacheKey, suggestions);
+      bumpMetric("autocomplete_from_dn");
+      return NextResponse.json({ suggestions });
+    }
+    // Only an outage falls through to the old chain.
+    bumpMetric("autocomplete_dn_fallthrough");
+  }
 
   const premiumConfigured = Boolean(process.env.GEOAPIFY_API_KEY || process.env.MAPBOX_TOKEN);
 
