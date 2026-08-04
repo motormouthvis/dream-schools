@@ -86,6 +86,7 @@ export function HomeExplorer({
   const [loading, setLoading] = useState(Boolean(deepLinkAddress));
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggest, setShowSuggest] = useState(false);
+  const [searchLimited, setSearchLimited] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressRef = useRef(false);
@@ -184,6 +185,9 @@ export function HomeExplorer({
         });
         const json = await res.json();
         setSuggestions(json.suggestions ?? []);
+        // The address service is down and the Census geocoder cannot do
+        // typeahead, so say so rather than let the dropdown quietly vanish.
+        setSearchLimited(Boolean(json.limited));
         setShowSuggest(true);
         setActiveIdx(-1);
       } catch {
@@ -466,6 +470,12 @@ export function HomeExplorer({
                 </li>
               ))}
             </ul>
+          )}
+          {searchLimited && suggestions.length === 0 && (
+            <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] leading-snug text-amber-800 shadow-sm">
+              Address suggestions are temporarily unavailable. Type a full street
+              address, including the city and state, and it will still work.
+            </div>
           )}
           {showSuggest && suggestions.length > 0 && (
             <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">

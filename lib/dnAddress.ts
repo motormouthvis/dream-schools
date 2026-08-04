@@ -49,7 +49,12 @@ const LOOKUP_TIMEOUT_MS = Math.max(1_000, Number(process.env.DN_ADDRESS_LOOKUP_T
 
 // Addresses do not move, so caching by query text makes DN's maintenance
 // invisible to our users and spares them the traffic.
-const suggestCache = new TtlCache<DnSuggestion[]>(2_000, 30 * 60_000);
+//
+// Both endpoints are cached, and the suggest one matters more than it looks:
+// the Census geocoder cannot do typeahead at all, so without this a DN outage
+// leaves the dropdown dead rather than degraded. A day is chosen to outlast any
+// outage worth the name.
+const suggestCache = new TtlCache<DnSuggestion[]>(5_000, 24 * 3600_000);
 const lookupCache = new TtlCache<DnAddress>(2_000, 24 * 3600_000);
 
 export interface DnSuggestion {
