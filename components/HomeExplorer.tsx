@@ -22,6 +22,8 @@ interface Suggestion {
   lat: number;
   lon: number;
   zip: string;
+  /** What to look up, when it differs from what we show. */
+  value?: string;
 }
 
 const US_STATE_NAMES = new Set([
@@ -199,7 +201,10 @@ export function HomeExplorer({
     setShowSuggest(false);
     setFocused(false);
     setSuggestions([]);
-    runLookup(s.label, s);
+    // Look up exactly what the provider gave us, which is not always what
+    // we showed: a reconstructed address is matched afresh and can land in
+    // another state.
+    runLookup(s.value || s.label, s);
   }
 
   function pickRecent(r: RecentSearch) {

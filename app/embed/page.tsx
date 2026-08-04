@@ -48,6 +48,8 @@ interface Suggestion {
   lat: number;
   lon: number;
   zip: string;
+  /** What to look up, when it differs from what we show. */
+  value?: string;
 }
 
 /** Sync peek of ?address / ?lat so we can skip the home search flash on auto-load. */
@@ -595,7 +597,10 @@ export default function EmbedExplorer() {
     setShowSuggest(false);
     setFocused(false);
     setSuggestions([]);
-    runLookup(s.label, s);
+    // Look up exactly what the provider gave us, which is not always what
+    // we showed: a reconstructed address is matched afresh and can land in
+    // another state.
+    runLookup(s.value || s.label, s);
   }
 
   function pickRecent(r: RecentSearch) {

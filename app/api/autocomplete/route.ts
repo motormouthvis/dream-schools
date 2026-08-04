@@ -36,6 +36,14 @@ interface Suggestion {
   lat: number;
   lon: number;
   zip: string;
+  /**
+   * What to send back when this suggestion is picked, when that differs from
+   * what we show. DN asks for its `description` verbatim, and it matters: a
+   * reconstructed string is matched afresh, and DN's street matcher ignores the
+   * state when there is no ZIP — "200 E Colfax Ave, Denver, CO" resolves to
+   * South Bend, Indiana.
+   */
+  value?: string;
 }
 
 // Optional premium autocomplete. Free OSM/Photon can't reliably find a US street
@@ -313,10 +321,12 @@ export async function GET(request: Request) {
     const dn = await dnSuggest(q, bias, 8);
     if (dn.status === "ok") {
       const suggestions = dn.value.map((s) => ({
-        label: s.description,
+        // Show the tidy two-line form; send back exactly what DN gave us.
+        label: [s.main_text, s.secondary_text].filter(Boolean).join(", ") || s.description,
         lat: NaN,
         lon: NaN,
         zip: (s.secondary_text.match(/\b(\d{5})\b/) || [])[1] || "",
+        value: s.description,
       }));
       autocompleteCache.set(cacheKey, suggestions);
       bumpMetric("autocomplete_from_dn");
