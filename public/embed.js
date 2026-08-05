@@ -245,9 +245,13 @@
         defaultLat: typeof remote.defaultLat === "number" ? remote.defaultLat : null,
         defaultLng: typeof remote.defaultLng === "number" ? remote.defaultLng : null,
         partnerId: identity.partnerId || remote.partnerId || "",
-        // The realtor's own name, never their partner's, for the upgrade
-        // prompt's "Ask <them> for full access". Empty when unset.
-        providerName: remote.displayName || "",
+        // The white-label name is what a visitor should see: for a realtor under
+        // a partner it is the partner's brand, which is the whole point of white
+        // labelling. displayName is the realtor's own name and companyName is
+        // for DN's dashboard, so neither belongs in front of a homebuyer.
+        providerName: remote.whiteLabelName || remote.displayName || "",
+        // When the upgrade prompt may appear, decided per customer in DN.
+        upgradePrompt: remote.upgradePrompt || null,
       });
     });
   }
@@ -267,7 +271,7 @@
         businessName: "",
         customerId: partnerId,
         customerPartnerId: "",
-        upgradePrompt: null,
+        upgradePrompt: extra.upgradePrompt || null,
         accentColor: pres.accentColor,
         position: pres.position,
         bottomOffset: pres.bottomOffset,
@@ -673,6 +677,12 @@
     }
     if (config.showExternalLinks) url += "&links=1";
     if (config.providerName) url += "&provider=" + encodeURIComponent(config.providerName);
+    if (config.upgradePrompt) {
+      var up = config.upgradePrompt;
+      if (isFinite(up.minViews)) url += "&uv=" + encodeURIComponent(up.minViews);
+      if (isFinite(up.minDays)) url += "&ud=" + encodeURIComponent(up.minDays);
+      if (isFinite(up.minSeconds)) url += "&ui=" + encodeURIComponent(up.minSeconds);
+    }
     // The hostname, not an identity: it namespaces the explorer's own
     // suppression keys so dismissing the upgrade prompt on one realtor's site
     // doesn't silence it on another's. Who the customer is stays with DN.
