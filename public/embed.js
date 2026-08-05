@@ -636,7 +636,10 @@
    * Fire and forget. The visitor has already been told nothing is pending, and
    * DN de-duplicates, so a retry we can't see is not worth a spinner.
    */
-  function wireUpgradeRequests(apiBase) {
+  var wiredConfig = null;
+  function wireUpgradeRequests(config) {
+    wiredConfig = config;
+    var apiBase = config.apiBase;
     var expected;
     try {
       expected = new URL(apiBase, location.href).origin;
@@ -645,6 +648,10 @@
     }
     window.addEventListener("message", function (e) {
       if (e.origin !== expected) return;
+      if (e.data && e.data.type === "dse:open-school") {
+        openSchoolOverlay(wiredConfig, e.data.ncesId, e.data.address);
+        return;
+      }
       if (!e.data || e.data.type !== "dse:upgrade-request") return;
       try {
         fetch(apiBase + "/api/embed/upgrade-request", {
@@ -660,6 +667,61 @@
         }).catch(function () {});
       } catch (err) {}
     });
+  }
+
+  /**
+   * Open one school over the realtor's page.
+   *
+   * The minimalist embed is deliberately short — a few rows — so rendering a
+   * school's detail inside it would shove the page's own content down by most
+   * of a screen. It asks for this instead, and the visitor never leaves.
+   *
+   * Built alongside the floating popup rather than inside it, on purpose. The
+   * popup carries a bubble, a tooltip, a grace period and a coexistence
+   * handshake, none of which apply to something a visitor deliberately opened.
+   * Reusing only its stylesheet keeps this from being able to break it.
+   */
+  var schoolOverlay = null;
+  function openSchoolOverlay(config, ncesId, address) {
+    if (!config || !config.apiBase || !ncesId) return;
+    if (!document.querySelector("style[data-dse-overlay]")) {
+      var style = document.createElement("style");
+      style.setAttribute("data-dse-overlay", "");
+      style.textContent = CSS;
+      document.head.appendChild(style);
+    }
+    if (!schoolOverlay) {
+      var root = document.createElement("div");
+      root.id = "dse-school-overlay";
+      root.style.setProperty("--dse-accent", config.accentColor);
+      var title = "Dream Neighborhood School Explorer" + (config.providerName ? " provided by " + config.providerName : "");
+      root.innerHTML =
+        '<div class="dse-backdrop" style="display:none"><div class="dse-panel">' +
+        '<div class="dse-header"><div class="dse-hl"><div class="dse-hicon">' + ICON_PIN + '</div>' +
+        '<div class="dse-tw"><span class="dse-title" title="' + escHtml(title) + '">' + escHtml(title) + "</span></div></div>" +
+        '<button class="dse-close" aria-label="Close">' + ICON_CLOSE + "</button></div>" +
+        '<iframe class="dse-iframe" allow="geolocation" allowfullscreen></iframe></div></div>';
+      document.body.appendChild(root);
+      var backdrop = root.querySelector(".dse-backdrop");
+      function close() {
+        backdrop.classList.remove("dse-open");
+        backdrop.style.display = "none";
+        var f = root.querySelector("iframe.dse-iframe");
+        if (f) f.removeAttribute("src");
+      }
+      root.querySelector(".dse-close").addEventListener("click", close);
+      backdrop.addEventListener("click", function (e) { if (e.target === backdrop) close(); });
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && backdrop.classList.contains("dse-open")) close();
+      });
+      schoolOverlay = { root: root, backdrop: backdrop, close: close };
+    }
+    var iframe = schoolOverlay.root.querySelector("iframe.dse-iframe");
+    var url = buildIframeUrl(config, address ? { address: address } : null, "popup") + "&school=" + encodeURIComponent(ncesId);
+    iframe.setAttribute("src", url);
+    schoolOverlay.backdrop.style.display = "";
+    void schoolOverlay.backdrop.offsetHeight;
+    schoolOverlay.backdrop.classList.add("dse-open");
   }
 
   function buildIframeUrl(config, coords, mode) {
@@ -1191,7 +1253,7 @@
       if (config.disabledReason) { console.info("[Dream Schools Explorer] Disabled by server (" + config.disabledReason + ")."); return; }
 
       var popupStarted = false;
-      wireUpgradeRequests(apiBase);
+      wireUpgradeRequests(config);
 
       function ensureInline() {
         var el = findContainer();

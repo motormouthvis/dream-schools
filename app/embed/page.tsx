@@ -29,7 +29,9 @@ interface EmbedParams {
   mode: "popup" | "inline";
   /** The hostname of the page hosting us. Namespaces the prompt, identifies nobody. */
   site: string;
-  variant: "classic" | "full" | "minimalist";
+  /** Open straight onto this school's detail. Used when the SDK opens us over a page. */
+  school: string;
+  variant: "full" | "minimalist";
   fullHeight: number;
   header: boolean;
   links: boolean;
@@ -80,17 +82,22 @@ function peekIsMinimal(): boolean {
 
 function peekNative(): boolean {
   const c = readAppearanceCookie();
-  const v = c ?? (peekIsFull() ? "full" : peekIsMinimal() ? "minimalist" : "classic");
+  const v = c ?? (peekIsMinimal() ? "minimalist" : "full");
   return v === "full" || v === "minimalist";
 }
 
 // Temporary appearance switcher (footer): remembers the chosen inline variant in
 // a cookie so it can be compared across the three designs.
 const APPEARANCE_COOKIE = "dse_embed_appearance";
-type Variant = "classic" | "full" | "minimalist";
-const VARIANTS: Variant[] = ["classic", "full", "minimalist"];
+type Variant = "full" | "minimalist";
+const VARIANTS: Variant[] = ["full", "minimalist"];
+// One way back, worded the same everywhere. The detail component renders it as
+// "← <label>": the arrow carries the meaning, the words say where it goes.
+// Previously this said "Nearby Schools" in one place, "Back to list" or "Back to
+// map" in another, and nothing at all in a third.
+const BACK_LABEL = "Nearby schools";
+
 const VARIANT_LABEL: Record<Variant, string> = {
-  classic: "Compact",
   full: "Showcase",
   minimalist: "Minimalist",
 };
@@ -98,7 +105,8 @@ function readAppearanceCookie(): Variant | null {
   if (typeof document === "undefined") return null;
   const m = document.cookie.match(new RegExp("(?:^|; )" + APPEARANCE_COOKIE + "=([^;]*)"));
   const v = m ? decodeURIComponent(m[1]) : "";
-  return v === "classic" || v === "full" || v === "minimalist" ? v : null;
+  // "classic" was Compact, retired: Showcase does everything it did.
+  return v === "minimalist" ? "minimalist" : v === "full" || v === "classic" ? "full" : null;
 }
 function writeAppearanceCookie(v: Variant): void {
   if (typeof document === "undefined") return;
@@ -123,13 +131,14 @@ function readParams(): EmbedParams {
     accent: p.get("accent") || "#1fa55f",
     mode: p.get("mode") === "inline" ? "inline" : "popup",
     variant:
-      p.get("variant") === "full" ? "full" : p.get("variant") === "minimalist" ? "minimalist" : "classic",
+      p.get("variant") === "minimalist" ? "minimalist" : "full",
     fullHeight: Math.max(360, Math.min(1200, intParam("h", 640, 360))),
     header: p.get("header") === "1",
     links: p.get("links") === "1",
     provider: (p.get("provider") || "").trim(),
     business: (p.get("business") || "").trim(),
     site: (p.get("site") || "").trim().toLowerCase(),
+    school: (p.get("school") || "").trim(),
     customer: (p.get("customer") || "").trim(),
     partner: (p.get("partner") || "").trim(),
     upgradeViews: intParam("uv", 2, 1),
@@ -219,9 +228,11 @@ export default function EmbedExplorer() {
   useEffect(() => {
     setAppearance(readAppearanceCookie());
   }, []);
-  const effVariant: Variant = appearance ?? params?.variant ?? "classic";
-  const isFull = effVariant === "full";
-  const isMinimal = effVariant === "minimalist";
+  const effVariant: Variant = appearance ?? params?.variant ?? "full";
+  // Variants are an inline-embed choice. The floating popup has its own layout
+  // and always has — retiring Compact must not silently redesign it.
+  const isFull = isInline && effVariant === "full";
+  const isMinimal = isInline && effVariant === "minimalist";
   // Flat, native, page-flow variants (no accent header, no Home button).
   const isNative = isFull || isMinimal;
   function cycleAppearance() {
@@ -255,6 +266,16 @@ export default function EmbedExplorer() {
       setSchoolViews((n) => n + 1);
     }
   }
+
+  // Opened straight onto a school — the SDK does this when a minimalist embed
+  // asks for one over the page. Applied after mount rather than during render,
+  // because this page is prerendered and the query string is not in that HTML.
+  const appliedSchoolRef = useRef(false);
+  useEffect(() => {
+    if (!params?.school || appliedSchoolRef.current) return;
+    appliedSchoolRef.current = true;
+    setSelected(params.school);
+  }, [params?.school]);
 
   useEffect(() => {
     if (!viewCountKey) return;
@@ -1010,7 +1031,7 @@ export default function EmbedExplorer() {
                     variant="inline"
                     embed
                     showExternalLinks
-                    backLabel="Nearby Schools"
+                    backLabel={BACK_LABEL}
                     onClose={() => setSelected(null)}
                   />
                 </div>
@@ -1035,7 +1056,25 @@ export default function EmbedExplorer() {
               {!loading && error && (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>
               )}
-              {!loading && !error && <MinimalistSchools data={data} />}
+              {!loading && !error && (
+                <MinimalistSchools
+                  data={data}
+                  siteBase={typeof window === "undefined" ? "" : window.location.origin}
+                  onOpenSchool={(id) => {
+                    incrementUpgradeView();
+                    // Ask the SDK on the realtor's page to open this school over
+                    // the page. The box stays small; the visitor stays put.
+                    try {
+                      window.parent?.postMessage?.(
+                        { type: "dse:open-school", ncesId: id, address: data.geocode?.matchedAddress || address },
+                        "*"
+                      );
+                    } catch {
+                      /* no parent to ask; nothing to do */
+                    }
+                  }}
+                />
+              )}
             </div>
           ) : (
             <div
@@ -1060,7 +1099,7 @@ export default function EmbedExplorer() {
                   variant="inline"
                   embed
                   showExternalLinks={!!params?.links}
-                  backLabel={view === "map" ? "Back to map" : "Back to list"}
+                  backLabel={BACK_LABEL}
                   onClose={() => setSelected(null)}
                 />
               )}
