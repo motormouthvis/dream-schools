@@ -687,7 +687,9 @@
     if (!document.querySelector("style[data-dse-overlay]")) {
       var style = document.createElement("style");
       style.setAttribute("data-dse-overlay", "");
-      style.textContent = CSS;
+      // The popup's stylesheet is scoped to #dse-root. Re-scope the same rules
+      // rather than copy them, so the two cannot drift apart.
+      style.textContent = CSS.replace(/#dse-root/g, "#dse-school-overlay");
       document.head.appendChild(style);
     }
     if (!schoolOverlay) {
@@ -717,6 +719,9 @@
       schoolOverlay = { root: root, backdrop: backdrop, close: close };
     }
     var iframe = schoolOverlay.root.querySelector("iframe.dse-iframe");
+    // A school's detail is taller than the popup's default height, and there is
+    // no list to come back to here, so use the panel's full height.
+    iframe.style.height = Math.min(680, Math.round(window.innerHeight * 0.95)) - 52 + "px";
     var url = buildIframeUrl(config, address ? { address: address } : null, "popup") + "&school=" + encodeURIComponent(ncesId);
     iframe.setAttribute("src", url);
     schoolOverlay.backdrop.style.display = "";
