@@ -480,13 +480,37 @@
     });
   }
 
+  // Client-rendered listing platforms (iHomeFinder Kestrel, for one) publish the
+  // address about a second AFTER DOMContentLoaded and window.load: at boot there
+  // is no <title>, no JSON-LD and no meta tags to read, and the listing markup
+  // lives in a shadow root the DOM fallbacks cannot reach. Keep looking for a
+  // few seconds so the address is used once it lands. Only started when the page
+  // gave us nothing, so pages that already resolve behave exactly as before.
+  var LATE_ADDRESS_WINDOW_MS = 6000;
+  var LATE_ADDRESS_STEP_MS = 250;
+  function watchForLateAddress(config, isCurrent, onFound) {
+    var deadline = Date.now() + LATE_ADDRESS_WINDOW_MS;
+    (function tick() {
+      if (!isCurrent()) return;
+      var scraped = currentScrape(config);
+      if (scraped) { onFound(scraped); return; }
+      if (Date.now() >= deadline) return;
+      setTimeout(tick, LATE_ADDRESS_STEP_MS);
+    })();
+  }
+
   // Resolve the page to coordinates via the backend (validates + geocodes,
-  // with server-side URL/title fallback). Returns {address, lat, lon} or null.
+  // with server-side URL/title fallback). Returns {address, lat, lon} or null;
+  // `fallback: true` marks a result that came from the partner's configured
+  // default rather than the page itself.
   // Pass opts.spa (with opts.prevAddr / opts.prevTitle) after a client-side
-  // navigation so we wait for the new route to render before scraping.
+  // navigation so we wait for the new route to render before scraping, or
+  // opts.scraped to geocode an address the caller already scraped.
   function geocodePage(config, opts) {
     opts = opts || {};
-    var scrapedPromise = opts.spa
+    var scrapedPromise = opts.scraped != null
+      ? Promise.resolve(opts.scraped)
+      : opts.spa
       ? waitForRouteSettle(config, opts.prevAddr || "", opts.prevTitle || "")
       : Promise.resolve(currentScrape(config));
     return scrapedPromise.then(function (scraped) {
@@ -501,12 +525,12 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
           if (d && d.success) return { address: d.address || scraped, lat: d.lat, lon: d.lon };
-          if (config.defaultAddress) return { address: config.defaultAddress, lat: null, lon: null };
+          if (config.defaultAddress) return { address: config.defaultAddress, lat: null, lon: null, fallback: true };
           if (scraped) return { address: scraped, lat: null, lon: null };
           return null;
         })
         .catch(function () {
-          if (config.defaultAddress) return { address: config.defaultAddress, lat: null, lon: null };
+          if (config.defaultAddress) return { address: config.defaultAddress, lat: null, lon: null, fallback: true };
           return scraped ? { address: scraped, lat: null, lon: null } : null;
         });
     });
@@ -707,7 +731,7 @@
     if (!config.apiBase) return;
     var isOpen = false, started = false, loaded = false, tooltipDismissed = false;
     var coords = null, coordsPromise = null, lastUrl = location.href, savedY = 0;
-    var lastUsedAddr = "";
+    var lastUsedAddr = "", refreshSeq = 0;
     var root, bubble, backdrop, iframe, loadingEl, tooltip, hideTimer = null;
 
     // Coexistence with Neighborhood Explorer (popup only — inline School Explorer
@@ -852,8 +876,28 @@
       setTimeout(showTooltip, initial ? 800 : 0);
     }
 
+    // The page may not have rendered its address yet when we first look. Adopt a
+    // late-arriving one so a visitor who opens the popup a moment later still
+    // lands on the listing's schools instead of the manual search screen.
+    function watchLateAddress(seq) {
+      watchForLateAddress(
+        config,
+        function () { return seq === refreshSeq && !started; },
+        function (scraped) {
+          geocodePage(config, { scraped: scraped }).then(function (c) {
+            if (seq !== refreshSeq || started || !c || c.fallback) return;
+            coords = c;
+            lastUsedAddr = c.address || lastUsedAddr;
+            if (tooltip.classList.contains("dse-tv")) showTooltip();
+            else if (config.requireAddress) tryRevealPopup(false);
+          });
+        }
+      );
+    }
+
     function refresh(initial) {
       coords = null; started = false; loaded = false; geoDone = false;
+      var seq = ++refreshSeq;
       iframe.removeAttribute("src"); iframe.classList.add("dse-hidden"); loadingEl.classList.add("dse-hidden");
       // Catch up if NE signaled while we were mid-refresh (SPA or late load).
       if (window[NE_READY_FLAG]) onNeighborhoodExplorerReady();
@@ -866,6 +910,7 @@
         lastUsedAddr = (c && c.address) || lastUsedAddr;
         geoDone = true;
         tryRevealPopup(initial);
+        if (!c || c.fallback) watchLateAddress(seq);
       });
     }
 
@@ -933,7 +978,7 @@
     }
     var lastUrl = location.href;
     var currentIframe = null;
-    var lastUsedAddr = "";
+    var lastUsedAddr = "", mountSeq = 0;
     var frameless = boolAttr(container, "data-frameless") === true;
 
     // The iframe reports its content height so we can size it to fit (short for
@@ -949,6 +994,7 @@
     });
 
     function mount(spa) {
+      var seq = ++mountSeq;
       container.innerHTML = "";
       var iframe = document.createElement("iframe");
       currentIframe = iframe;
@@ -989,6 +1035,20 @@
       geocodePage(config, geoOpts).then(function (coords) {
         lastUsedAddr = (coords && coords.address) || lastUsedAddr;
         iframe.src = buildIframeUrl(config, coords, "inline");
+        // Page had no address yet — reload this frame once if one shows up.
+        if (!coords || coords.fallback) {
+          watchForLateAddress(
+            config,
+            function () { return seq === mountSeq && currentIframe === iframe; },
+            function (scraped) {
+              geocodePage(config, { scraped: scraped }).then(function (c) {
+                if (seq !== mountSeq || currentIframe !== iframe || !c || c.fallback) return;
+                lastUsedAddr = c.address || lastUsedAddr;
+                iframe.src = buildIframeUrl(config, c, "inline");
+              });
+            }
+          );
+        }
       });
     }
 
