@@ -65,6 +65,18 @@ async function inspect(page) {
   return { mounted: false, accent: "", address: "" };
 }
 
+/**
+ * What DN says right now. These are live fixtures DN edits, so asserting a
+ * colour we baked in only tests that nobody has touched it since — which is not
+ * the claim. The claim is that we render whatever DN currently says.
+ */
+const DN_BASE = process.env.DN_BASE || "https://staging.dreamneighborhood.com";
+
+async function dnSaysFor(host) {
+  const res = await fetch(`${DN_BASE}/explorer/resolve/?host=${host}&widget_number=1`);
+  return res.ok ? res.json() : {};
+}
+
 async function run() {
   const browser = await loadChromium();
   try {
@@ -78,10 +90,11 @@ async function run() {
       });
       const s = await inspect(page);
       record("alpha: a customer DN knows renders the School Explorer", s.mounted, `mounted=${s.mounted}`);
+      const dnAlpha = await dnSaysFor("dn-qa-alpha-8eb7204ac5a4.herokuapp.com");
       record(
         "alpha: it uses DN's accent colour, not ours",
-        s.accent.toLowerCase() === "#000000",
-        `accent=${s.accent || "(none)"} — DN says #000000`
+        s.accent.toLowerCase() === String(dnAlpha.accentColor || "").toLowerCase(),
+        `accent=${s.accent || "(none)"} — DN says ${dnAlpha.accentColor}`
       );
       await ctx.close();
     }
@@ -122,10 +135,11 @@ async function run() {
         s.mounted && !warren,
         `address=${s.address || "(scraped from page)"}${warren ? " — STILL WARREN, OH" : ""}${florida ? " — Green Cove Springs" : ""}`
       );
+      const dnWdmtaj = await dnSaysFor("wdmtaj-realty.netlify.app");
       record(
         "wdmtaj: uses DN's accent colour",
-        s.accent.toLowerCase() === "#222222",
-        `accent=${s.accent || "(none)"} — DN says #222222`
+        s.accent.toLowerCase() === String(dnWdmtaj.accentColor || "").toLowerCase(),
+        `accent=${s.accent || "(none)"} — DN says ${dnWdmtaj.accentColor}`
       );
       await ctx.close();
     }
