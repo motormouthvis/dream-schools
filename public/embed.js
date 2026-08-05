@@ -121,7 +121,7 @@
     inlineMinHeight: 540,
     inlineMinHeightExplicit: false,
     inlineShowHeader: false,
-    inlineVariant: "classic", // "classic" (existing) | "full" (new Nearby Schools design)
+    inlineVariant: "full", // "full" (Showcase) | "minimalist". "classic" (Compact) is retired.
     neighborhoodExplorerGraceMs: 4000,
   };
 
@@ -144,8 +144,7 @@
       inlineMinHeight: typeof inline.minHeight === "number" ? Math.max(200, inline.minHeight | 0) : DEFAULTS.inlineMinHeight,
       inlineMinHeightExplicit: false,
       inlineShowHeader: typeof inline.showHeader === "boolean" ? inline.showHeader : DEFAULTS.inlineShowHeader,
-      inlineVariant:
-        inline.variant === "full" ? "full" : inline.variant === "minimalist" ? "minimalist" : DEFAULTS.inlineVariant,
+      inlineVariant: inline.variant === "minimalist" ? "minimalist" : DEFAULTS.inlineVariant,
       neighborhoodExplorerGraceMs: Math.max(2000, Math.min(15000, grace | 0) || DEFAULTS.neighborhoodExplorerGraceMs),
     };
   }
@@ -175,7 +174,8 @@
     if (sh !== null) next.inlineShowHeader = sh;
     if (el.hasAttribute("data-variant")) {
       var v = (el.getAttribute("data-variant") || "").trim().toLowerCase();
-      next.inlineVariant = v === "full" ? "full" : v === "minimalist" ? "minimalist" : "classic";
+      // "classic" was Compact, retired — Showcase does everything it did.
+      next.inlineVariant = v === "minimalist" ? "minimalist" : "full";
     }
     return next;
   }
@@ -735,9 +735,7 @@
       return typeof value === "number" && isFinite(value) ? value : fallback;
     }
     if (mode === "inline" && config.inlineShowHeader) url += "&header=1";
-    if (mode === "inline" && (config.inlineVariant === "full" || config.inlineVariant === "minimalist")) {
-      url += "&variant=" + config.inlineVariant;
-    }
+    if (mode === "inline") url += "&variant=" + config.inlineVariant;
     // The "full" design is a fixed-height window; pass its height (data-min-height, default 640).
     if (mode === "inline") {
       url += "&h=" + (config.inlineMinHeightExplicit ? config.inlineMinHeight : 640);
