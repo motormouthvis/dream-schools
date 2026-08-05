@@ -109,8 +109,11 @@ export function HomeExplorer({
   );
   const fairHousing = audience === "limited";
   // A deep link goes straight to a school, so neither the hero nor the search
-  // box should be painted on the way there.
-  const booting = Boolean(deepLinkAddress) && !data && !error;
+  // box should be painted on the way there. A link carrying only ?school counts
+  // too: the school's own coordinates are enough to place it, so there is no
+  // reason to show somebody a search box for a school they already picked.
+  const deepLinkSchool = (deepLink?.school || "").trim();
+  const booting = Boolean(deepLinkAddress || deepLinkSchool) && !data && !error;
   const showSearch = (!data || changing) && !booting;
 
   useEffect(() => {
@@ -122,6 +125,24 @@ export function HomeExplorer({
       .catch(() => {});
     if (deepLinkAddress) {
       runLookup(deepLinkAddress);
+      return;
+    }
+    if (deepLinkSchool) {
+      // Only a school id — resolve it to a point ourselves rather than landing
+      // the visitor on a search box. Dream Neighborhood's widget builds links
+      // this way from one of its three code paths.
+      fetch(`/api/school?ncesId=${encodeURIComponent(deepLinkSchool)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((school) => {
+          if (school && Number.isFinite(school.lat) && Number.isFinite(school.lon)) {
+            const label = [school.name, school.zip].filter(Boolean).join(", ");
+            setAddress(label);
+            runLookup(label, { label, lat: school.lat, lon: school.lon, zip: school.zip || "" });
+          } else {
+            setError("We couldn't find that school.");
+          }
+        })
+        .catch(() => setError("We couldn't find that school."));
       return;
     }
     // Pages that don't resolve the deep link server-side still support one.
