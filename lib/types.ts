@@ -65,7 +65,7 @@ export interface GeocodeResult {
   lat: number;
   lon: number;
   zip: string;
-  source: "census" | "zip-centroid" | "autocomplete";
+  source: "census" | "geoapify" | "zip-centroid" | "autocomplete";
   approximate: boolean;
 }
 
