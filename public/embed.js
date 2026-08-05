@@ -525,13 +525,19 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
           if (d && d.success) return { address: d.address || scraped, lat: d.lat, lon: d.lon };
+          // The page's own address beats the partner's configured default even
+          // when no geocoder could place it: the explorer then opens on a
+          // prefilled search for THIS listing, instead of confidently showing
+          // schools for a default address that may be in another county.
+          var pageAddress = (d && d.address) || scraped;
+          if (pageAddress) return { address: pageAddress, lat: null, lon: null };
           if (config.defaultAddress) return { address: config.defaultAddress, lat: null, lon: null, fallback: true };
-          if (scraped) return { address: scraped, lat: null, lon: null };
           return null;
         })
         .catch(function () {
+          if (scraped) return { address: scraped, lat: null, lon: null };
           if (config.defaultAddress) return { address: config.defaultAddress, lat: null, lon: null, fallback: true };
-          return scraped ? { address: scraped, lat: null, lon: null } : null;
+          return null;
         });
     });
   }
