@@ -1,83 +1,64 @@
 import { createRequire } from "module";
-import { readFileSync } from "fs";
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 
-// Our own reader, lifted verbatim out of public/embed.js so it can be run in a
-// page. Not a re-implementation — this is the code that ships today.
-const OURS = `
-function idxAddrFromObj(c) {
-  if (!c || typeof c !== "object") return null;
-  var street = (c.address || "").toString().trim();
-  if (!street && (c.streetNumber || c.streetName)) {
-    street = [c.streetNumber, c.streetDirection, c.streetName, c.unitNumber]
-      .map(function (x) { return x == null ? "" : String(x).trim(); }).filter(Boolean).join(" ");
-  }
-  if (!street || !/\\d/.test(street)) return null;
-  var city = (c.cityName || c.city || "").toString().trim();
-  var state = (c.stateAbrv || c.stateAbbr || c.state || "").toString().trim();
-  var zip = (c.zipcode || c.zip || c.postalCode || "").toString().trim();
-  var out = street;
-  if (city) out += ", " + city;
-  if (state) out += ", " + state;
-  if (zip) out += " " + zip;
-  return out.trim() || null;
-}
-window.__oursIdx = function () {
-  try {
-    var g = typeof coords !== "undefined" && coords ? coords : window.coords || null;
-    return { count: Array.isArray(g) ? g.length : (g ? 1 : 0), address: idxAddrFromObj(Array.isArray(g) ? g[0] : g) };
-  } catch (e) { return { count: -1, address: null, err: String(e) }; }
+const P = "https://dream-schools-preview-b6b5fcaf4493.herokuapp.com";
+// A host DN staging recognises, so the SDK actually mounts.
+const HOST = "https://dn-qa-alpha-8eb7204ac5a4.herokuapp.com";
+
+const IDX_MARKER = `<div id="idx-details-content">MLS# 12717406</div>`;
+const ONE = `<script>var coords=[{"address":"301 Channel Drive","cityName":"Island Lake","stateAbrv":"IL","zipcode":"60042","lat":42.281979,"lng":-88.193459}];<\/script>`;
+const MANY = `<script>var coords=[
+ {"id":"1","latitude":42.452621,"longitude":-88.244789,"address":"2412 Elk Drive"},
+ {"id":"2","latitude":42.28,"longitude":-88.19,"address":"301 Channel Drive"},
+ {"id":"3","latitude":42.30,"longitude":-88.20,"address":"9 Somewhere Else"}];<\/script>`;
+
+const PAGES = {
+  "/idx/details/listing/c019/12717406": `<title>Residential for sale in Island Lake, Illinois, 12717406</title>${IDX_MARKER}${ONE}`,
+  "/idx/results/listings": `<title>idx-wrapper - Home Sweet Home Realty</title>${IDX_MARKER}${MANY}`,
+  "/idx/details/listing/c019/none": `<title>Residential for sale, 99999999</title>${IDX_MARKER}`,
+  "/about-us": `<title>About Our Agency</title><h1>Serving buyers since 1998</h1>`,
 };
-`;
-
-const detect = readFileSync("public/address-detector/detect-address.js", "utf8");
-const extract = readFileSync("public/address-detector/extract-address.js", "utf8");
-const THEIRS =
-  extract.replace(/^\s*export\s+/gm, "") +
-  "\n" +
-  detect.replace(/^\s*import[^;]+;/gm, "").replace(/^\s*export\s+/gm, "") +
-  "\nwindow.__dn = { detectPageAddress, extractFromIdxBroker, extractCoordsFromPage, DETECTOR_VERSION };";
-
-const PAGES = [
-  ["detail page  ", "https://search.homesweethomerr.com/idx/details/listing/c019/12717406/"],
-  ["results page ", "https://search.homesweethomerr.com/idx/results/listings?pt=1&idxID=c019&start=0&per=25"],
-];
 
 const browser = await chromium.launch({ args: ["--no-sandbox"] });
-for (const [label, url] of PAGES) {
-  const ctx = await browser.newContext({
-    userAgent:
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0 Safari/537.36",
-    viewport: { width: 1280, height: 900 },
-  });
+for (const [path, body] of Object.entries(PAGES)) {
+  const ctx = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+  await ctx.route(`${HOST}/**`, (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: `<!doctype html><html><head><meta charset="utf-8">${body}<script src="${P}/embed.js" async></script></head><body><p>listing page</p></body></html>`,
+    })
+  );
   const page = await ctx.newPage();
-  try {
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
-    await page.waitForTimeout(12000);
-    await page.addScriptTag({ content: OURS });
-    await page.addScriptTag({ content: THEIRS });
-    const r = await page.evaluate(async () => {
-      const ours = window.__oursIdx();
-      const dn = await window.__dn.detectPageAddress();
-      return {
-        ours,
-        dnAddress: dn.address,
-        dnCoords: dn.coords || null,
-        dnListing: dn.looksLikeListing,
-        dnFound: dn.found,
-        title: document.title.slice(0, 60),
-      };
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message.split("\n")[0].slice(0, 70)));
+  await page.goto(HOST + path, { waitUntil: "load", timeout: 45000 });
+
+  let src = "";
+  for (let i = 0; i < 40 && !src; i += 1) {
+    await page.waitForTimeout(500);
+    src = await page.evaluate(() => {
+      const f = document.querySelector("#dse-root iframe.dse-iframe");
+      if (f && f.getAttribute("src")) return f.getAttribute("src");
+      const root = document.getElementById("dse-root");
+      // The popup only sets src on open; the bubble appearing means it resolved.
+      return root && getComputedStyle(root).display !== "none" ? "READY" : "";
     });
-    console.log(`\n=== ${label} ${url.replace("https://search.homesweethomerr.com", "")}`);
-    console.log(`  title            : ${r.title}`);
-    console.log(`  coords records   : ${r.ours.count}`);
-    console.log(`  OURS (ships now) : ${JSON.stringify(r.ours.address)}`);
-    console.log(`  DN v3            : ${JSON.stringify(r.dnAddress)}  coords=${JSON.stringify(r.dnCoords)}`);
-    console.log(`  DN looksLikeListing=${r.dnListing} found=${r.dnFound}`);
-  } catch (err) {
-    console.log(`\n=== ${label} FAILED: ${err.message.split("\n")[0]}`);
   }
+  if (src === "READY") {
+    await page.evaluate(() => document.querySelector("#dse-root .dse-bubble")?.click());
+    await page.waitForTimeout(1500);
+    src = await page.evaluate(() => {
+      const f = document.querySelector("#dse-root iframe.dse-iframe");
+      return f ? f.getAttribute("src") || "" : "";
+    });
+  }
+  const u = src ? new URL(src, HOST) : null;
+  console.log(
+    `${path.padEnd(38)} address=${JSON.stringify(u && u.searchParams.get("address"))}`.padEnd(90) +
+      ` general=${u && u.searchParams.get("general")}  lat=${u && u.searchParams.get("lat")}  errors=${errors[0] || "none"}`
+  );
   await ctx.close();
 }
 await browser.close();

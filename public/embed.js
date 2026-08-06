@@ -655,7 +655,13 @@
   function geocodePage(config, opts) {
     opts = opts || {};
     return readPage(config, opts).then(function (read) {
-      var scraped = read.address;
+      // found=false means the text is a guess — a place name off the title or
+      // URL — not something the page stated. On a listing page a guess is worse
+      // than nothing: it geocodes to a real place that is not this house, and
+      // nothing downstream can tell it apart from a real read. On a page that
+      // is not a listing it is the whole point, and is how a city landing page
+      // resolves at all.
+      var scraped = read.found || !read.looksLikeListing ? read.address : "";
 
       // The page stated its own coordinates. That is the point the platform's
       // own map uses, so it cannot be mis-geocoded and costs no round trip.
