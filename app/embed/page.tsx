@@ -31,6 +31,14 @@ interface EmbedParams {
   site: string;
   /** Open straight onto this school's detail. Used when the SDK opens us over a page. */
   school: string;
+  /**
+   * We are showing somewhere other than the listing on this page — the SDK
+   * could not read its address and fell back. Deliberately NOT the same as
+   * "approximate", which means we placed this listing but only to its ZIP
+   * centre. One label for both would let the milder wording cover the worse
+   * case: showing a specific real place, confidently, that is not this house.
+   */
+  general: boolean;
   variant: "full" | "minimalist";
   fullHeight: number;
   header: boolean;
@@ -139,6 +147,7 @@ function readParams(): EmbedParams {
     business: (p.get("business") || "").trim(),
     site: (p.get("site") || "").trim().toLowerCase(),
     school: (p.get("school") || "").trim(),
+    general: p.get("general") === "1",
     customer: (p.get("customer") || "").trim(),
     partner: (p.get("partner") || "").trim(),
     upgradeViews: intParam("uv", 2, 1),
@@ -970,16 +979,23 @@ export default function EmbedExplorer() {
 
             {!changing ? (
               <div className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-                <p className="min-w-0 truncate text-sm font-bold text-slate-900">
-                  <span className="mr-1">📍</span>
-                  {resolvedCityState}
-                  {data.district?.name ? (
-                    <>
-                      {" · "}
-                      <span className="text-brand-700">{data.district.name} School District</span>
-                    </>
-                  ) : null}
-                </p>
+                <div className="min-w-0 flex-1">
+                  <p className="min-w-0 truncate text-sm font-bold text-slate-900">
+                    <span className="mr-1">📍</span>
+                    {resolvedCityState}
+                    {data.district?.name ? (
+                      <>
+                        {" · "}
+                        <span className="text-brand-700">{data.district.name} School District</span>
+                      </>
+                    ) : null}
+                  </p>
+                  {params?.general && (
+                    <p className="mt-0.5 truncate text-[11px] font-semibold text-amber-700">
+                      Showing the general area, not this listing&rsquo;s address
+                    </p>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={beginChange}

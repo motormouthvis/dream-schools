@@ -593,13 +593,81 @@
     };
   }
 
-  function geocodePage(config, opts) {
-    opts = opts || {};
+  /**
+   * Dream Neighborhood's address detector, vendored verbatim under
+   * /address-detector/ and shared by both products.
+   *
+   * It replaces the one-shot scrape below for two reasons. It waits: several
+   * platforms build the listing after DOMContentLoaded, and reading once at
+   * that moment failed on every load of every page on those sites. And it says
+   * whether the page is a single listing, which is what lets us tell "there is
+   * no address here" from "there is one and we failed to read it".
+   *
+   * Loaded on demand rather than inlined because this file is a plain script
+   * with no build step, and the detector is ESM. One request, same origin as
+   * this file, cached.
+   */
+  var detectorPromise = null;
+  function loadDetector(apiBase) {
+    if (!detectorPromise) {
+      detectorPromise = import(apiBase + "/address-detector/detect-address.js").catch(function () {
+        return null;
+      });
+    }
+    return detectorPromise;
+  }
+
+  /** Our own scrape, kept as the fallback for when the detector cannot load. */
+  function legacyRead(config, opts) {
     var scrapedPromise = opts.spa
       ? waitForRouteSettle(config, opts.prevAddr || "", opts.prevTitle || "")
       : Promise.resolve(currentScrape(config));
     return scrapedPromise.then(function (scraped) {
-      scraped = scraped || "";
+      return { address: scraped || "", coords: null, looksLikeListing: false, found: Boolean(scraped) };
+    });
+  }
+
+  function readPage(config, opts) {
+    return loadDetector(config.apiBase).then(function (mod) {
+      if (!mod || typeof mod.detectPageAddress !== "function") return legacyRead(config, opts);
+      // On an SPA route change the SDK is notified at pushState time, before the
+      // framework has committed the new DOM. Settle first so the detector does
+      // not read the previous listing and stop on it.
+      var settled = opts.spa
+        ? waitForRouteSettle(config, opts.prevAddr || "", opts.prevTitle || "")
+        : Promise.resolve("");
+      return settled
+        .then(function () {
+          return mod.detectPageAddress({ searchPageContent: config.searchPageContent });
+        })
+        .then(function (r) {
+          return {
+            address: (r && r.address) || "",
+            coords: (r && r.coords) || null,
+            looksLikeListing: Boolean(r && r.looksLikeListing),
+            found: Boolean(r && r.found),
+          };
+        })
+        .catch(function () { return legacyRead(config, opts); });
+    });
+  }
+
+  function geocodePage(config, opts) {
+    opts = opts || {};
+    return readPage(config, opts).then(function (read) {
+      var scraped = read.address;
+
+      // The page stated its own coordinates. That is the point the platform's
+      // own map uses, so it cannot be mis-geocoded and costs no round trip.
+      if (read.coords && isFinite(read.coords.lat) && isFinite(read.coords.lng)) {
+        return { address: scraped, lat: read.coords.lat, lon: read.coords.lng, general: false };
+      }
+
+      // Nothing readable on a page that is plainly one listing. Whatever we show
+      // now is somewhere else, so it has to be labelled — an unlabelled fallback
+      // is how a Lake Tahoe customer's visitors were shown Reno.
+      var general = read.looksLikeListing && !read.found;
+
       return fetch(config.apiBase + "/api/embed/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -609,16 +677,26 @@
       })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
-          if (d && d.success) return { address: d.address || scraped, lat: d.lat, lon: d.lon };
-          if (config.defaultAddress) return fallbackTarget(config);
-          if (scraped) return { address: scraped, lat: null, lon: null };
-          return null;
+          if (d && d.success) return { address: d.address || scraped, lat: d.lat, lon: d.lon, general: general };
+          if (config.defaultAddress) return withGeneral(fallbackTarget(config), general);
+          if (scraped) return { address: scraped, lat: null, lon: null, general: general };
+          // No fallback address either. The marker still has to travel: the
+          // server falls back to the account's configured point, so rendering
+          // without coordinates does not avoid the substitution, it only moves
+          // it out of sight.
+          return general ? { address: "", lat: null, lon: null, general: true } : null;
         })
         .catch(function () {
-          if (config.defaultAddress) return fallbackTarget(config);
-          return scraped ? { address: scraped, lat: null, lon: null } : null;
+          if (config.defaultAddress) return withGeneral(fallbackTarget(config), general);
+          if (scraped) return { address: scraped, lat: null, lon: null, general: general };
+          return general ? { address: "", lat: null, lon: null, general: true } : null;
         });
     });
+  }
+
+  function withGeneral(target, general) {
+    if (target) target.general = general;
+    return target;
   }
 
   // -------------------------------------------------------------------------
@@ -753,6 +831,10 @@
     // doesn't silence it on another's. Who the customer is stays with DN.
     url += "&site=" + encodeURIComponent(location.hostname);
     if (coords) {
+      // We are showing somewhere other than the listing on this page. The
+      // explorer says so on screen; it must not be confused with "approximate",
+      // which means we placed THIS listing, only coarsely.
+      if (coords.general) url += "&general=1";
       if (coords.address) url += "&address=" + encodeURIComponent(coords.address);
       if (coords.lat != null && coords.lon != null) url += "&lat=" + encodeURIComponent(coords.lat) + "&lng=" + encodeURIComponent(coords.lon);
     }

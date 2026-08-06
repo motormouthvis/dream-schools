@@ -419,14 +419,6 @@ const _IDX_BROKER_MARKERS = [
   'form[action*="idxbroker"]',
 ];
 
-//: The lead-capture form's hidden inputs, which carry the listing this page is about.
-const _IDX_FIELDS = {
-  street: ['address', 'streetAddress', 'idx-address'],
-  city: ['cityName', 'city'],
-  state: ['stateAbrv', 'state'],
-  zip: ['zipcode', 'zip', 'postalCode'],
-};
-
 function _onIdxBroker() {
   try {
     if (/\/idx\//i.test(window.location.pathname)) return true;
@@ -436,7 +428,99 @@ function _onIdxBroker() {
   }
 }
 
-function _idxFieldValue(names) {
+/**
+ * IDX Broker's `coords`, which is the best thing on the page and not what its name suggests.
+ *
+ * It is not a pair of numbers. It is an array of listing records, each carrying the address, the town,
+ * the state, the ZIP and the latitude and longitude, the last two usually as strings:
+ *
+ *     var coords = [{"address":"301 Channel Drive","cityName":"Island Lake","state":"Illinois",
+ *                    "stateAbrv":"IL","zipcode":"60042","lat":"42.281979","lng":"-88.193459",
+ *                    "streetNumber":"301","streetName":"Channel Drive","streetDirection":"",
+ *                    "unitNumber":"", ...}];
+ *
+ * Read off a live customer page, so those are the field names rather than a description of them. Note
+ * `lat` and `lng`, not `latitude` and `longitude`, and that `state` is the full name with the
+ * abbreviation under `stateAbrv`.
+ *
+ * On some layouts this is the only thing on the page that says where the property is, so treating it as
+ * a flat `[lat, lng]` pair means finding nothing at all on those pages. That is exactly what this code
+ * did when it was first written from a description instead of from the markup.
+ *
+ * Returns a record only when there is exactly one. A detail page carries one; the results page on the
+ * same site carries twenty-five, and taking the first would confidently describe whichever listing
+ * happened to sort first as though it were the whole page.
+ */
+function _idxRecord() {
+  const only = (value) => {
+    if (Array.isArray(value)) return value.length === 1 ? value[0] : null;
+    return value && typeof value === 'object' ? value : null;
+  };
+
+  try {
+    const record = only(typeof window !== 'undefined' ? window.coords : null);
+    if (record) return record;
+
+    // Not every layout leaves it on `window`: the assignment is often inside an initialiser. Matched as
+    // whole JSON rather than field by field, so the object form parses rather than being scraped.
+    for (const script of document.querySelectorAll('script:not([src])')) {
+      const match = /coords\s*=\s*(\[[\s\S]*?\]|\{[\s\S]*?\})\s*;/.exec(script.textContent || '');
+      if (!match) continue;
+      try {
+        const parsed = only(JSON.parse(match[1]));
+        if (parsed) return parsed;
+      } catch {
+        // Not JSON we can read. Try the next script rather than giving up on the page.
+      }
+    }
+  } catch {
+    // Fall through to the lead form.
+  }
+  return null;
+}
+
+function _field(record, names) {
+  for (const name of names) {
+    const value = record && record[name];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number') return String(value);
+  }
+  return '';
+}
+
+//: IDX spells the state both ways depending on the layout.
+const _IDX_STATE = ['stateAbrv', 'stateAbbr', 'state'];
+
+/**
+ * The street line, which is sometimes one field and sometimes four.
+ *
+ * When `address` is absent it has to be built from the parts. The result must contain a digit, because
+ * without a house number the parts can assemble into a street name on its own, which geocodes to the
+ * middle of a road that may run for miles.
+ */
+function _idxStreet(record) {
+  const whole = _field(record, ['address', 'streetAddress']);
+  if (whole) return whole;
+
+  const composed = [
+    _field(record, ['streetNumber']),
+    _field(record, ['streetDirection']),
+    _field(record, ['streetName']),
+    _field(record, ['unitNumber']),
+  ].filter(Boolean).join(' ').trim();
+  return /\d/.test(composed) ? composed : '';
+}
+
+//: The lead-capture form's hidden inputs. The last resort: present on fewer layouts than `coords`, and
+//: carrying no coordinates.
+const _IDX_INPUTS = {
+  street: ['address', 'streetAddress', 'idx-address'],
+  city: ['cityName', 'city'],
+  state: _IDX_STATE,
+  zip: ['zipcode', 'zip', 'postalCode'],
+};
+
+function _idxInputValue(names) {
   for (const name of names) {
     const el = document.querySelector(
       `input[name="${name}"], input[id="${name}"], input[name="idx-${name}"]`,
@@ -449,34 +533,47 @@ function _idxFieldValue(names) {
   return '';
 }
 
+function _joinAddress(street, city, state, zip) {
+  if (!street || !(city || zip)) return null;
+  const tail = [city, [state, zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  return tail ? `${street}, ${tail}` : street;
+}
+
 /**
  * Read the listing address out of an IDX Broker page.
  *
  * IDX Broker is invisible to every generic strategy: the title and URL carry an MLS id and nothing else,
- * and what JSON-LD exists describes the surrounding WordPress post. The address is only in the
- * lead-capture form's hidden inputs.
+ * and what JSON-LD exists describes the surrounding WordPress post.
  *
- * Returns null unless the page is unmistakably IDX Broker and names at least a street and a town, since
- * a state on its own is not worth geocoding.
+ * The `coords` record is tried first because it is the most complete thing on the page and present on
+ * layouts where the lead form is not. Returns null unless the page is unmistakably IDX Broker and names
+ * at least a street and a town, since a state on its own is not worth geocoding.
  */
 export function extractFromIdxBroker() {
   try {
     if (!_onIdxBroker()) return null;
-    const street = _idxFieldValue(_IDX_FIELDS.street);
-    const city = _idxFieldValue(_IDX_FIELDS.city);
-    const state = _idxFieldValue(_IDX_FIELDS.state);
-    const zip = _idxFieldValue(_IDX_FIELDS.zip);
-    if (!street || !(city || zip)) return null;
-    const tail = [city, [state, zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
-    return tail ? `${street}, ${tail}` : street;
+
+    const record = _idxRecord();
+    if (record) {
+      const fromRecord = _joinAddress(
+        _idxStreet(record),
+        _field(record, ['cityName', 'city']),
+        _field(record, _IDX_STATE),
+        _field(record, ['zipcode', 'zip', 'postalCode']),
+      );
+      if (fromRecord) return fromRecord;
+    }
+
+    return _joinAddress(
+      _idxInputValue(_IDX_INPUTS.street),
+      _idxInputValue(_IDX_INPUTS.city),
+      _idxInputValue(_IDX_INPUTS.state),
+      _idxInputValue(_IDX_INPUTS.zip),
+    );
   } catch {
     return null;
   }
 }
-
-//: IDX Broker's map coordinates, as a global or as an inline assignment in a script tag. Latitude then
-//: longitude, sometimes as strings.
-const _IDX_COORDS_IN_SCRIPT = /\bcoords\s*=\s*\[\s*['"]?(-?\d+\.\d+)['"]?\s*,\s*['"]?(-?\d+\.\d+)['"]?/;
 
 function _plausible(lat, lng) {
   return (
@@ -491,29 +588,18 @@ function _plausible(lat, lng) {
  * Coordinates the page states outright, rather than an address for us to geocode.
  *
  * Worth more than an address when it is there: it is the position the platform itself is using for its
- * own map, so it needs no geocoding, cannot be mis-geocoded, and costs no round trip. IDX Broker
- * publishes it for the detail map, and on some of its layouts it is the only thing on the page that says
- * where the property is.
+ * own map, so it needs no geocoding, cannot be mis-geocoded, and costs no round trip.
  */
 export function extractCoordsFromPage() {
   try {
     if (!_onIdxBroker()) return null;
-
-    const global = typeof window !== 'undefined' ? window.coords : null;
-    if (Array.isArray(global) && global.length >= 2) {
-      const lat = parseFloat(global[0]);
-      const lng = parseFloat(global[1]);
-      if (_plausible(lat, lng)) return { lat, lng };
-    }
-
-    for (const script of document.querySelectorAll('script:not([src])')) {
-      const match = _IDX_COORDS_IN_SCRIPT.exec(script.textContent || '');
-      if (!match) continue;
-      const lat = parseFloat(match[1]);
-      const lng = parseFloat(match[2]);
-      if (_plausible(lat, lng)) return { lat, lng };
-    }
-    return null;
+    const record = _idxRecord();
+    if (!record) return null;
+    // `lat`/`lng` are what the live page uses; the longer spellings are kept because the Dream Schools
+    // reader was documented against them. Strings on every page seen, but numbers cost nothing to take.
+    const lat = parseFloat(_field(record, ['lat', 'latitude']));
+    const lng = parseFloat(_field(record, ['lng', 'longitude', 'lon']));
+    return _plausible(lat, lng) ? { lat, lng } : null;
   } catch {
     return null;
   }
