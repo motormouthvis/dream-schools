@@ -36,7 +36,12 @@
  * the caller needs to know which it is, and `looksLikeSingleListing` is that signal.
  */
 
-import { extractAddressFromPage, extractNeighborhoodFromUrl } from './extract-address.js';
+import {
+  extractAddressFromPage,
+  extractCoordsFromPage,
+  extractNeighborhoodFromTitle,
+  extractNeighborhoodFromUrl,
+} from './extract-address.js';
 
 /**
  * Shared with Dream Neighborhood Schools, which vendors this file and `extract-address.js` verbatim.
@@ -49,11 +54,16 @@ import { extractAddressFromPage, extractNeighborhoodFromUrl } from './extract-ad
  * fails if the files move without the version moving too. That is what stops the two copies drifting
  * silently, which is how the same platform bug came to be fixed twice already.
  */
-export const DETECTOR_VERSION = 1;
+export const DETECTOR_VERSION = 2;
 
 //: How long to keep watching before giving up. Kestrel resolves around a second; three gives room for
 //: a slower connection without leaving an address-less page blank for an uncomfortable time.
 export const DETECT_WINDOW_MS = 3000;
+
+//: How long to wait on a page that does not look like a single listing. There is probably no address
+//: coming, so this only has to be long enough for late-arriving listing markers to declare themselves,
+//: at which point the full window applies. Kept short because most page views are these.
+export const NOT_A_LISTING_MS = 1000;
 
 //: How often to re-read when the observer has not fired. A belt to the observer's braces: some
 //: platforms set the title via the History API or a framework head-manager without touching a node we
@@ -74,17 +84,27 @@ export function readPageNow({ searchPageContent = false } = {}) {
     // A malformed page must not stop us sending the title and URL, which are often enough.
     address = '';
   }
+  let coords = null;
+  try {
+    coords = extractCoordsFromPage();
+  } catch {
+    coords = null;
+  }
+  const title = (typeof document !== 'undefined' && document.title) || '';
   return {
     address,
-    title: (typeof document !== 'undefined' && document.title) || '',
+    coords,
+    title,
     url: (typeof window !== 'undefined' && window.location && window.location.href) || '',
-    fromUrlOnly: Boolean(address) && address === urlSlugGuess(),
+    guessed: Boolean(address) && (address === urlSlugGuess() || address === titleGuess(title)),
   };
 }
 
 /**
- * The extractor's last-resort strategy: a place name guessed from a path segment, so `/bradenton-fl/`
- * becomes "Bradenton, FL". Recomputed here to find out whether that is all we got.
+ * The extractor's two last-resort strategies, which do not read an address so much as name a place.
+ *
+ * `/bradenton-fl/` becomes "Bradenton, FL", and "Featured Property | Kestrel Realty" becomes "Featured".
+ * Recomputed here to find out whether one of those is all we got.
  */
 function urlSlugGuess() {
   try {
@@ -94,20 +114,35 @@ function urlSlugGuess() {
   }
 }
 
+function titleGuess(title) {
+  try {
+    return extractNeighborhoodFromTitle(title) || '';
+  } catch {
+    return '';
+  }
+}
+
 /**
- * Is there anything worth geocoding yet, or should we keep waiting?
+ * Is there an address worth geocoding yet, or should we keep waiting?
  *
- * "Worth" is doing real work here. A guess made from the URL does not count, even though the extractor
- * will happily return one, because the URL is complete from the first millisecond and does not change
- * while we wait. Counting it would mean the wait never happens on any site whose paths contain a word
- * — which is most of them, and includes the client-rendered platforms this was written for. The one
- * that caught it locally was a page at `/late.html`, cheerfully reported as the neighborhood of "Late".
+ * Only a real address counts. Two things that look like signals are not:
  *
- * A URL slug that spells out a full street address is different and does count: the extractor returns
- * that from a strategy above this one, so it never looks like a bare place-name guess.
+ * - **A title existing.** Every page has one from its first byte, so accepting it means resolving at 0ms
+ *   on every real site and never waiting for anything. This module shipped with `|| read.title` in this
+ *   condition, which made the whole thing inert: it behaved exactly like the one-shot scrape it was
+ *   written to replace, and passed its own browser check only because that check's fixture had an empty
+ *   `<title>`, which no real page does. Found by Dream Schools before they wired it up.
+ * - **A place name guessed from the URL or the title.** Same defect one step down: both are available
+ *   before the page has rendered anything, so counting them means the wait never runs on any site whose
+ *   paths or titles contain a word, which is all of them.
+ *
+ * A URL slug or title that spells out a full street address is different and does count: the extractor
+ * returns those from strategies above the place-name guesses, so they never look like a bare guess.
  */
 function haveSomething(read) {
-  return Boolean((read.address && !read.fromUrlOnly) || read.title);
+  // Coordinates the page states outright settle it on their own: they are the position, so there is
+  // nothing left to geocode and nothing to wait for.
+  return Boolean(read.coords || (read.address && !read.guessed));
 }
 
 //: URL shapes that mean "one property", not a list of them. Matched against the path and query.
@@ -144,13 +179,15 @@ const MLS_ON_PAGE = /\bMLS\s*#?\s*[:\s]?\s*[A-Z0-9-]{5,}/i;
  * the realtor's configured address, which is the failure we are trying to stop. Even so this is kept
  * conservative, because a label that appears on the wrong pages stops being read.
  */
-export function looksLikeSingleListing() {
+export function looksLikeSingleListing({ scanText = true } = {}) {
   try {
     const href = window.location.href || '';
     if (LISTING_URL.some((pattern) => pattern.test(href))) return true;
     if (LISTING_CONTAINERS.some((selector) => document.querySelector(selector))) return true;
+    if (!scanText) return false;
     // `textContent`, not `innerText`: the latter forces a layout pass, and this runs on every page view
-    // on every customer site.
+    // on every customer site. `scanText: false` skips even this while polling, because reading the whole
+    // body builds the entire string before the slice and we would be doing it several times a second.
     const text = (document.body && document.body.textContent) || '';
     return MLS_ON_PAGE.test(text.slice(0, 4000));
   } catch {
@@ -159,25 +196,25 @@ export function looksLikeSingleListing() {
 }
 
 /**
- * Read the page, and if it has nothing yet, watch until it does.
+ * Read the page, and if it has no address yet, watch until it does.
  *
- * Resolves as soon as there is something, so the overwhelming majority of sites are not delayed at all.
- * Always resolves; never rejects; never waits longer than `windowMs`.
+ * Resolves the moment a real address appears, so a server-rendered page is not delayed at all. Always
+ * resolves; never rejects; never waits longer than `windowMs`.
+ *
+ * How long it is worth waiting depends on what kind of page this is, and that is why the listing check
+ * is in here rather than only in the result. A single listing with no address yet is a page still
+ * building, and worth the full window. A search page or an agency home page has no address coming, and
+ * making every one of those sit through three seconds would be a real cost paid on most page views to
+ * fix a problem they do not have. So they get a short grace period instead, long enough for the listing
+ * markers themselves to arrive late, which is re-checked as the page fills in: a page that declares
+ * itself a listing during the grace period gets the full window after all.
  */
-export function detectPageAddress({ searchPageContent = false, windowMs = DETECT_WINDOW_MS } = {}) {
+export function detectPageAddress({
+  searchPageContent = false,
+  windowMs = DETECT_WINDOW_MS,
+  graceMs = NOT_A_LISTING_MS,
+} = {}) {
   const startedAt = Date.now();
-
-  const settle = (read, resolve, observer, timer, poll) => {
-    if (observer) observer.disconnect();
-    if (timer) clearTimeout(timer);
-    if (poll) clearInterval(poll);
-    resolve({
-      ...read,
-      waitedMs: Date.now() - startedAt,
-      found: haveSomething(read),
-      looksLikeListing: looksLikeSingleListing(),
-    });
-  };
 
   const first = readPageNow({ searchPageContent });
   if (haveSomething(first) || typeof MutationObserver === 'undefined') {
@@ -191,12 +228,31 @@ export function detectPageAddress({ searchPageContent = false, windowMs = DETECT
 
   return new Promise((resolve) => {
     let observer = null;
-    let timer = null;
     let poll = null;
+    let backstop = null;
+    //: Sticky: once a page has looked like a listing it keeps the longer deadline, so markers that come
+    //: and go during rendering cannot shorten the wait.
+    let listing = looksLikeSingleListing();
+
+    const settle = (read) => {
+      if (observer) observer.disconnect();
+      if (poll) clearInterval(poll);
+      if (backstop) clearTimeout(backstop);
+      resolve({
+        ...read,
+        waitedMs: Date.now() - startedAt,
+        found: haveSomething(read),
+        looksLikeListing: listing || looksLikeSingleListing(),
+      });
+    };
 
     const check = () => {
+      // Cheap re-check only: the URL and container tests, not the whole-body text scan, which would
+      // build the page's entire text several times a second.
+      if (!listing) listing = looksLikeSingleListing({ scanText: false });
       const read = readPageNow({ searchPageContent });
-      if (haveSomething(read)) settle(read, resolve, observer, timer, poll);
+      const deadline = listing ? windowMs : graceMs;
+      if (haveSomething(read) || Date.now() - startedAt >= deadline) settle(read);
     };
 
     // The title is in <head> and the listing is in <body>, so both are watched. `characterData` because
@@ -210,9 +266,6 @@ export function detectPageAddress({ searchPageContent = false, windowMs = DETECT
       observer = null;
     }
     poll = setInterval(check, POLL_MS);
-    timer = setTimeout(
-      () => settle(readPageNow({ searchPageContent }), resolve, observer, timer, poll),
-      windowMs,
-    );
+    backstop = setTimeout(() => settle(readPageNow({ searchPageContent })), windowMs);
   });
 }

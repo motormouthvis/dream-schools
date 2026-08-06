@@ -406,6 +406,119 @@ export function extractNeighborhoodFromTitle(rawTitle) {
   return null;
 }
 
+/* -------------------------------------------------------------- IDX Broker */
+
+//: Markup only IDX Broker produces. Required before reading any of its fields, because names like
+//: `address` and `state` are ordinary form fields anywhere else and would otherwise pick up an agent's
+//: office address from a contact form.
+const _IDX_BROKER_MARKERS = [
+  '#idx-details-content',
+  '.IDX-detailsField',
+  '[id^="idx-"]',
+  '[class^="IDX-"]',
+  'form[action*="idxbroker"]',
+];
+
+//: The lead-capture form's hidden inputs, which carry the listing this page is about.
+const _IDX_FIELDS = {
+  street: ['address', 'streetAddress', 'idx-address'],
+  city: ['cityName', 'city'],
+  state: ['stateAbrv', 'state'],
+  zip: ['zipcode', 'zip', 'postalCode'],
+};
+
+function _onIdxBroker() {
+  try {
+    if (/\/idx\//i.test(window.location.pathname)) return true;
+    return _IDX_BROKER_MARKERS.some((selector) => document.querySelector(selector));
+  } catch {
+    return false;
+  }
+}
+
+function _idxFieldValue(names) {
+  for (const name of names) {
+    const el = document.querySelector(
+      `input[name="${name}"], input[id="${name}"], input[name="idx-${name}"]`,
+    );
+    const value = el && typeof el.value === 'string' ? el.value.trim() : '';
+    // IDX ships these inputs empty on pages that are not a single listing, so blank means "not here"
+    // rather than "no value".
+    if (value) return value;
+  }
+  return '';
+}
+
+/**
+ * Read the listing address out of an IDX Broker page.
+ *
+ * IDX Broker is invisible to every generic strategy: the title and URL carry an MLS id and nothing else,
+ * and what JSON-LD exists describes the surrounding WordPress post. The address is only in the
+ * lead-capture form's hidden inputs.
+ *
+ * Returns null unless the page is unmistakably IDX Broker and names at least a street and a town, since
+ * a state on its own is not worth geocoding.
+ */
+export function extractFromIdxBroker() {
+  try {
+    if (!_onIdxBroker()) return null;
+    const street = _idxFieldValue(_IDX_FIELDS.street);
+    const city = _idxFieldValue(_IDX_FIELDS.city);
+    const state = _idxFieldValue(_IDX_FIELDS.state);
+    const zip = _idxFieldValue(_IDX_FIELDS.zip);
+    if (!street || !(city || zip)) return null;
+    const tail = [city, [state, zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    return tail ? `${street}, ${tail}` : street;
+  } catch {
+    return null;
+  }
+}
+
+//: IDX Broker's map coordinates, as a global or as an inline assignment in a script tag. Latitude then
+//: longitude, sometimes as strings.
+const _IDX_COORDS_IN_SCRIPT = /\bcoords\s*=\s*\[\s*['"]?(-?\d+\.\d+)['"]?\s*,\s*['"]?(-?\d+\.\d+)['"]?/;
+
+function _plausible(lat, lng) {
+  return (
+    Number.isFinite(lat) && Number.isFinite(lng)
+    && Math.abs(lat) <= 90 && Math.abs(lng) <= 180
+    // 0,0 is in the Atlantic and is what an uninitialised pair looks like.
+    && !(lat === 0 && lng === 0)
+  );
+}
+
+/**
+ * Coordinates the page states outright, rather than an address for us to geocode.
+ *
+ * Worth more than an address when it is there: it is the position the platform itself is using for its
+ * own map, so it needs no geocoding, cannot be mis-geocoded, and costs no round trip. IDX Broker
+ * publishes it for the detail map, and on some of its layouts it is the only thing on the page that says
+ * where the property is.
+ */
+export function extractCoordsFromPage() {
+  try {
+    if (!_onIdxBroker()) return null;
+
+    const global = typeof window !== 'undefined' ? window.coords : null;
+    if (Array.isArray(global) && global.length >= 2) {
+      const lat = parseFloat(global[0]);
+      const lng = parseFloat(global[1]);
+      if (_plausible(lat, lng)) return { lat, lng };
+    }
+
+    for (const script of document.querySelectorAll('script:not([src])')) {
+      const match = _IDX_COORDS_IN_SCRIPT.exec(script.textContent || '');
+      if (!match) continue;
+      const lat = parseFloat(match[1]);
+      const lng = parseFloat(match[2]);
+      if (_plausible(lat, lng)) return { lat, lng };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Extract a city/neighbourhood from URLs like:
  *   /bradenton-fl/               → "Bradenton, FL"
@@ -482,7 +595,14 @@ function extractFromFooter() {
  * sites that already expose JSON-LD or OG tags don't pay for it.
  */
 export function extractAddressFromPage(opts = {}) {
-  // Title is checked first: on listing pages the address is the page subject
+  // IDX Broker first, because on those pages every generic strategy below is actively misleading: the
+  // title and URL carry only an MLS id, and the JSON-LD describes the WordPress post rather than the
+  // property. Gated on the platform's own markup, so a contact form's "address" field on some other
+  // site cannot trigger it. Contributed by Dream Schools, where four of ten customers are on IDX Broker.
+  const fromIdxBroker = extractFromIdxBroker();
+  if (fromIdxBroker) return fromIdxBroker;
+
+  // Title is checked next: on listing pages the address is the page subject
   // and appears at the start of document.title — the most reliable signal.
   // JSON-LD may contain agent/office addresses unrelated to the listing.
   const fromTitle = extractFromDocumentTitle();
