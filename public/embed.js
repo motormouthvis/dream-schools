@@ -623,7 +623,13 @@
       ? waitForRouteSettle(config, opts.prevAddr || "", opts.prevTitle || "")
       : Promise.resolve(currentScrape(config));
     return scrapedPromise.then(function (scraped) {
-      return { address: scraped || "", coords: null, looksLikeListing: false, found: Boolean(scraped) };
+      return {
+        address: scraped || "",
+        coords: null,
+        looksLikeListing: false,
+        found: Boolean(scraped),
+        usedDetector: false,
+      };
     });
   }
 
@@ -646,6 +652,7 @@
             coords: (r && r.coords) || null,
             looksLikeListing: Boolean(r && r.looksLikeListing),
             found: Boolean(r && r.found),
+            usedDetector: true,
           };
         })
         .catch(function () { return legacyRead(config, opts); });
@@ -679,7 +686,14 @@
         headers: { "Content-Type": "application/json" },
         mode: "cors",
         credentials: "omit",
-        body: JSON.stringify({ page_url: location.href, page_title: document.title || "", page_address: scraped }),
+        body: JSON.stringify({
+          page_url: location.href,
+          page_title: document.title || "",
+          page_address: scraped,
+          // The detector has already decided what this page says. Let the server
+          // geocode that and nothing else.
+          allow_inference: !read.usedDetector,
+        }),
       })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
