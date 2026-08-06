@@ -360,7 +360,30 @@ const _NON_NEIGHBORHOOD_SLUGS = new Set([
   'photos', 'video', 'virtual-tour', 'login', 'register', 'signup',
   'account', 'profile', 'privacy', 'terms', 'sitemap', 'faq', 'help',
   'index', 'estate', 'estates',
+  'testimonials', 'reviews', 'careers', 'jobs', 'staff', 'office', 'offices',
+  'financing', 'mortgage', 'calculator', 'valuation', 'sell', 'selling', 'buying',
+  'process', 'why', 'welcome', 'apply', 'schedule', 'subscribe',
 ]);
+
+//: Words that turn a page name into a phrase without changing what it is: `about-us` is the about page,
+//: `meet-the-team` is the team page. Dropped before the check below.
+const _PAGE_FILLER = new Set(['our', 'the', 'a', 'an', 'meet', 'us', 'me', 'my', 'you', 'your', 'page']);
+
+/**
+ * Is this path segment the name of a page rather than the name of a place?
+ *
+ * Matching whole slugs against a list is not enough, because the list holds `about` and real sites say
+ * `about-us`. That single missing suffix is how an agency's About page came to be geocoded as the
+ * neighborhood of "About Us", which resolves, confidently, to Fresno.
+ *
+ * So the filler words come out first and what is left has to be a place name in its own right. Somewhere
+ * genuinely called The Villages survives, because "villages" is not a page word.
+ */
+function _isPageNameNotPlace(slug) {
+  if (_NON_NEIGHBORHOOD_SLUGS.has(slug)) return true;
+  const words = slug.split('-').filter((word) => !_PAGE_FILLER.has(word));
+  return words.length > 0 && words.every((word) => _NON_NEIGHBORHOOD_SLUGS.has(word));
+}
 
 function _titleCaseWords(str) {
   return str.replace(/\b\w/g, (c) => c.toUpperCase());
@@ -595,8 +618,9 @@ export function extractCoordsFromPage() {
     if (!_onIdxBroker()) return null;
     const record = _idxRecord();
     if (!record) return null;
-    // `lat`/`lng` are what the live page uses; the longer spellings are kept because the Dream Schools
-    // reader was documented against them. Strings on every page seen, but numbers cost nothing to take.
+    // Both spellings, because one IDX Broker site uses both: `lat`/`lng` on a detail page and
+    // `latitude`/`longitude` on its search results. Strings in every case seen, but numbers cost
+    // nothing to take.
     const lat = parseFloat(_field(record, ['lat', 'latitude']));
     const lng = parseFloat(_field(record, ['lng', 'longitude', 'lon']));
     return _plausible(lat, lng) ? { lat, lng } : null;
@@ -624,7 +648,7 @@ export function extractNeighborhoodFromUrl(url) {
     for (let i = segments.length - 1; i >= 0; i -= 1) {
       const raw = segments[i].toLowerCase().replace(/\.(html?|php|aspx?)$/, '');
       if (!raw || /^\d/.test(raw) || raw.length < 3 || raw.length > 60) continue;
-      if (_NON_NEIGHBORHOOD_SLUGS.has(raw)) continue;
+      if (_isPageNameNotPlace(raw)) continue;
       if (/\d/.test(raw)) continue;
       if (!/^[a-z]+(?:-[a-z]+)*$/.test(raw)) continue;
 

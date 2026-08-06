@@ -54,7 +54,7 @@ import {
  * fails if the files move without the version moving too. That is what stops the two copies drifting
  * silently, which is how the same platform bug came to be fixed twice already.
  */
-export const DETECTOR_VERSION = 3;
+export const DETECTOR_VERSION = 4;
 
 //: How long to keep watching before giving up. Kestrel resolves around a second; three gives room for
 //: a slower connection without leaving an address-less page blank for an uncomfortable time.
