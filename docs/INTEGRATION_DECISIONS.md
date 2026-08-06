@@ -33,5 +33,13 @@ Three defects of ours surfaced while wiring it up, all of which failed quietly:
   Walk-About, Fresno, CA". The SDK now sends `allow_inference: false` whenever
   the detector ran.
 
-Open, for DN: the slug filter does not exclude `about-us`, so a non-listing page
-still yields the guess "About Us", which our geocoder resolves to Fresno.
+Closed in v4: filler words are stripped from the slug and what remains has to
+stand up as a place name, so `/about-us` and `/meet-the-team` yield nothing while
+somewhere genuinely called The Villages survives. Verified through the whole
+stack, not just in the detector.
+
+Still true of neighborhood guesses generally: they are geocoded with no locality
+context, so `/neighborhoods/lincoln-park` on an Illinois site resolves to Lincoln
+Park, MI. Milder than the Fresno case — it is a real place and the page named it
+— but it is the same shape, and the fix would be to geocode the guess near the
+account's own area rather than globally.
