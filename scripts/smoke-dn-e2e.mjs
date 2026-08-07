@@ -405,6 +405,59 @@ async function run() {
       );
       await context.close();
     }
+
+    // --- 7. The Explorer switched off in DN's dashboard --------------------
+    //
+    // A standalone schools embed is the only one of the four widgets DN cannot
+    // stop directly, because it is our script talking to our server. It has to
+    // stop itself, off the reason DN already sends.
+    //
+    // The reason is stubbed rather than driven from a real account: DN has no
+    // permanently switched-off fixture, and a test that needs someone to toggle
+    // a dashboard is a test that stops being run. The stub is DN's own payload
+    // shape, taken from a live resolve response.
+    {
+      const cases = [
+        ["no_widget", false, "switched off: the schools embed stops too"],
+        ["subscription_required", true, "not paying: free schools, as today"],
+        ["trial_expired", true, "trial over: free schools, as today"],
+        ["something_we_have_never_seen", true, "unrecognised reason renders"],
+      ];
+      for (const [reason, shouldRender, what] of cases) {
+        const host = FIXTURE.unentitled;
+        const origin = `https://${host}`;
+        const context = await browser.newContext();
+        await context.route(`${origin}/**`, (route) =>
+          route.fulfill({ status: 200, contentType: "text/html", body: page("schools") })
+        );
+        await context.route(`${DNS_BASE}/api/embed/dn-config**`, (route) =>
+          route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              enabled: false,
+              reason,
+              product: reason === "no_widget" ? "neighborhood" : "school",
+              accentColor: "#222222",
+              searchPageContent: false,
+              displayName: "E2E Realty",
+            }),
+          })
+        );
+        const p = await context.newPage();
+        await p.goto(`${origin}/schools`, { waitUntil: "load", timeout: 45000 });
+        let mounted = false;
+        for (let i = 0; i < 24 && !mounted; i += 1) {
+          await p.waitForTimeout(500);
+          mounted = await p.evaluate(() => {
+            const c = document.getElementById("dream-schools-explorer");
+            return !!(c && c.querySelector("iframe"));
+          });
+        }
+        record(`7. ${what}`, mounted === shouldRender, `reason=${reason}, embed rendered=${mounted}`);
+        await context.close();
+      }
+    }
   } finally {
     await browser.close();
   }

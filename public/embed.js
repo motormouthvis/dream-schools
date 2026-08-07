@@ -238,6 +238,19 @@
     return fetchConfig(apiBase, location.hostname).then(function (remote) {
       // Not a customer. Nothing renders — this is the off switch reaching us.
       if (!remote || remote.unknownHost) return { disabledReason: "unknown_host" };
+
+      // The realtor switched the Explorer off in DN's dashboard. Their popup and
+      // their neighborhood embed stop; a standalone schools embed used to keep
+      // running, because nothing here looked at why DN said the customer was not
+      // enabled. Three of the four going quiet and the fourth carrying on reads
+      // as a bug to the person who just switched it off.
+      //
+      // Only this one reason removes anything. `subscription_required` and
+      // `trial_expired` mean the realtor is not paying, which is precisely who
+      // the free School Explorer is for, and DN's own SDK hands those to us
+      // deliberately. Anything unrecognised renders, as does no answer at all:
+      // an outage must never blank the free product.
+      if (remote.reason === "no_widget") return { disabledReason: "no_widget" };
       if (remote.widgetNumber != null) widgetNumber = String(remote.widgetNumber);
       var pres = applyOverrides(presentationFromRemote(remote), anchorEl);
       return buildConfig(pres, apiBase, widgetNumber, {
