@@ -43,3 +43,33 @@ context, so `/neighborhoods/lincoln-park` on an Illinois site resolves to Lincol
 Park, MI. Milder than the Fresno case — it is a real place and the page named it
 — but it is the same shape, and the fix would be to geocode the guess near the
 account's own area rather than globally.
+
+## The off switch reaches a standalone schools embed
+
+When a realtor switches the Explorer off in DN's dashboard, DN's popup, DN's
+neighborhood embed and the schools popup all stop, because each asks DN first. A
+standalone schools embed carried on, being our script talking to our server.
+
+It now stops, at no cost: DN's `resolve` response already carries `reason`, we
+already fetch it through the config relay on every mount, and we were discarding
+it. DN's own SDK reads the same field from the same payload. Measured on
+preview: one `/api/embed/dn-config` request per page load before and after, no
+request from the visitor's browser to DN at all, embed mounted at a median of
+583ms.
+
+The entitlement endpoint is deliberately not used. It would be a second request
+per visitor for an answer already in hand, and a second thing to be down.
+
+Narrower than DN's SDK, which treats any non-school product as off. Only an
+explicit `no_widget` removes anything here:
+
+| `reason` | Schools embed |
+| --- | --- |
+| `no_widget` | stops |
+| `subscription_required`, `trial_expired` | renders — this is who the free product is for |
+| anything unrecognised | renders |
+| no answer, timeout, 5xx, unparseable | renders |
+
+Not yet verified against a live switched-off account: DN has no permanently
+switched-off fixture, so the end-to-end check stubs DN's payload shape taken
+from a live response. A fixture host would close that.
