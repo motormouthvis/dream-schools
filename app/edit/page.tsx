@@ -34,7 +34,7 @@ const BLANK: Form = {
 
 export default function EditPage() {
   const [form, setForm] = useState<Form>(BLANK);
-  const [embedStyle, setEmbedStyle] = useState<"showcase" | "compact" | "minimalist">("showcase");
+  const [embedStyle, setEmbedStyle] = useState<"showcase" | "minimalist">("showcase");
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -271,7 +271,7 @@ export default function EditPage() {
                   </OptionBlock>
                   <OptionBlock title="School Explorer embed code">
                     <div className="mb-2 inline-flex rounded-full bg-slate-100 p-0.5 text-[11px] font-semibold">
-                      {(["showcase", "minimalist", "compact"] as const).map((k) => (
+                      {(["showcase", "minimalist"] as const).map((k) => (
                         <button
                           key={k}
                           type="button"
@@ -286,11 +286,7 @@ export default function EditPage() {
                     </div>
                     <CodeBlock
                       code={
-                        embedStyle === "showcase"
-                          ? SCHOOL_EMBED_FULL_SNIPPET
-                          : embedStyle === "minimalist"
-                            ? SCHOOL_EMBED_MINIMALIST_SNIPPET
-                            : SCHOOL_EMBED_SNIPPET
+                        embedStyle === "showcase" ? SCHOOL_EMBED_FULL_SNIPPET : SCHOOL_EMBED_MINIMALIST_SNIPPET
                       }
                     />
                     <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
@@ -299,10 +295,8 @@ export default function EditPage() {
                       <strong>“Schools”</strong> page.{" "}
                       {embedStyle === "showcase" ? (
                         <><strong>Showcase</strong> — a polished “Nearby Schools” section with the school list and map side by side, filters, and a map on/off toggle.</>
-                      ) : embedStyle === "minimalist" ? (
-                        <><strong>Minimalist</strong> — a clean, subdued multi-column list (no map) where each school links to its full detail on Dream Neighborhood Schools. Great for a compact spot on a page.</>
                       ) : (
-                        <><strong>Compact</strong> — the same searchable explorer as the popup, dropped inline in a small box.</>
+                        <><strong>Minimalist</strong> — a clean, subdued multi-column list (no map). Opening a school shows its detail over your page rather than sending the visitor away. Good where space is tight.</>
                       )}
                     </p>
                   </OptionBlock>
@@ -332,12 +326,12 @@ export default function EditPage() {
 const POPUP_DUAL_SNIPPET = `<script src="https://app.dreamneighborhood.com/explorer/sdk.js" async></script>
 <script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
 // Static inline School Explorer (e.g. a "Schools" page).
-const SCHOOL_EMBED_SNIPPET = `<div id="dream-schools-explorer"></div>
-<script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
-// New "Nearby Schools" inline design (opt-in via data-variant="full").
+// The two inline designs. Compact was retired — Showcase does everything it did,
+// and snippets already pasted with data-variant="classic" render as Showcase.
 const SCHOOL_EMBED_FULL_SNIPPET = `<div id="dream-schools-explorer" data-variant="full"></div>
 <script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
-// Minimalist inline design (subdued multi-column list, links to full detail).
+// Minimalist inline design: a subdued multi-column list that opens a school over
+// the realtor's own page.
 const SCHOOL_EMBED_MINIMALIST_SNIPPET = `<div id="dream-schools-explorer" data-variant="minimalist"></div>
 <script src="https://www.dreamneighborhoodschools.com/embed.js" async></script>`;
 // Static inline Neighborhood Explorer (e.g. a "The Neighborhood" page).

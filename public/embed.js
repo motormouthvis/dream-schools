@@ -13,7 +13,7 @@
  *   data-partner-id, data-widget-number, data-accent-color, data-position,
  *   data-bottom-offset, data-tooltip-message, data-require-address,
  *   data-search-page-content, data-suppress-on-inline, data-min-height,
- *   data-show-header, data-address, data-lat, data-lng, data-api-base
+ *   data-address, data-lat, data-lng, data-api-base
  *
  * data-via="dn-explorer" on the <script> marks a hand-off: Dream Neighborhood's
  * sdk.js loaded us because it evaluated entitlement and decided its own
@@ -120,8 +120,11 @@
     showExternalLinks: false,
     inlineMinHeight: 540,
     inlineMinHeightExplicit: false,
-    inlineShowHeader: false,
-    inlineVariant: "full", // "full" (Showcase) | "minimalist". "classic" (Compact) is retired.
+    // "full" (Showcase) | "minimalist". Compact is retired, but snippets saying
+    // data-variant="classic" are pasted into live sites we do not control, so
+    // that value still has to resolve — to Showcase, which does everything
+    // Compact did.
+    inlineVariant: "full",
     neighborhoodExplorerGraceMs: 4000,
   };
 
@@ -143,7 +146,6 @@
       searchPageContent: typeof remote.searchPageContent === "boolean" ? remote.searchPageContent : DEFAULTS.searchPageContent,
       inlineMinHeight: typeof inline.minHeight === "number" ? Math.max(200, inline.minHeight | 0) : DEFAULTS.inlineMinHeight,
       inlineMinHeightExplicit: false,
-      inlineShowHeader: typeof inline.showHeader === "boolean" ? inline.showHeader : DEFAULTS.inlineShowHeader,
       inlineVariant: inline.variant === "minimalist" ? "minimalist" : DEFAULTS.inlineVariant,
       neighborhoodExplorerGraceMs: Math.max(2000, Math.min(15000, grace | 0) || DEFAULTS.neighborhoodExplorerGraceMs),
     };
@@ -170,11 +172,8 @@
       next.inlineMinHeight = mh;
       next.inlineMinHeightExplicit = true;
     }
-    var sh = boolAttr(el, "data-show-header");
-    if (sh !== null) next.inlineShowHeader = sh;
     if (el.hasAttribute("data-variant")) {
       var v = (el.getAttribute("data-variant") || "").trim().toLowerCase();
-      // "classic" was Compact, retired — Showcase does everything it did.
       next.inlineVariant = v === "minimalist" ? "minimalist" : "full";
     }
     return next;
@@ -295,7 +294,6 @@
         showExternalLinks: pres.showExternalLinks,
         inlineMinHeight: pres.inlineMinHeight,
         inlineMinHeightExplicit: pres.inlineMinHeightExplicit,
-        inlineShowHeader: pres.inlineShowHeader,
         inlineVariant: pres.inlineVariant,
         neighborhoodExplorerGraceMs: pres.neighborhoodExplorerGraceMs,
       };
@@ -845,7 +843,6 @@
     function promptValue(value, fallback) {
       return typeof value === "number" && isFinite(value) ? value : fallback;
     }
-    if (mode === "inline" && config.inlineShowHeader) url += "&header=1";
     if (mode === "inline") url += "&variant=" + config.inlineVariant;
     // The "full" design is a fixed-height window; pass its height (data-min-height, default 640).
     if (mode === "inline") {

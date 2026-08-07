@@ -13,7 +13,7 @@ import type { LookupResult } from "@/lib/types";
 
 // Chrome-less "Dream Neighborhood School Explorer" served for the embeddable
 // widget. Loaded inside an iframe by public/embed.js (popup or inline):
-//   /embed?address=...&lat=..&lng=..&accent=%23..&mode=popup|inline&header=1
+//   /embed?address=...&lat=..&lng=..&accent=%23..&mode=popup|inline
 //
 // The free School Explorer is a loss leader for the paid full Neighborhood
 // Explorer (38 hyperlocal insights). The detail shows a 0–10 Diversity Index
@@ -41,7 +41,6 @@ interface EmbedParams {
   general: boolean;
   variant: "full" | "minimalist";
   fullHeight: number;
-  header: boolean;
   links: boolean;
   provider: string;
   business: string;
@@ -78,21 +77,6 @@ function peekIsInline(): boolean {
   return new URLSearchParams(window.location.search).get("mode") === "inline";
 }
 
-function peekIsFull(): boolean {
-  if (typeof window === "undefined") return false;
-  return new URLSearchParams(window.location.search).get("variant") === "full";
-}
-
-function peekIsMinimal(): boolean {
-  if (typeof window === "undefined") return false;
-  return new URLSearchParams(window.location.search).get("variant") === "minimalist";
-}
-
-function peekNative(): boolean {
-  const v = peekIsMinimal() ? "minimalist" : "full";
-  return v === "full" || v === "minimalist";
-}
-
 type Variant = "full" | "minimalist";
 // One way back, worded the same everywhere. The detail component renders it as
 // "← <label>": the arrow carries the meaning, the words say where it goes.
@@ -120,7 +104,6 @@ function readParams(): EmbedParams {
     variant:
       p.get("variant") === "minimalist" ? "minimalist" : "full",
     fullHeight: Math.max(360, Math.min(1200, intParam("h", 640, 360))),
-    header: p.get("header") === "1",
     links: p.get("links") === "1",
     provider: (p.get("provider") || "").trim(),
     business: (p.get("business") || "").trim(),
@@ -217,12 +200,11 @@ export default function EmbedExplorer() {
   // visitor saw could differ from what the realtor pasted.
   const effVariant: Variant = params?.variant ?? "full";
   // Variants are an inline-embed choice. The floating popup has its own layout
-  // and always has — retiring Compact must not silently redesign it.
+  // and always has.
   const isFull = isInline && effVariant === "full";
   const isMinimal = isInline && effVariant === "minimalist";
   // Flat, native, page-flow variants (no accent header, no Home button).
   const isNative = isFull || isMinimal;
-  const headerTitle = `Dream Neighborhood School Explorer${params?.provider ? ` provided by ${params.provider}` : ""}`;
 
   // Suppression is per site, not per customer: DN identifies the customer from
   // the caller's Origin and never tells us who they are. The parent hostname is
@@ -761,24 +743,6 @@ export default function EmbedExplorer() {
         className={`flex flex-col bg-white ${mounted && !inlineBoot ? "h-screen overflow-hidden" : "min-h-[540px]"}`}
         aria-busy="true"
       >
-        {mounted && isInline && !peekNative() && (
-          <header
-            className="flex shrink-0 items-center gap-2 px-4 py-1.5 text-white"
-            style={{ background: accent }}
-          >
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20">
-              {PIN_SVG}
-            </span>
-            <div className="min-w-0 flex-1 overflow-hidden">
-              <p
-                className="overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-bold leading-tight"
-                title={headerTitle}
-              >
-                {headerTitle}
-              </p>
-            </div>
-          </header>
-        )}
         {showBoot ? (
           <div className={`mx-auto flex w-full max-w-5xl flex-col px-3 pt-3 sm:px-4 ${mounted && !isInline ? "min-h-0 flex-1" : ""}`}>
             {(peek.address || address).trim() ? (
@@ -802,37 +766,6 @@ export default function EmbedExplorer() {
 
   return (
     <main className={`flex flex-col bg-white ${isInline ? "" : "h-screen overflow-hidden"}`}>
-      <style>{`
-        @keyframes dse-inline-title-marquee {
-          0%, 15% { transform: translateX(0); }
-          85%, 100% { transform: translateX(calc(-100% + 220px)); }
-        }
-        @media (max-width: 520px) {
-          .dse-inline-title-marquee {
-            display: inline-block;
-            min-width: max-content;
-            animation: dse-inline-title-marquee 12s linear infinite;
-          }
-        }
-      `}</style>
-      {/* Inline embeds have no SDK chrome, so brand the iframe itself. The
-          "full"/"minimalist" variants use their own native heading instead. */}
-      {isInline && !isNative && (
-        <header
-          className="flex shrink-0 items-center gap-2 px-4 py-1.5 text-white"
-          style={{ background: accent }}
-        >
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20">
-            {PIN_SVG}
-          </span>
-          <div className="min-w-0 flex-1 overflow-hidden">
-            <p className="dse-inline-title-marquee overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-bold leading-tight" title={headerTitle}>
-              {headerTitle}
-            </p>
-          </div>
-        </header>
-      )}
-
       {/* ---- Native (full/minimalist) home: compact search (no hero, no Home) ---- */}
       {screen === "home" && isNative && (
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 py-6">

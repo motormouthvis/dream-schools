@@ -40,7 +40,6 @@ optional and overrides the server-resolved per-host config.
 | `data-show-external-links` | both | show a "more on this school" row (Niche & GreatSchools) on the school detail. Off by default on the embed; always on for the main site |
 | `data-min-height` | inline | iframe min-height in px |
 | `data-max-width` | inline | max width in px (default 840; e.g. `600` narrower or `1100` wider) |
-| `data-show-header` | inline | show the explorer header bar |
 | `data-address` | inline | explicit address; bypasses scraping |
 | `data-lat` / `data-lng` | inline | explicit coordinates; bypasses geocoding |
 | `data-api-base` | both | override the API origin (defaults to the script's origin) |
@@ -136,7 +135,7 @@ URL/title fallback) and returns `{ address, lat, lon }`.
 ## Endpoints
 
 - `GET  /embed` — chrome-less explorer (loaded in the iframe). Params:
-  `address`, `lat`, `lng`, `accent`, `mode=popup|inline`, `header=1`.
+  `address`, `lat`, `lng`, `accent`, `mode=popup|inline`.
   Sends `Content-Security-Policy: frame-ancestors *` so it can be framed by
   any partner domain.
 - `GET  /embed.js` — the one-line SDK (popup + inline). Served with `*` CORS.
