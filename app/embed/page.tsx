@@ -89,37 +89,16 @@ function peekIsMinimal(): boolean {
 }
 
 function peekNative(): boolean {
-  const c = readAppearanceCookie();
-  const v = c ?? (peekIsMinimal() ? "minimalist" : "full");
+  const v = peekIsMinimal() ? "minimalist" : "full";
   return v === "full" || v === "minimalist";
 }
 
-// Temporary appearance switcher (footer): remembers the chosen inline variant in
-// a cookie so it can be compared across the three designs.
-const APPEARANCE_COOKIE = "dse_embed_appearance";
 type Variant = "full" | "minimalist";
-const VARIANTS: Variant[] = ["full", "minimalist"];
 // One way back, worded the same everywhere. The detail component renders it as
 // "← <label>": the arrow carries the meaning, the words say where it goes.
 // Previously this said "Nearby Schools" in one place, "Back to list" or "Back to
 // map" in another, and nothing at all in a third.
 const BACK_LABEL = "Nearby schools";
-
-const VARIANT_LABEL: Record<Variant, string> = {
-  full: "Showcase",
-  minimalist: "Minimalist",
-};
-function readAppearanceCookie(): Variant | null {
-  if (typeof document === "undefined") return null;
-  const m = document.cookie.match(new RegExp("(?:^|; )" + APPEARANCE_COOKIE + "=([^;]*)"));
-  const v = m ? decodeURIComponent(m[1]) : "";
-  // "classic" was Compact, retired: Showcase does everything it did.
-  return v === "minimalist" ? "minimalist" : v === "full" || v === "classic" ? "full" : null;
-}
-function writeAppearanceCookie(v: Variant): void {
-  if (typeof document === "undefined") return;
-  document.cookie = `${APPEARANCE_COOKIE}=${v};path=/;max-age=31536000;samesite=lax`;
-}
 
 function readParams(): EmbedParams {
   const p = new URLSearchParams(window.location.search);
@@ -232,25 +211,17 @@ export default function EmbedExplorer() {
 
   const accent = params?.accent || "#1fa55f";
   const isInline = params?.mode === "inline";
-  // Appearance override (footer switcher, cookie-backed) wins over the snippet's variant.
-  const [appearance, setAppearance] = useState<Variant | null>(null);
-  useEffect(() => {
-    setAppearance(readAppearanceCookie());
-  }, []);
-  const effVariant: Variant = appearance ?? params?.variant ?? "full";
+  // The realtor chooses the appearance by picking a snippet. Nothing overrides
+  // it at runtime: a switcher in the footer put the choice in front of the
+  // homebuyer, on the realtor's site, and remembered it in a cookie, so what a
+  // visitor saw could differ from what the realtor pasted.
+  const effVariant: Variant = params?.variant ?? "full";
   // Variants are an inline-embed choice. The floating popup has its own layout
   // and always has — retiring Compact must not silently redesign it.
   const isFull = isInline && effVariant === "full";
   const isMinimal = isInline && effVariant === "minimalist";
   // Flat, native, page-flow variants (no accent header, no Home button).
   const isNative = isFull || isMinimal;
-  function cycleAppearance() {
-    const idx = VARIANTS.indexOf(effVariant);
-    const next = VARIANTS[(idx + 1) % VARIANTS.length];
-    writeAppearanceCookie(next);
-    setAppearance(next);
-    setSelected(null);
-  }
   const headerTitle = `Dream Neighborhood School Explorer${params?.provider ? ` provided by ${params.provider}` : ""}`;
 
   // Suppression is per site, not per customer: DN identifies the customer from
@@ -494,7 +465,7 @@ export default function EmbedExplorer() {
       },
       "*"
     );
-  }, [isInline, screen, selected, loading, view, error, focused, showSuggest, address, recents.length, appearance]);
+  }, [isInline, screen, selected, loading, view, error, focused, showSuggest, address, recents.length]);
 
   const runLookup = useCallback(async (query: string, picked?: Suggestion, opts?: { fromAuto?: boolean }) => {
     const q = query.trim();
@@ -1159,19 +1130,6 @@ export default function EmbedExplorer() {
         >
           Privacy
         </a>
-        {isInline && (
-          <>
-            {" "}·{" "}
-            <button
-              type="button"
-              onClick={cycleAppearance}
-              title="Temporary: cycle the inline appearance (Compact → Showcase → Minimalist). Saved in this browser."
-              className="font-medium text-slate-600 underline decoration-dotted underline-offset-2 hover:text-brand-700"
-            >
-              Appearance: {VARIANT_LABEL[effVariant]}
-            </button>
-          </>
-        )}
       </footer>
 
       {upgradeVisible && (
