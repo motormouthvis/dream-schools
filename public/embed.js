@@ -13,7 +13,11 @@
  *   data-partner-id, data-widget-number, data-accent-color, data-position,
  *   data-bottom-offset, data-tooltip-message, data-require-address,
  *   data-search-page-content, data-suppress-on-inline, data-min-height,
- *   data-show-header, data-address, data-lat, data-lng, data-api-base
+ *   data-address, data-lat, data-lng, data-api-base
+ *
+ * data-via="dn-explorer" on the <script> marks a hand-off: Dream Neighborhood's
+ * sdk.js loaded us because it evaluated entitlement and decided its own
+ * Neighborhood Explorer will not render. See VIA_DN_EXPLORER below.
  *
  * The SDK resolves per-host config from /api/embed/config, best-effort scrapes
  * the listing address from the page, and opens a chrome-less explorer iframe
@@ -28,6 +32,44 @@
     ".dream-schools-explorer",
     "[data-dream-schools-explorer]",
   ];
+
+  // Hand-off from Dream Neighborhood's sdk.js. Under the shared-popup model a
+  // realtor pastes only DN's tag; DN resolves entitlement and, when the answer
+  // is "not entitled", injects this script with data-via="dn-explorer". The
+  // attribute therefore means DN has ALREADY decided its Neighborhood Explorer
+  // will not render — no ready signal is coming.
+  //
+  // Published on window as well as read off our own tag, so a page carrying the
+  // old two-snippet install (our tag parsed early, DN's hand-off injected
+  // later) can tell its already-running instance to stop waiting.
+  var VIA_DN_EXPLORER_FLAG = "__DSE_VIA_DN_EXPLORER__";
+  var VIA_DN_EXPLORER_EVENT = "dse:via-dn-explorer";
+
+  function viaDnExplorer() {
+    try {
+      return !!window[VIA_DN_EXPLORER_FLAG];
+    } catch (e) {
+      return false;
+    }
+  }
+
+  try {
+    if (String((SCRIPT_EL && SCRIPT_EL.getAttribute("data-via")) || "").trim().toLowerCase() === "dn-explorer") {
+      window[VIA_DN_EXPLORER_FLAG] = true;
+      window.dispatchEvent(new Event(VIA_DN_EXPLORER_EVENT));
+    }
+  } catch (e) {}
+
+  // Loading embed.js twice must be harmless. DN guards with its own window flag,
+  // but a site can still end up with two tags (their own popup snippet plus DN's
+  // hand-off). Inline mode is already idempotent; the floating popup is not — a
+  // second boot would append a second #dse-root and a second bubble. Bail after
+  // publishing the hand-off flag above, so the running instance still benefits.
+  var LOADED_FLAG = "__DSE_EMBED_LOADED__";
+  try {
+    if (window[LOADED_FLAG]) return;
+    window[LOADED_FLAG] = true;
+  } catch (e) {}
 
   function deriveApiBase(el) {
     var attr = el && el.getAttribute("data-api-base");
@@ -78,8 +120,11 @@
     showExternalLinks: false,
     inlineMinHeight: 540,
     inlineMinHeightExplicit: false,
-    inlineShowHeader: false,
-    inlineVariant: "classic", // "classic" (existing) | "full" (new Nearby Schools design)
+    // "full" (Showcase) | "minimalist". Compact is retired, but snippets saying
+    // data-variant="classic" are pasted into live sites we do not control, so
+    // that value still has to resolve — to Showcase, which does everything
+    // Compact did.
+    inlineVariant: "full",
     neighborhoodExplorerGraceMs: 4000,
   };
 
@@ -101,9 +146,7 @@
       searchPageContent: typeof remote.searchPageContent === "boolean" ? remote.searchPageContent : DEFAULTS.searchPageContent,
       inlineMinHeight: typeof inline.minHeight === "number" ? Math.max(200, inline.minHeight | 0) : DEFAULTS.inlineMinHeight,
       inlineMinHeightExplicit: false,
-      inlineShowHeader: typeof inline.showHeader === "boolean" ? inline.showHeader : DEFAULTS.inlineShowHeader,
-      inlineVariant:
-        inline.variant === "full" ? "full" : inline.variant === "minimalist" ? "minimalist" : DEFAULTS.inlineVariant,
+      inlineVariant: inline.variant === "minimalist" ? "minimalist" : DEFAULTS.inlineVariant,
       neighborhoodExplorerGraceMs: Math.max(2000, Math.min(15000, grace | 0) || DEFAULTS.neighborhoodExplorerGraceMs),
     };
   }
@@ -129,11 +172,9 @@
       next.inlineMinHeight = mh;
       next.inlineMinHeightExplicit = true;
     }
-    var sh = boolAttr(el, "data-show-header");
-    if (sh !== null) next.inlineShowHeader = sh;
     if (el.hasAttribute("data-variant")) {
       var v = (el.getAttribute("data-variant") || "").trim().toLowerCase();
-      next.inlineVariant = v === "full" ? "full" : v === "minimalist" ? "minimalist" : "classic";
+      next.inlineVariant = v === "minimalist" ? "minimalist" : "full";
     }
     return next;
   }
@@ -146,35 +187,103 @@
     };
   }
 
-  function fetchConfig(apiBase, host, widgetNumber, surface) {
-    var url = apiBase + "/api/embed/config?host=" + encodeURIComponent(host) + "&widget_number=" + encodeURIComponent(widgetNumber);
-    if (surface) url += "&surface=" + encodeURIComponent(surface);
+  // The customer comes from Dream Neighborhood, keyed on this page's hostname.
+  // DN holds customers; we hold school data and keep no copy of who anybody is.
+  //
+  // Three answers, three meanings. A 404 says "not a customer, switched off, or
+  // offboarded" and must render nothing — that is what makes switching a
+  // customer off actually reach this widget. Anything else that isn't an answer
+  // is an outage, and is handled server-side by falling back to DN's own last
+  // good answer rather than by us guessing.
+  function fetchConfig(apiBase, host) {
+    var url = apiBase + "/api/embed/dn-config?host=" + encodeURIComponent(host);
     return fetch(url, { method: "GET", mode: "cors", credentials: "omit" })
-      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (r) {
+        if (r.status === 404) return { unknownHost: true };
+        if (!r.ok) return null;
+        return r.json();
+      })
       .catch(function () { return null; });
+  }
+
+  /**
+   * DN hands off with the customer's settings already on the tag, so there is
+   * nothing left to look up — asking again would only be a second chance to get
+   * a different answer.
+   */
+  function configFromHandOff(anchorEl) {
+    var pres = applyOverrides(presentationFromRemote(null), anchorEl);
+    var fallback = (SCRIPT_EL && SCRIPT_EL.getAttribute("data-fallback-address")) || "";
+    return {
+      widgetNumber: "1",
+      // Only used when the page itself yields no address — a real listing
+      // address on the page must still win.
+      defaultAddress: fallback,
+      presentation: pres,
+    };
   }
 
   function resolveConfig(anchorEl, apiBase) {
     var identity = readIdentity(anchorEl, apiBase);
     var widgetNumber = identity.widgetNumber;
-    // Report which snippet is present so the admin can see popup vs embed
-    // detection separately. Inline (embed) takes priority when both exist.
-    var surface = inlinePresent() ? "embed" : "popup";
-    return fetchConfig(apiBase, location.hostname, widgetNumber, surface).then(function (remote) {
-      if (remote && remote.enabled === false) return { disabledReason: remote.reason || "disabled" };
-      var partnerId = identity.partnerId || (remote && remote.partnerId) || "";
-      if (remote && remote.widgetNumber != null) widgetNumber = String(remote.widgetNumber);
+
+    if (viaDnExplorer()) {
+      var handed = configFromHandOff(anchorEl);
+      return Promise.resolve(buildConfig(handed.presentation, apiBase, handed.widgetNumber, {
+        defaultAddress: handed.defaultAddress,
+      }));
+    }
+
+    return fetchConfig(apiBase, location.hostname).then(function (remote) {
+      // Not a customer. Nothing renders — this is the off switch reaching us.
+      if (!remote || remote.unknownHost) return { disabledReason: "unknown_host" };
+
+      // The realtor switched the Explorer off in DN's dashboard. Their popup and
+      // their neighborhood embed stop; a standalone schools embed used to keep
+      // running, because nothing here looked at why DN said the customer was not
+      // enabled. Three of the four going quiet and the fourth carrying on reads
+      // as a bug to the person who just switched it off.
+      //
+      // Only this one reason removes anything. `subscription_required` and
+      // `trial_expired` mean the realtor is not paying, which is precisely who
+      // the free School Explorer is for, and DN's own SDK hands those to us
+      // deliberately. Anything unrecognised renders, as does no answer at all:
+      // an outage must never blank the free product.
+      if (remote.reason === "no_widget") return { disabledReason: "no_widget" };
+      if (remote.widgetNumber != null) widgetNumber = String(remote.widgetNumber);
       var pres = applyOverrides(presentationFromRemote(remote), anchorEl);
+      return buildConfig(pres, apiBase, widgetNumber, {
+        defaultAddress: remote.defaultAddress || "",
+        defaultLat: typeof remote.defaultLat === "number" ? remote.defaultLat : null,
+        defaultLng: typeof remote.defaultLng === "number" ? remote.defaultLng : null,
+        partnerId: identity.partnerId || remote.partnerId || "",
+        // The white-label name is what a visitor should see: for a realtor under
+        // a partner it is the partner's brand, which is the whole point of white
+        // labelling. displayName is the realtor's own name and companyName is
+        // for DN's dashboard, so neither belongs in front of a homebuyer.
+        providerName: remote.whiteLabelName || remote.displayName || "",
+        // When the upgrade prompt may appear, decided per customer in DN.
+        upgradePrompt: remote.upgradePrompt || null,
+      });
+    });
+  }
+
+  function buildConfig(pres, apiBase, widgetNumber, extra) {
+    extra = extra || {};
+    var partnerId = extra.partnerId || "";
+    return (function () {
       return {
         partnerId: partnerId,
         widgetNumber: widgetNumber,
         apiBase: apiBase,
-        defaultAddress: (remote && remote.defaultAddress) || "",
-        providerName: (remote && remote.providerName) || "",
-        businessName: (remote && remote.businessName) || "",
-        customerId: (remote && (remote.customerId || remote.partnerId)) || partnerId,
-        customerPartnerId: (remote && remote.customerPartnerId) || "",
-        upgradePrompt: (remote && remote.upgradePrompt) || null,
+        defaultAddress: extra.defaultAddress || "",
+        defaultLat: extra.defaultLat != null ? extra.defaultLat : null,
+        defaultLng: extra.defaultLng != null ? extra.defaultLng : null,
+        providerName: extra.providerName || "",
+        businessName: "",
+        customerId: partnerId,
+        customerPartnerId: "",
+        upgradePrompt: extra.upgradePrompt || null,
         accentColor: pres.accentColor,
         position: pres.position,
         bottomOffset: pres.bottomOffset,
@@ -185,11 +294,10 @@
         showExternalLinks: pres.showExternalLinks,
         inlineMinHeight: pres.inlineMinHeight,
         inlineMinHeightExplicit: pres.inlineMinHeightExplicit,
-        inlineShowHeader: pres.inlineShowHeader,
         inlineVariant: pres.inlineVariant,
         neighborhoodExplorerGraceMs: pres.neighborhoodExplorerGraceMs,
       };
-    });
+    })();
   }
 
   // -------------------------------------------------------------------------
@@ -484,63 +592,279 @@
   // with server-side URL/title fallback). Returns {address, lat, lon} or null.
   // Pass opts.spa (with opts.prevAddr / opts.prevTitle) after a client-side
   // navigation so we wait for the new route to render before scraping.
-  function geocodePage(config, opts) {
-    opts = opts || {};
+  /**
+   * Where to point when the page yields no address of its own. DN sends
+   * coordinates alongside the address, so this costs no geocode.
+   */
+  function fallbackTarget(config) {
+    return {
+      address: config.defaultAddress,
+      lat: config.defaultLat != null ? config.defaultLat : null,
+      lon: config.defaultLng != null ? config.defaultLng : null,
+    };
+  }
+
+  /**
+   * Dream Neighborhood's address detector, vendored verbatim under
+   * /address-detector/ and shared by both products.
+   *
+   * It replaces the one-shot scrape below for two reasons. It waits: several
+   * platforms build the listing after DOMContentLoaded, and reading once at
+   * that moment failed on every load of every page on those sites. And it says
+   * whether the page is a single listing, which is what lets us tell "there is
+   * no address here" from "there is one and we failed to read it".
+   *
+   * Loaded on demand rather than inlined because this file is a plain script
+   * with no build step, and the detector is ESM. One request, same origin as
+   * this file, cached.
+   */
+  var detectorPromise = null;
+  function loadDetector(apiBase) {
+    if (!detectorPromise) {
+      detectorPromise = import(apiBase + "/address-detector/detect-address.js").catch(function () {
+        return null;
+      });
+    }
+    return detectorPromise;
+  }
+
+  /** Our own scrape, kept as the fallback for when the detector cannot load. */
+  function legacyRead(config, opts) {
     var scrapedPromise = opts.spa
       ? waitForRouteSettle(config, opts.prevAddr || "", opts.prevTitle || "")
       : Promise.resolve(currentScrape(config));
     return scrapedPromise.then(function (scraped) {
-      scraped = scraped || "";
+      return {
+        address: scraped || "",
+        coords: null,
+        looksLikeListing: false,
+        found: Boolean(scraped),
+        usedDetector: false,
+      };
+    });
+  }
+
+  function readPage(config, opts) {
+    return loadDetector(config.apiBase).then(function (mod) {
+      if (!mod || typeof mod.detectPageAddress !== "function") return legacyRead(config, opts);
+      // On an SPA route change the SDK is notified at pushState time, before the
+      // framework has committed the new DOM. Settle first so the detector does
+      // not read the previous listing and stop on it.
+      var settled = opts.spa
+        ? waitForRouteSettle(config, opts.prevAddr || "", opts.prevTitle || "")
+        : Promise.resolve("");
+      return settled
+        .then(function () {
+          return mod.detectPageAddress({ searchPageContent: config.searchPageContent });
+        })
+        .then(function (r) {
+          return {
+            address: (r && r.address) || "",
+            coords: (r && r.coords) || null,
+            looksLikeListing: Boolean(r && r.looksLikeListing),
+            found: Boolean(r && r.found),
+            usedDetector: true,
+          };
+        })
+        .catch(function () { return legacyRead(config, opts); });
+    });
+  }
+
+  function geocodePage(config, opts) {
+    opts = opts || {};
+    return readPage(config, opts).then(function (read) {
+      // found=false means the text is a guess — a place name off the title or
+      // URL — not something the page stated. On a listing page a guess is worse
+      // than nothing: it geocodes to a real place that is not this house, and
+      // nothing downstream can tell it apart from a real read. On a page that
+      // is not a listing it is the whole point, and is how a city landing page
+      // resolves at all.
+      var scraped = read.found || !read.looksLikeListing ? read.address : "";
+
+      // The page stated its own coordinates. That is the point the platform's
+      // own map uses, so it cannot be mis-geocoded and costs no round trip.
+      if (read.coords && isFinite(read.coords.lat) && isFinite(read.coords.lng)) {
+        return { address: scraped, lat: read.coords.lat, lon: read.coords.lng, general: false };
+      }
+
+      // Nothing readable on a page that is plainly one listing. Whatever we show
+      // now is somewhere else, so it has to be labelled — an unlabelled fallback
+      // is how a Lake Tahoe customer's visitors were shown Reno.
+      var general = read.looksLikeListing && !read.found;
+
       return fetch(config.apiBase + "/api/embed/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         mode: "cors",
         credentials: "omit",
-        body: JSON.stringify({ page_url: location.href, page_title: document.title || "", page_address: scraped }),
+        body: JSON.stringify({
+          page_url: location.href,
+          page_title: document.title || "",
+          page_address: scraped,
+          // The detector has already decided what this page says. Let the server
+          // geocode that and nothing else.
+          allow_inference: !read.usedDetector,
+        }),
       })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
-          if (d && d.success) return { address: d.address || scraped, lat: d.lat, lon: d.lon };
-          if (config.defaultAddress) return { address: config.defaultAddress, lat: null, lon: null };
-          if (scraped) return { address: scraped, lat: null, lon: null };
-          return null;
+          if (d && d.success) return { address: d.address || scraped, lat: d.lat, lon: d.lon, general: general };
+          if (config.defaultAddress) return withGeneral(fallbackTarget(config), general);
+          if (scraped) return { address: scraped, lat: null, lon: null, general: general };
+          // No fallback address either. The marker still has to travel: the
+          // server falls back to the account's configured point, so rendering
+          // without coordinates does not avoid the substitution, it only moves
+          // it out of sight.
+          return general ? { address: "", lat: null, lon: null, general: true } : null;
         })
         .catch(function () {
-          if (config.defaultAddress) return { address: config.defaultAddress, lat: null, lon: null };
-          return scraped ? { address: scraped, lat: null, lon: null } : null;
+          if (config.defaultAddress) return withGeneral(fallbackTarget(config), general);
+          if (scraped) return { address: scraped, lat: null, lon: null, general: general };
+          return general ? { address: "", lat: null, lon: null, general: true } : null;
         });
     });
+  }
+
+  function withGeneral(target, general) {
+    if (target) target.general = general;
+    return target;
   }
 
   // -------------------------------------------------------------------------
   // Iframe URL
   // -------------------------------------------------------------------------
 
+  /**
+   * A homebuyer asking their realtor for the full Neighborhood Explorer.
+   *
+   * The ask belongs to DN and DN identifies the customer from the Origin of
+   * whoever calls it — which is why this runs here, on the realtor's page,
+   * rather than inside the explorer iframe, whose origin is ours. We send no
+   * identifier of any kind; we do not have one and do not want one.
+   *
+   * Fire and forget. The visitor has already been told nothing is pending, and
+   * DN de-duplicates, so a retry we can't see is not worth a spinner.
+   */
+  var wiredConfig = null;
+  function wireUpgradeRequests(config) {
+    wiredConfig = config;
+    var apiBase = config.apiBase;
+    var expected;
+    try {
+      expected = new URL(apiBase, location.href).origin;
+    } catch (e) {
+      return;
+    }
+    window.addEventListener("message", function (e) {
+      if (e.origin !== expected) return;
+      if (e.data && e.data.type === "dse:open-school") {
+        openSchoolOverlay(wiredConfig, e.data.ncesId, e.data.address);
+        return;
+      }
+      if (!e.data || e.data.type !== "dse:upgrade-request") return;
+      try {
+        fetch(apiBase + "/api/embed/upgrade-request", {
+          method: "POST",
+          mode: "cors",
+          credentials: "omit",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            address: String(e.data.address || ""),
+            requester_key: String(e.data.requesterKey || ""),
+            source: e.data.source === "inline" ? "inline" : "popup",
+          }),
+        }).catch(function () {});
+      } catch (err) {}
+    });
+  }
+
+  /**
+   * Open one school over the realtor's page.
+   *
+   * The minimalist embed is deliberately short — a few rows — so rendering a
+   * school's detail inside it would shove the page's own content down by most
+   * of a screen. It asks for this instead, and the visitor never leaves.
+   *
+   * Built alongside the floating popup rather than inside it, on purpose. The
+   * popup carries a bubble, a tooltip, a grace period and a coexistence
+   * handshake, none of which apply to something a visitor deliberately opened.
+   * Reusing only its stylesheet keeps this from being able to break it.
+   */
+  var schoolOverlay = null;
+  function openSchoolOverlay(config, ncesId, address) {
+    if (!config || !config.apiBase || !ncesId) return;
+    if (!document.querySelector("style[data-dse-overlay]")) {
+      var style = document.createElement("style");
+      style.setAttribute("data-dse-overlay", "");
+      // The popup's stylesheet is scoped to #dse-root. Re-scope the same rules
+      // rather than copy them, so the two cannot drift apart.
+      style.textContent = CSS.replace(/#dse-root/g, "#dse-school-overlay");
+      document.head.appendChild(style);
+    }
+    if (!schoolOverlay) {
+      var root = document.createElement("div");
+      root.id = "dse-school-overlay";
+      root.style.setProperty("--dse-accent", config.accentColor);
+      var title = "Dream Neighborhood School Explorer" + (config.providerName ? " provided by " + config.providerName : "");
+      root.innerHTML =
+        '<div class="dse-backdrop" style="display:none"><div class="dse-panel">' +
+        '<div class="dse-header"><div class="dse-hl"><div class="dse-hicon">' + ICON_PIN + '</div>' +
+        '<div class="dse-tw"><span class="dse-title" title="' + escHtml(title) + '">' + escHtml(title) + "</span></div></div>" +
+        '<button class="dse-close" aria-label="Close">' + ICON_CLOSE + "</button></div>" +
+        '<iframe class="dse-iframe" allow="geolocation" allowfullscreen></iframe></div></div>';
+      document.body.appendChild(root);
+      var backdrop = root.querySelector(".dse-backdrop");
+      function close() {
+        backdrop.classList.remove("dse-open");
+        backdrop.style.display = "none";
+        var f = root.querySelector("iframe.dse-iframe");
+        if (f) f.removeAttribute("src");
+      }
+      root.querySelector(".dse-close").addEventListener("click", close);
+      backdrop.addEventListener("click", function (e) { if (e.target === backdrop) close(); });
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && backdrop.classList.contains("dse-open")) close();
+      });
+      schoolOverlay = { root: root, backdrop: backdrop, close: close };
+    }
+    var iframe = schoolOverlay.root.querySelector("iframe.dse-iframe");
+    // A school's detail is taller than the popup's default height, and there is
+    // no list to come back to here, so use the panel's full height.
+    iframe.style.height = Math.min(680, Math.round(window.innerHeight * 0.95)) - 52 + "px";
+    var url = buildIframeUrl(config, address ? { address: address } : null, "popup") + "&school=" + encodeURIComponent(ncesId);
+    iframe.setAttribute("src", url);
+    schoolOverlay.backdrop.style.display = "";
+    void schoolOverlay.backdrop.offsetHeight;
+    schoolOverlay.backdrop.classList.add("dse-open");
+  }
+
   function buildIframeUrl(config, coords, mode) {
     var url = config.apiBase + "/embed?mode=" + encodeURIComponent(mode) + "&accent=" + encodeURIComponent(config.accentColor);
     function promptValue(value, fallback) {
       return typeof value === "number" && isFinite(value) ? value : fallback;
     }
-    if (mode === "inline" && config.inlineShowHeader) url += "&header=1";
-    if (mode === "inline" && (config.inlineVariant === "full" || config.inlineVariant === "minimalist")) {
-      url += "&variant=" + config.inlineVariant;
-    }
+    if (mode === "inline") url += "&variant=" + config.inlineVariant;
     // The "full" design is a fixed-height window; pass its height (data-min-height, default 640).
     if (mode === "inline") {
       url += "&h=" + (config.inlineMinHeightExplicit ? config.inlineMinHeight : 640);
     }
     if (config.showExternalLinks) url += "&links=1";
     if (config.providerName) url += "&provider=" + encodeURIComponent(config.providerName);
-    if (config.businessName) url += "&business=" + encodeURIComponent(config.businessName);
-    if (config.customerId) url += "&customer=" + encodeURIComponent(config.customerId);
-    if (config.customerPartnerId) url += "&partner=" + encodeURIComponent(config.customerPartnerId);
     if (config.upgradePrompt) {
-      url += "&uv=" + encodeURIComponent(promptValue(config.upgradePrompt.viewsToTrigger, 2));
-      url += "&ud=" + encodeURIComponent(promptValue(config.upgradePrompt.minDaysBetween, 7));
-      url += "&ui=" + encodeURIComponent(promptValue(config.upgradePrompt.idleSeconds, 8));
-      url += "&ur=" + encodeURIComponent(promptValue(config.upgradePrompt.requestSuppressDays, 90));
+      var up = config.upgradePrompt;
+      if (isFinite(up.minViews)) url += "&uv=" + encodeURIComponent(up.minViews);
+      if (isFinite(up.minDays)) url += "&ud=" + encodeURIComponent(up.minDays);
+      if (isFinite(up.minSeconds)) url += "&ui=" + encodeURIComponent(up.minSeconds);
     }
+    // The hostname, not an identity: it namespaces the explorer's own
+    // suppression keys so dismissing the upgrade prompt on one realtor's site
+    // doesn't silence it on another's. Who the customer is stays with DN.
+    url += "&site=" + encodeURIComponent(location.hostname);
     if (coords) {
+      // We are showing somewhere other than the listing on this page. The
+      // explorer says so on screen; it must not be confused with "approximate",
+      // which means we placed THIS listing, only coarsely.
+      if (coords.general) url += "&general=1";
       if (coords.address) url += "&address=" + encodeURIComponent(coords.address);
       if (coords.lat != null && coords.lon != null) url += "&lat=" + encodeURIComponent(coords.lat) + "&lng=" + encodeURIComponent(coords.lon);
     }
@@ -656,9 +980,20 @@
   // Neighborhood Explorer coexistence is handled separately via the ready signal.
   // The floating School popup must never appear over an inline embed on the same
   // page — whether that's a School embed OR a Neighborhood Explorer embed.
+  //
+  // Except on a hand-off. `data-via="dn-explorer"` means DN evaluated this
+  // customer's entitlement and found them unentitled, so their Neighborhood
+  // Explorer embed will render nothing — DN's inline bundle has no hand-off of
+  // its own, by design. Stepping aside for an empty container would leave the
+  // page with nothing at all, on a page where the realtor pasted the one-line
+  // popup precisely so that something would always be there.
+  function neighborhoodEmbedBlocksPopup() {
+    if (!neighborhoodExplorerInlinePresent()) return false;
+    return !viaDnExplorer();
+  }
   function popupShouldStepAsideForInline() {
-    if (neighborhoodExplorerInlinePresent()) return true; // NE embed on the page
-    return inlinePresent() && !allowPopupWithInline();     // School embed (unless opt-in)
+    if (neighborhoodEmbedBlocksPopup()) return true;   // NE embed that will render
+    return inlinePresent() && !allowPopupWithInline(); // School embed (unless opt-in)
   }
 
   // Cheap hint: is Neighborhood Explorer plausibly on this page? Used ONLY to
@@ -716,6 +1051,7 @@
     var neSuppressed = false;
     var graceDone = false;
     var geoDone = false;
+    var graceTimer = null;
     var graceMs = typeof config.neighborhoodExplorerGraceMs === "number"
       ? config.neighborhoodExplorerGraceMs
       : DEFAULTS.neighborhoodExplorerGraceMs;
@@ -723,6 +1059,14 @@
     function onNeighborhoodExplorerReady() {
       neSuppressed = true;
       hidePopup();
+    }
+
+    // The hand-off arrived after we started waiting (old two-snippet install).
+    function endGraceEarly() {
+      if (graceDone) return;
+      if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
+      graceDone = true;
+      tryRevealPopup();
     }
 
     var style = document.createElement("style");
@@ -876,11 +1220,24 @@
     // the vast majority, show with no artificial delay.
     try {
       // Always listen: if NE loads late and signals, we hide even after showing.
+      // This holds even for a hand-off — a page can carry both DN's hand-off and
+      // a separately installed DN popup, and stepping aside is still right.
       window.addEventListener(NE_READY_EVENT, onNeighborhoodExplorerReady, { once: true });
       if (window[NE_READY_FLAG]) {
         onNeighborhoodExplorerReady();
+      } else if (viaDnExplorer()) {
+        // DN handed off to us, so it has already evaluated entitlement and
+        // decided not to render. Waiting for a signal that cannot come would
+        // delay every hand-off by the full grace period: DN's injected
+        // __DN_EXPLORER_API_BASE__ and its own script tag both make
+        // neighborhoodExplorerMaybePresent() true on every such page.
+        graceDone = true;
       } else if (neighborhoodExplorerMaybePresent()) {
-        setTimeout(function () {
+        // No hand-off, but DN might be here and might still announce itself.
+        // Still the right behaviour for the old two-snippet install.
+        window.addEventListener(VIA_DN_EXPLORER_EVENT, endGraceEarly, { once: true });
+        graceTimer = setTimeout(function () {
+          graceTimer = null;
           graceDone = true;
           tryRevealPopup();
         }, graceMs);
@@ -1011,6 +1368,7 @@
       if (config.disabledReason) { console.info("[Dream Schools Explorer] Disabled by server (" + config.disabledReason + ")."); return; }
 
       var popupStarted = false;
+      wireUpgradeRequests(config);
 
       function ensureInline() {
         var el = findContainer();
@@ -1023,7 +1381,7 @@
         if (popupStarted) return;
         // Never mount the popup over an inline embed on the page — a Neighborhood
         // Explorer embed, or a School embed (unless the page opts into both).
-        if (neighborhoodExplorerInlinePresent()) return;
+        if (neighborhoodEmbedBlocksPopup()) return;
         if (findContainer() && !allowPopupWithInline()) return;
         popupStarted = true;
         initPopup(config);

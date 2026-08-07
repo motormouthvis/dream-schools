@@ -202,6 +202,92 @@ Owner decisions (final):
   (store in Postgres).
 - Set `Content-Security-Policy: frame-ancestors` to allow embedding on allowed hosts.
 
+## DREAM NEIGHBORHOOD INTEGRATION — branch `cursor/dn-integration-bd38`
+
+Read **`docs/DN_INTEGRATION.md`** first. It is the context document written by
+the agent in `motormouthvis/dreamneighborhood`, committed here so this repo does
+not depend on a branch in that repo, with our reply appended at the end.
+
+- **Do not merge this branch to `main`.** Both products merge and deploy
+  together, later, as a deliberate decision. `main` is what production deploys
+  from and has to stay safe to ship a hotfix from. If `main` moves, **rebase**.
+- **There is no staging branch.** Staging is the Heroku app
+  `dream-schools-preview`, not connected to GitHub — merging a PR deploys
+  nothing. Test with
+  `git push https://git.heroku.com/dream-schools-preview.git HEAD:main --force`.
+- **DN production is frozen.** Test only against
+  `https://staging.dreamneighborhood.com`.
+
+The model: the **popup** is one shared snippet (DN's `sdk.js`) and the server
+picks the product per page load from entitlement; **embeds** are two separate
+snippets and the realtor picks by choosing which to paste. DN's inline bundle
+has no hand-off to ours, so our inline embed is untouched by any of this.
+
+### Who owns what
+
+**DN holds customers. We hold school data.** We do not store, read or guess
+anything about a customer. `embed_partners` was a second copy of every customer
+— nineteen columns, none of them synced, none of them editable once the Schools
+admin app started retiring — and it is gone. `lib/dnConfig.ts` asks DN instead,
+keyed on `location.hostname`, and `dn_config_cache` remembers DN's verbatim
+answer in case DN cannot answer next time. That is a cache, not a copy: never
+edited here, no columns of ours beside it, and nothing reads it as truth.
+
+Three answers, three meanings. Conflating any two breaks something real:
+
+| | |
+| --- | --- |
+| `200` | a customer, and this is their configuration → render |
+| `404` | not a customer, switched off, or offboarded → **render nothing** |
+| no answer at all | DN is down → serve DN's last good answer, up to 24h |
+
+A 404 is a decision and is honoured within the minute, so offboarding reaches
+the widget. An outage is the absence of a decision, so it falls back rather than
+taking every customer's site down with DN's. A 404 is **never** served stale.
+
+### THE PRODUCTION CUTOVER HAS AN ORDERING CONSTRAINT — do not lose it
+
+**Export `embed_usage` joined to hostname BEFORE dropping `embed_partners`.**
+Usage rows are keyed on `partner_id`; the hostname for every view we have ever
+recorded comes from `embed_partners.allowed_hosts`. Drop that table first and
+the history is numbers attached to nothing, unrecoverably. Staging's export has
+been sent; production's must happen in the cutover window while both tables
+still exist. DN loads it as their historical baseline.
+
+Then, and only then, drop `embed_partners`, `embed_usage` and the admin-app
+tables. `/api/embed/config` must keep answering for at least 24 hours after a
+new `embed.js` ships, because the bundle is served with
+`stale-while-revalidate=86400` and browsers run day-old copies.
+
+Environments diverge on purpose, gated on `DN_ENVIRONMENT=staging` (see
+`lib/appEnv.ts`, and note that anything else means production):
+
+| | staging (`dream-schools-preview`) | production (`dream-schools`) |
+| --- | --- | --- |
+| Dashboard + `/embed-admin` | retired; redirects to DN | unchanged, fully working |
+| Unregistered host in `/api/embed/config` | enabled — DN decides | disabled, as before |
+| DN reachability | — | never a hard dependency |
+
+Config vars (also described in `app.json`): `DN_ENVIRONMENT`, `DN_ORIGIN`
+(defaults per environment), `DN_INGEST_API_KEY` (the push is off until it is
+set), `CRON_SECRET`, `DN_INGEST_TIMER=0` to disable the built-in schedule.
+
+**There is no Heroku Scheduler add-on and no clock dyno on either app** — only
+`web`. Nothing calls `/api/cron/*` on a schedule. The DN push therefore runs
+from a timer started in `instrumentation.ts`, leased through the
+`dn_ingest_state` row so multiple dynos are safe. Worth knowing before assuming
+any other `/api/cron/*` endpoint runs on its own: `upgrade-digest` does not.
+
+Test scripts (Playwright + a stub origin; none needs a deployed environment
+except the last):
+
+- `scripts/smoke-dn-handoff.mjs` — `data-via="dn-explorer"`, runtime `<head>`
+  injection, double load.
+- `scripts/smoke-dn-ingest.mjs` — seeds a throwaway Postgres and a stub of DN's
+  ingest endpoints, drives the real cron route. Needs `DATABASE_URL`.
+- `scripts/smoke-dn-e2e.mjs` — the six-step check, against preview and DN
+  staging.
+
 ## Conventions / cautions
 - Don't change the reference repo. Ask the owner before destructive or paid actions.
 - Keep the unified `N/10` rating scale and "NR/Limited data" honesty.

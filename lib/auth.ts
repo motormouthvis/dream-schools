@@ -31,6 +31,8 @@ export interface AppUser {
   partnerId: string | null;
   companyName: string;
   businessName: string;
+  /** Shared with Dream Neighborhood, e.g. `DN-100042`. Minted by DN, never here. */
+  customerNumber: string | null;
   /** Owner/partner preference: default widget accent color for NEW customers they create. */
   defaultCustomerAccentColor: string;
   upgradeViewsToTrigger: number | null;
@@ -84,7 +86,17 @@ async function ensureTables(): Promise<void> {
              ADD COLUMN IF NOT EXISTS upgrade_idle_seconds INTEGER,
              ADD COLUMN IF NOT EXISTS reminder_interval_days INTEGER,
              ADD COLUMN IF NOT EXISTS reminder_last_sent_at TIMESTAMPTZ,
-             ADD COLUMN IF NOT EXISTS neighborhood_explorer_active BOOLEAN NOT NULL DEFAULT FALSE`
+             ADD COLUMN IF NOT EXISTS neighborhood_explorer_active BOOLEAN NOT NULL DEFAULT FALSE,
+             ADD COLUMN IF NOT EXISTS customer_number TEXT`
+        )
+      )
+      // Unique where present. DN mints these from a sequence, so a duplicate
+      // here means an import went wrong — better to fail the import than to
+      // have two realtors' homebuyers attributed to one account.
+      .then(() =>
+        pool.query(
+          `CREATE UNIQUE INDEX IF NOT EXISTS app_users_customer_number_idx
+             ON app_users (customer_number) WHERE customer_number IS NOT NULL`
         )
       )
       .then(() =>
@@ -172,6 +184,7 @@ function rowToUser(r: any): AppUser {
     partnerId: r.partner_id ?? null,
     companyName: r.company_name ?? "",
     businessName: r.business_name ?? "",
+    customerNumber: r.customer_number || null,
     defaultCustomerAccentColor: r.default_customer_accent_color ?? "",
     upgradeViewsToTrigger: r.upgrade_views_to_trigger == null ? null : Number(r.upgrade_views_to_trigger),
     upgradeMinDaysBetween: r.upgrade_min_days_between == null ? null : Number(r.upgrade_min_days_between),

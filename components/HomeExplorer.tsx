@@ -22,6 +22,8 @@ interface Suggestion {
   lat: number;
   lon: number;
   zip: string;
+  /** What to look up, when it differs from what we show. */
+  value?: string;
 }
 
 const US_STATE_NAMES = new Set([
@@ -59,16 +61,32 @@ function cityState(matched: string, fallbackState: string): string {
 // parent-only version (used at /parents): the Realtor & Partner sections are
 // hidden and there is no navigation away from the page. The top of the page
 // (hero + search + Parents section) is identical to the main home page.
-export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents" }) {
+export function HomeExplorer({
+  variant = "full",
+  deepLink,
+}: {
+  variant?: "full" | "parents";
+  /**
+   * Read from the URL on the SERVER by the page that renders us, so the very
+   * first paint is the loading state rather than the landing page. Resolving it
+   * on the client instead means the hero and search box are painted for as long
+   * as the lookup takes, which reads as a flash of the wrong screen.
+   */
+  deepLink?: { address?: string; school?: string };
+}) {
   const parentsOnly = variant === "parents";
   const homeHref = parentsOnly ? "/parents" : "/";
 
-  const [address, setAddress] = useState("");
+  const deepLinkAddress = (deepLink?.address || "").trim();
+  const [address, setAddress] = useState(deepLinkAddress);
   const [data, setData] = useState<LookupResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Start already loading on a deep link: the lookup runs on mount and there is
+  // nothing useful to show before it, so the landing page must never appear.
+  const [loading, setLoading] = useState(Boolean(deepLinkAddress));
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggest, setShowSuggest] = useState(false);
+  const [searchLimited, setSearchLimited] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressRef = useRef(false);
@@ -86,9 +104,17 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
   const [focused, setFocused] = useState(false);
   const [changing, setChanging] = useState(false);
   // Deep link: ?school=<ncesId> auto-opens that school's detail once results load.
-  const [initialSchoolId, setInitialSchoolId] = useState<string | undefined>(undefined);
+  const [initialSchoolId, setInitialSchoolId] = useState<string | undefined>(
+    deepLink?.school || undefined
+  );
   const fairHousing = audience === "limited";
-  const showSearch = !data || changing;
+  // A deep link goes straight to a school, so neither the hero nor the search
+  // box should be painted on the way there. A link carrying only ?school counts
+  // too: the school's own coordinates are enough to place it, so there is no
+  // reason to show somebody a search box for a school they already picked.
+  const deepLinkSchool = (deepLink?.school || "").trim();
+  const booting = Boolean(deepLinkAddress || deepLinkSchool) && !data && !error;
+  const showSearch = (!data || changing) && !booting;
 
   useEffect(() => {
     setRecents(getRecent());
@@ -97,6 +123,29 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
       .then((r) => r.json())
       .then((j) => setNationwide(Boolean(j.nationwide)))
       .catch(() => {});
+    if (deepLinkAddress) {
+      runLookup(deepLinkAddress);
+      return;
+    }
+    if (deepLinkSchool) {
+      // Only a school id — resolve it to a point ourselves rather than landing
+      // the visitor on a search box. Dream Neighborhood's widget builds links
+      // this way from one of its three code paths.
+      fetch(`/api/school?ncesId=${encodeURIComponent(deepLinkSchool)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((school) => {
+          if (school && Number.isFinite(school.lat) && Number.isFinite(school.lon)) {
+            const label = [school.name, school.zip].filter(Boolean).join(", ");
+            setAddress(label);
+            runLookup(label, { label, lat: school.lat, lon: school.lon, zip: school.zip || "" });
+          } else {
+            setError("We couldn't find that school.");
+          }
+        })
+        .catch(() => setError("We couldn't find that school."));
+      return;
+    }
+    // Pages that don't resolve the deep link server-side still support one.
     const params = new URLSearchParams(window.location.search);
     const school = params.get("school");
     if (school) setInitialSchoolId(school);
@@ -157,6 +206,9 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
         });
         const json = await res.json();
         setSuggestions(json.suggestions ?? []);
+        // The address service is down and the Census geocoder cannot do
+        // typeahead, so say so rather than let the dropdown quietly vanish.
+        setSearchLimited(Boolean(json.limited));
         setShowSuggest(true);
         setActiveIdx(-1);
       } catch {
@@ -174,7 +226,10 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
     setShowSuggest(false);
     setFocused(false);
     setSuggestions([]);
-    runLookup(s.label, s);
+    // Look up exactly what the provider gave us, which is not always what
+    // we showed: a reconstructed address is matched afresh and can land in
+    // another state.
+    runLookup(s.value || s.label, s);
   }
 
   function pickRecent(r: RecentSearch) {
@@ -192,7 +247,11 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
       // Reuse stored coordinates for a previously-searched address (they persist
       // in the recents cookie/localStorage) so re-typing the same place skips the
       // geocode round-trip and its external call.
-      let coordsSrc = picked;
+      // A suggestion may carry no coordinates — Dream Neighborhood's do not,
+      // deliberately, because picking one geocodes it in a single fast call.
+      // Passing NaN through as lat/lon would ask the lookup to find nowhere.
+      let coordsSrc =
+        picked && Number.isFinite(picked.lat) && Number.isFinite(picked.lon) ? picked : undefined;
       if (!coordsSrc) {
         const hit = recents.find(
           (r) => r.label.toLowerCase().trim() === q.toLowerCase() && r.lat != null && r.lon != null
@@ -247,7 +306,7 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
 
       {/* Line 2 - hero. Landing: one image banner with the heading overlaid;
           results: a slim heading to keep the page compact. */}
-      {!data ? (
+      {!data && !booting ? (
         <div className="relative mt-4 overflow-hidden rounded-3xl ring-1 ring-inset ring-brand-600/10">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -432,6 +491,12 @@ export function HomeExplorer({ variant = "full" }: { variant?: "full" | "parents
                 </li>
               ))}
             </ul>
+          )}
+          {searchLimited && suggestions.length === 0 && (
+            <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] leading-snug text-amber-800 shadow-sm">
+              Address suggestions are temporarily unavailable. Type a full street
+              address, including the city and state, and it will still work.
+            </div>
           )}
           {showSuggest && suggestions.length > 0 && (
             <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">

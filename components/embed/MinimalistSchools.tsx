@@ -1,24 +1,27 @@
 "use client";
 
 import { to10, rating10Hex, rating10Word } from "@/components/score";
-import type { LookupResult, NearbySchool } from "@/lib/types";
+import type { LookupResult } from "@/lib/types";
 
-const SITE = "https://www.dreamneighborhoodschools.com";
-
-// Minimalist inline variant (Option 3): a subdued, transparent multi-column list
-// of nearby schools — no map, no in-box detail. Each school links out to the
-// main-site detail page. Shows up to 9 on desktop, 3 on mobile.
-export function MinimalistSchools({ data }: { data: LookupResult }) {
+// Minimalist inline variant: a subdued, transparent multi-column list of nearby
+// schools — no map, no in-box detail. Shows up to 9 on desktop, 3 on mobile.
+//
+// A school opens over the realtor's page rather than navigating away from it.
+// The box itself stays small, which is the entire point of this variant: the
+// detail is tall, so rendering it here would shove the page's own content down.
+export function MinimalistSchools({
+  data,
+  onOpenSchool,
+  siteBase,
+}: {
+  data: LookupResult;
+  onOpenSchool: (ncesId: string) => void;
+  /** This deployment's own origin — never a hard-coded production host. */
+  siteBase: string;
+}) {
   const address = data.geocode?.matchedAddress || "";
   const schools = data.nearbySchools.slice(0, 9);
-
-  function schoolUrl(s: NearbySchool): string {
-    const p = new URLSearchParams();
-    if (address) p.set("address", address);
-    p.set("school", s.ncesId);
-    return `${SITE}/parents?${p.toString()}`;
-  }
-  const allUrl = `${SITE}/parents${address ? `?address=${encodeURIComponent(address)}` : ""}`;
+  const allUrl = `${siteBase}/parents${address ? `?address=${encodeURIComponent(address)}` : ""}`;
 
   return (
     <div>
@@ -42,13 +45,12 @@ export function MinimalistSchools({ data }: { data: LookupResult }) {
           const hex = r10 != null ? rating10Hex(r10) : "#94a3b8";
           const isPrivate = s.level === "private";
           return (
-            <a
+            <button
               key={s.ncesId}
-              href={schoolUrl(s)}
-              target="_blank"
-              rel="noopener noreferrer"
+              type="button"
+              onClick={() => onOpenSchool(s.ncesId)}
               // Mobile shows the first 3; sm+ reveals the rest (up to 9).
-              className={`group flex items-start gap-3 border-b border-slate-100 py-3 transition hover:bg-slate-50/60 ${
+              className={`group w-full items-start gap-3 border-b border-slate-100 py-3 text-left transition hover:bg-slate-50/60 ${
                 i >= 3 ? "hidden sm:flex" : "flex"
               }`}
             >
@@ -87,10 +89,10 @@ export function MinimalistSchools({ data }: { data: LookupResult }) {
                   {s.miles} mi{r10 != null ? ` · ${rating10Word(r10)}` : " · Limited data"}
                 </span>
                 <span className="mt-1 inline-block text-[12px] font-semibold text-emerald-700/80 group-hover:text-emerald-800 group-hover:underline">
-                  See details ↗
+                  See details
                 </span>
               </span>
-            </a>
+            </button>
           );
         })}
       </div>

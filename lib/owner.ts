@@ -36,6 +36,8 @@ export interface CustomerRow {
   partnerName: string | null;
   companyName: string;
   businessName: string;
+  /** Shared with Dream Neighborhood, e.g. `DN-100042`. Null until DN has one. */
+  customerNumber: string | null;
   createdAt: string;
   deletedAt: string | null;
   authorizedDomain: string | null;
@@ -78,6 +80,7 @@ export async function listCustomers(viewer?: AppUser | null): Promise<CustomerRo
         u.partner_id,
         u.company_name,
         u.business_name,
+        u.customer_number,
         u.created_at,
         u.deleted_at,
         partner.company_name AS partner_company_name,
@@ -116,6 +119,7 @@ export async function listCustomers(viewer?: AppUser | null): Promise<CustomerRo
     partnerName: r.partner_company_name || r.partner_email || null,
     companyName: r.company_name ?? "",
     businessName: r.business_name ?? "",
+    customerNumber: r.customer_number || null,
     createdAt: r.created_at,
     deletedAt: r.deleted_at ?? null,
     authorizedDomain:

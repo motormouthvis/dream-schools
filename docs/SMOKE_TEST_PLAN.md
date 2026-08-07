@@ -82,7 +82,17 @@ when NE signals ready; the **inline embed** must never be suppressed by NE.
 
 Automated version: `node scripts/smoke-ne-coexistence.mjs` (Playwright) loads the
 new `embed.js` against the live smoke sites with and without `?ne` and asserts
-popup visibility. See the script header for env vars.
+popup visibility. See the script header for env vars. Note the smoke-site dynos
+are scaled to 0 when idle (see the cost note below), so scale them up first.
+
+### Dream Neighborhood hand-off
+
+Staging only. `node scripts/smoke-dn-handoff.mjs` covers the same `embed.js`
+paths without needing the smoke sites at all — it stands up a local origin and a
+fake DN `sdk.js`, and asserts that `data-via="dn-explorer"` skips the grace
+period while a page without it still waits. `node scripts/smoke-dn-e2e.mjs` runs
+the real DN staging `sdk.js` against the real preview `embed.js`. Both are
+described in `docs/DN_INTEGRATION.md`.
 
 ## Phase E — Account lifecycle
 

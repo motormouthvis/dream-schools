@@ -19,6 +19,22 @@
     "EMBED_ADMIN_PASSWORD": {
       "description": "Shared secret for the embeddable-widget admin (/embed-admin) and /api/embed/admin. Leave unset to disable the admin.",
       "required": false
+    },
+    "DN_ENVIRONMENT": {
+      "description": "Set to 'staging' to retire the customer dashboard and let Dream Neighborhood configure the School Explorer. Anything else, including unset, means production. See docs/DN_INTEGRATION.md.",
+      "required": false
+    },
+    "DN_ORIGIN": {
+      "description": "Dream Neighborhood origin. Defaults to staging.dreamneighborhood.com on staging and app.dreamneighborhood.com otherwise.",
+      "required": false
+    },
+    "DN_INGEST_API_KEY": {
+      "description": "Key for pushing School Explorer usage and upgrade requests to Dream Neighborhood. Minted per environment with `python manage.py create_ingest_key` on the DN side; a staging key does not work against production. The push does nothing at all while this is unset.",
+      "required": false
+    },
+    "CRON_SECRET": {
+      "description": "Guards /api/cron/*. Unset means the endpoints are open.",
+      "required": false
     }
   },
   "scripts": {

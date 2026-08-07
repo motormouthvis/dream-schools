@@ -48,6 +48,18 @@ export default function AccountPage() {
               <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email</div>
               <div className="mt-1 break-all text-sm text-ink-900">{me.email}</div>
             </div>
+            {me.customerNumber && (
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  Customer number
+                </div>
+                <div className="mt-1 text-sm font-semibold tracking-wide text-ink-900">{me.customerNumber}</div>
+                <div className="mt-1 text-[11px] leading-snug text-slate-500">
+                  Quote this if you contact support. It identifies you in both Dream Neighborhood and
+                  Dream Neighborhood Schools.
+                </div>
+              </div>
+            )}
             {!me.isPartner && !me.isOwner && (
               <RealtorNameProfile initialRealtorName={me.companyName || ""} />
             )}

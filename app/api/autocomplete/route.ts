@@ -1,202 +1,55 @@
 import { NextResponse } from "next/server";
 import { TtlCache } from "@/lib/lruCache";
-import { logBackendEventAsync } from "@/lib/backendLog";
+import { dnAddressEnabled, dnSuggest } from "@/lib/dnAddress";
 import { bumpMetric } from "@/lib/metrics";
 
 export const dynamic = "force-dynamic";
 
-// Cache resolved suggestions for a short window so repeat queries (very common:
-// people search the same cities, or backspace/retype) are instant and don't
-// re-hit the external providers. A miss behaves exactly like before.
-const autocompleteCache = new TtlCache<Suggestion[]>(2000, 5 * 60 * 1000);
-
-// Only raise a health event on SUSTAINED premium HTTP errors (not a one-off blip).
-// Per-dyno rolling window.
-let premiumErrTimes: number[] = [];
-function premiumErrorsSustained(): boolean {
-  const now = Date.now();
-  premiumErrTimes = premiumErrTimes.filter((t) => now - t < 10 * 60 * 1000);
-  premiumErrTimes.push(now);
-  return premiumErrTimes.length >= 3;
-}
-
-// Free address autocomplete. We merge two no-API-key sources for much better US
-// coverage than either alone:
-//   1. U.S. Census geocoder — authoritative US street addresses (TIGER), great
-//      for exact house numbers once a city/state (or enough of the line) is typed.
-//   2. Photon (OpenStreetMap) — fast typeahead for places/streets/partials.
-// Census results are listed first because they're the most precise for the US.
-const PHOTON_URL = "https://photon.komoot.io/api/";
-const CENSUS_URL =
-  "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress";
+// Address autocomplete.
+//
+// Dream Neighborhood answers, from the Census TIGER file it holds locally, with
+// its own fallback to the Census geocoder and Nominatim behind it. The U.S.
+// Census geocoder is the only thing left on our side, and only for when DN
+// cannot answer at all.
+//
+// Geoapify (paid) and Photon (donated public infrastructure, and not ours to
+// lean on commercially) have been removed.
+//
+// **We fall back on an outage, never on an empty answer.** An empty list from
+// DN is an answer: it has already asked its own data, the Census geocoder and
+// Nominatim. Falling back on empty undoes every guard DN added — it is what put
+// "123, Franklin Township, Ohio" in the dropdown for the query "123".
+//
+// Census cannot do typeahead; it is one-shot and needs a fairly complete line.
+// So during a DN outage the honest answer is usually no suggestions, and the
+// caller is told the search is limited rather than left with a dropdown that
+// silently stopped appearing.
 
 interface Suggestion {
   label: string;
   lat: number;
   lon: number;
   zip: string;
+  /**
+   * What to send back when this suggestion is picked, when that differs from
+   * what we show. DN asks for its `description` verbatim and it matters: a
+   * reconstructed address is matched afresh, and their suggestions carry the
+   * ZIP where they have it.
+   */
+  value?: string;
 }
 
-// Optional premium autocomplete. Free OSM/Photon can't reliably find a US street
-// from a partial line without a city (e.g. "172 Due West St" → nothing), which is
-// exactly where users get stuck. If a provider key is configured, we use it as
-// the PRIMARY source and keep Census + Photon as automatic fallback. Set either:
-//   MAPBOX_TOKEN       (Mapbox — 100k free req/mo, best US coverage)
-//   GEOAPIFY_API_KEY   (Geoapify — 3k free req/day, no credit card)
-function stripCountry(label: string): string {
-  return label
-    .replace(/,?\s*(United States of America|United States|USA)\s*$/i, "")
-    .replace(/,\s*$/, "")
-    .trim();
-}
+const autocompleteCache = new TtlCache<Suggestion[]>(2000, 5 * 60 * 1000);
 
-// Returns the HTTP status (0 = timeout/abort/network) and parsed json. This lets
-// callers tell a real provider error (e.g. 429 over-quota) apart from the request
-// simply being too slow and getting aborted by our timeout (status 0).
-async function fetchJson(url: string, ms: number): Promise<{ status: number; json: any | null }> {
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), ms);
-    const res = await fetch(url, { signal: controller.signal, headers: { Accept: "application/json" } });
-    clearTimeout(timer);
-    if (!res.ok) return { status: res.status, json: null };
-    return { status: res.status, json: await res.json().catch(() => null) };
-  } catch {
-    return { status: 0, json: null }; // timeout / abort / network — NOT a provider error
-  }
-}
+const CENSUS_URL = "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress";
 
-async function fromMapbox(q: string, bias?: { lat: number; lon: number }): Promise<Suggestion[] | null> {
-  const token = process.env.MAPBOX_TOKEN;
-  if (!token) return null;
-  const params = new URLSearchParams({
-    country: "us",
-    types: "address",
-    autocomplete: "true",
-    limit: "8",
-    language: "en",
-    access_token: token,
-  });
-  if (bias) params.set("proximity", `${bias.lon},${bias.lat}`);
-  const { status, json } = await fetchJson(
-    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?${params.toString()}`,
-    2500
-  );
-  if (status >= 400) return null; // real provider error (e.g. 429 over-quota) — signal fallback
-  if (!json) return []; // timeout / slow / network blip — premium just didn't answer in time
-  const out: Suggestion[] = [];
-  for (const f of json.features ?? []) {
-    const [lon, lat] = f.center ?? [];
-    if (typeof lat !== "number" || typeof lon !== "number") continue;
-    const zip =
-      (f.context ?? []).find((c: any) => String(c.id || "").startsWith("postcode"))?.text ?? "";
-    const label = stripCountry(f.place_name ?? "");
-    if (label) out.push({ label, lat, lon, zip });
-  }
-  return out;
-}
-
-async function fromGeoapify(q: string, bias?: { lat: number; lon: number }): Promise<Suggestion[] | null> {
-  const key = process.env.GEOAPIFY_API_KEY;
-  if (!key) return null;
-  const params = new URLSearchParams({
-    text: q,
-    filter: "countrycode:us",
-    format: "json",
-    limit: "8",
-    lang: "en",
-    apiKey: key,
-  });
-  if (bias) params.set("bias", `proximity:${bias.lon},${bias.lat}`);
-  const { status, json } = await fetchJson(`https://api.geoapify.com/v1/geocode/autocomplete?${params.toString()}`, 2500);
-  if (status >= 400) return null; // real provider error (e.g. 429 over-quota) — signal fallback
-  if (!json) return []; // timeout / slow / network blip — premium just didn't answer in time
-  const out: Suggestion[] = [];
-  for (const r of json.results ?? []) {
-    if (typeof r.lat !== "number" || typeof r.lon !== "number") continue;
-    const label = stripCountry(r.formatted ?? "");
-    if (label) out.push({ label, lat: r.lat, lon: r.lon, zip: r.postcode ?? "" });
-  }
-  return out;
-}
-
-// Returns premium suggestions, or null when no provider key is configured.
-async function fromPremium(q: string, bias?: { lat: number; lon: number }): Promise<Suggestion[] | null> {
-  if (process.env.MAPBOX_TOKEN) return fromMapbox(q, bias);
-  if (process.env.GEOAPIFY_API_KEY) return fromGeoapify(q, bias);
-  return null;
-}
-
-// Title-case a label that arrived in ALL CAPS (the Census geocoder returns
-// e.g. "3309 N INDIAN RIVER DR, FORT PIERCE, FL, 34946"). Mixed-case labels
-// (Photon) are left untouched so we don't mangle names like "McAllen".
-function normalizeLabel(label: string): string {
-  if (/[a-z]/.test(label)) return label;
-  return label
-    .split(",")
-    .map((part) => {
-      const p = part.trim();
-      if (/^\d{5}(-\d{4})?$/.test(p)) return p; // ZIP
-      if (/^[A-Z]{2}$/.test(p)) return p; // state code (FL, OH…)
-      return p
-        .split(/\s+/)
-        .map((w) => {
-          if (/^\d/.test(w)) return w; // house numbers, "1st", "42nd"
-          if (/^[NSEW]{1,2}$/i.test(w)) return w.toUpperCase(); // directionals
-          return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
-        })
-        .join(" ");
-    })
-    .join(", ");
-}
-
-function photonLabel(p: any): string {
-  const line1 = [p.housenumber, p.street || p.name].filter(Boolean).join(" ");
-  const cityState = [p.city || p.county, p.state].filter(Boolean).join(", ");
-  return [line1, cityState, p.postcode].filter(Boolean).join(", ");
-}
-
-async function fromPhoton(q: string, bias?: { lat: number; lon: number }, limit = 8): Promise<Suggestion[]> {
-  const params = new URLSearchParams({
-    q,
-    limit: String(limit),
-    lang: "en",
-    lat: String(bias?.lat ?? 39.5),
-    lon: String(bias?.lon ?? -98.35),
-  });
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2000);
-    const res = await fetch(`${PHOTON_URL}?${params.toString()}`, {
-      signal: controller.signal,
-      headers: { Accept: "application/json" },
-    });
-    clearTimeout(timer);
-    if (!res.ok) return [];
-    const json = (await res.json()) as any;
-    const out: Suggestion[] = [];
-    for (const f of json.features ?? []) {
-      const p = f.properties ?? {};
-      if (p.countrycode !== "US") continue;
-      const [lon, lat] = f.geometry?.coordinates ?? [];
-      if (typeof lat !== "number" || typeof lon !== "number") continue;
-      const label = photonLabel(p);
-      if (label) out.push({ label, lat, lon, zip: p.postcode ?? "" });
-    }
-    return out;
-  } catch {
-    return [];
-  }
-}
-
+/**
+ * The last resort. Census needs a nearly complete address line and returns
+ * nothing for partial input, so this is not typeahead — it is the reason a
+ * degraded search can still resolve a full street address somebody pastes in.
+ */
 async function fromCensus(q: string): Promise<Suggestion[]> {
-  // Census needs a fairly complete line; it returns nothing for very partial
-  // input, which is fine — Photon covers early typing.
-  const params = new URLSearchParams({
-    address: q,
-    benchmark: "Public_AR_Current",
-    format: "json",
-  });
+  const params = new URLSearchParams({ address: q, benchmark: "Public_AR_Current", format: "json" });
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 4500);
@@ -212,67 +65,12 @@ async function fromCensus(q: string): Promise<Suggestion[]> {
       const lon = m.coordinates?.x;
       const lat = m.coordinates?.y;
       if (typeof lat !== "number" || typeof lon !== "number") continue;
-      out.push({
-        label: m.matchedAddress ?? "",
-        lat,
-        lon,
-        zip: m.addressComponents?.zip ?? "",
-      });
+      out.push({ label: m.matchedAddress ?? "", lat, lon, zip: m.addressComponents?.zip ?? "" });
     }
-    return out;
+    return out.filter((s) => s.label);
   } catch {
     return [];
   }
-}
-
-const STREET_TYPE =
-  /\b(st|street|ave|avenue|blvd|boulevard|dr|drive|rd|road|ln|lane|ct|court|cir|circle|way|pl|place|ter|terrace|hwy|highway|pkwy|parkway|trl|trail|loop|sq|square|pike|run|pass|path|row|cv|cove|xing|crossing)\b/gi;
-
-// Split a typed address into its parts. The trailing words after the street
-// type (e.g. the "fort" in "3309 N Indian River Drive fort") are treated as a
-// partial CITY hint — keeping them out of the street search (so Photon doesn't
-// drift to "Fort Wayne") while still letting us float the right city up.
-function parseAddress(q: string): { houseNo: string; street: string; cityHint: string } {
-  const m = q.match(/^\s*(\d+)\s+(.*)$/);
-  const houseNo = m ? m[1] : "";
-  const rest = (m ? m[2] : q).trim();
-  let end = -1;
-  let mm: RegExpExecArray | null;
-  STREET_TYPE.lastIndex = 0;
-  while ((mm = STREET_TYPE.exec(rest)) !== null) end = mm.index + mm[0].length;
-  if (end > 0 && end < rest.length) {
-    return { houseNo, street: rest.slice(0, end).trim(), cityHint: rest.slice(end).replace(/^[,\s]+/, "").trim().toLowerCase() };
-  }
-  return { houseNo, street: rest, cityHint: "" };
-}
-
-function relevance(label: string, tokens: string[]): number {
-  const l = label.toLowerCase();
-  return tokens.reduce((n, t) => n + (l.includes(t) ? 1 : 0), 0);
-}
-
-// Title-case the typed street (preserving the house-number directional, e.g.
-// "N INDIAN RIVER DRIVE" / "n indian river drive" -> "N Indian River Drive").
-function titleStreet(s: string): string {
-  return s
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((w) => {
-      if (/^\d/.test(w)) return w;
-      if (/^[nsew]{1,2}$/i.test(w)) return w.toUpperCase();
-      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
-    })
-    .join(" ");
-}
-
-// How well a (resolved) label matches the typed partial city, e.g. "fort" →
-// "Fort Pierce". A full-substring match scores highest; a word-prefix next.
-function cityScore(label: string, hint: string): number {
-  if (!hint) return 0;
-  const l = label.toLowerCase();
-  if (l.includes(hint)) return 3;
-  const first = hint.split(/\s+/)[0];
-  return l.split(/[\s,]+/).some((w) => w.length > 1 && w.startsWith(first)) ? 2 : 0;
 }
 
 export async function GET(request: Request) {
@@ -286,8 +84,6 @@ export async function GET(request: Request) {
   const bias =
     Number.isFinite(latN) && Number.isFinite(lonN) && latN !== 0 ? { lat: latN, lon: lonN } : undefined;
 
-  // Short-lived cache: serve repeat queries instantly without re-hitting the
-  // external providers. Key on the query + a coarse (0.1°) location bias.
   const cacheKey = `${q.toLowerCase()}|${bias ? `${bias.lat.toFixed(1)},${bias.lon.toFixed(1)}` : ""}`;
   const cached = autocompleteCache.get(cacheKey);
   if (cached) {
@@ -298,140 +94,34 @@ export async function GET(request: Request) {
   bumpMetric("autocomplete_calls");
   bumpMetric("autocomplete_cache_misses");
 
-  const premiumConfigured = Boolean(process.env.GEOAPIFY_API_KEY || process.env.MAPBOX_TOKEN);
-
-  // Premium provider (if a key is set) runs in parallel and is preferred; the
-  // free Census + Photon pipeline below still runs as fallback/coverage.
-  const premiumPromise = fromPremium(q, bias);
-
-  const { houseNo, street, cityHint } = parseAddress(q);
-
-  // Query Photon on the clean street (no house number, no partial-city tail) so
-  // the real street segments surface. When there's a house number we rely on the
-  // street search only — adding the full query just injects noise from the
-  // partial city (e.g. "fort" → "Fort Wayne") that crowds out the real match.
-  const photonQueries = houseNo
-    ? [street].filter((s) => s.length >= 3)
-    : Array.from(new Set([street, q].filter((s) => s.length >= 3)));
-
-  // A wider net on the street search so the right city's segment is present even
-  // without a location bias (there are many "Indian River Drive"s nationwide).
-  const results = await Promise.allSettled([
-    fromCensus(q),
-    ...photonQueries.map((pq, idx) => fromPhoton(pq, bias, houseNo && idx === 0 ? 25 : 8)),
-  ]);
-  const census = results[0].status === "fulfilled" ? (results[0] as PromiseFulfilledResult<Suggestion[]>).value : [];
-  let photon = results
-    .slice(1)
-    .flatMap((r) => (r.status === "fulfilled" ? (r as PromiseFulfilledResult<Suggestion[]>).value : []));
-
-  // De-dupe Photon and rank by street-name match.
-  const streetTokens = street.toLowerCase().split(/[\s,]+/).filter((t) => t.length >= 3 && !/^\d+$/.test(t));
-  const pseen = new Set<string>();
-  photon = photon.filter((s) => {
-    const k = s.label.toLowerCase();
-    if (pseen.has(k)) return false;
-    pseen.add(k);
-    return true;
-  });
-  photon.sort((a, b) => relevance(b.label, streetTokens) - relevance(a.label, streetTokens));
-
-  // If a house number was typed, resolve exact house addresses for the best
-  // street candidates via Census (keyed by each candidate's ZIP, which is
-  // reliable even when Photon omits the city). This turns "North Indian River
-  // Drive … 34946" into "3309 N Indian River Dr, Fort Pierce, FL, 34946".
-  let enriched: Suggestion[] = [];
-  if (houseNo && census.length === 0) {
-    const candidates = photon.filter((c) => relevance(c.label, streetTokens) >= Math.min(2, streetTokens.length));
-    const probes: string[] = [];
-    const zipsSeen = new Set<string>();
-    for (const c of candidates) {
-      const street0 = c.label.split(",")[0].trim();
-      const key = `${street0}|${c.zip}`;
-      if (zipsSeen.has(key) || !c.zip) continue;
-      zipsSeen.add(key);
-      probes.push(`${houseNo} ${street0} ${c.zip}`);
-      // When the user is typing a city, cast a wider net so the matching city is
-      // among the resolved addresses; otherwise a few is enough.
-      if (probes.length >= (cityHint ? 16 : 10)) break;
+  if (dnAddressEnabled()) {
+    const dn = await dnSuggest(q, bias, 8);
+    if (dn.status === "ok") {
+      // Including an empty list. DN looked; there is nothing.
+      const suggestions = dn.value.map((s) => ({
+        // Show the tidy two-line form; send back exactly what DN gave us.
+        label: [s.main_text, s.secondary_text].filter(Boolean).join(", ") || s.description,
+        lat: NaN,
+        lon: NaN,
+        zip: (s.secondary_text.match(/\b(\d{5})\b/) || [])[1] || "",
+        value: s.description,
+      }));
+      autocompleteCache.set(cacheKey, suggestions);
+      bumpMetric("autocomplete_from_dn");
+      return NextResponse.json({ suggestions });
     }
-    const probeRes = await Promise.allSettled(probes.map((p) => fromCensus(p)));
-    enriched = probeRes.flatMap((r) =>
-      r.status === "fulfilled" ? (r as PromiseFulfilledResult<Suggestion[]>).value : []
-    );
-    // Float the candidate whose city matches what the user is typing.
-    if (cityHint) enriched.sort((a, b) => cityScore(b.label, cityHint) - cityScore(a.label, cityHint));
+
+    // DN gave no answer at all. Census cannot do typeahead, so for a partial
+    // query there is genuinely nothing to offer — say so rather than let the
+    // dropdown quietly stop appearing.
+    bumpMetric("autocomplete_dn_unavailable");
+    const viaCensus = await fromCensus(q);
+    if (viaCensus.length) return NextResponse.json({ suggestions: viaCensus, limited: true });
+    return NextResponse.json({ suggestions: [], limited: true });
   }
 
-  // Synthesize house-numbered suggestions from the street candidates so the typed
-  // house number is ALWAYS reflected, even before a city/ZIP is typed (Census
-  // exact-match needs those). Picking one geocodes the street area — fine for
-  // "nearby schools". Ranked by typed-city match, then proximity to any bias
-  // (the area being explored), then street relevance.
-  let synthesized: Suggestion[] = [];
-  if (houseNo) {
-    const titledStreet = titleStreet(street);
-    const seenCS = new Set<string>();
-    for (const c of photon) {
-      if (relevance(c.label, streetTokens) < Math.min(2, streetTokens.length)) continue;
-      const rest = c.label
-        .split(",")
-        .slice(1)
-        .map((p) => p.trim())
-        .filter(Boolean)
-        .join(", ");
-      if (!rest) continue;
-      const csKey = rest.toLowerCase();
-      if (seenCS.has(csKey)) continue;
-      seenCS.add(csKey);
-      synthesized.push({ label: `${houseNo} ${titledStreet}, ${rest}`, lat: c.lat, lon: c.lon, zip: c.zip });
-    }
-    const score = (s: Suggestion) =>
-      (cityHint ? cityScore(s.label, cityHint) * 1000 : 0) -
-      (bias ? Math.hypot(s.lat - bias.lat, s.lon - bias.lon) : 0);
-    synthesized.sort((a, b) => score(b) - score(a));
-  }
-
-  // Order. With a house number: exact Census → Census-resolved houses →
-  // synthesized house-numbered streets (so the number is always honored); fall
-  // back to bare streets only if nothing house-numbered surfaced. Without a
-  // house number: exact Census → street suggestions.
-  const premiumRaw = await premiumPromise;
-  const premium = premiumRaw ?? [];
-
-  // Only a genuine fallback: the premium provider CALL FAILED (throttle / error /
-  // timeout → null), not merely "no match for a partial query" (an empty array is
-  // normal mid-typing). This avoids false alerts on partial addresses.
-  // premiumRaw === null now means a real HTTP error (429/5xx) — a timeout/slow
-  // response returns [] and is NOT treated as a failure.
-  if (premiumConfigured && premiumRaw === null && census.length + photon.length > 0) {
-    bumpMetric("autocomplete_fallback");
-    if (premiumErrorsSustained()) {
-      logBackendEventAsync(
-        "autocomplete_fallback",
-        `Premium autocomplete returned HTTP errors repeatedly (>=3 in 10 min); latest for "${q}". Free sources are covering. Geoapify/Mapbox is likely rate-limited (429) or over daily quota.`
-      );
-    }
-  }
-
-  let ordered: Suggestion[];
-  if (houseNo) {
-    ordered = [...premium, ...census, ...enriched, ...synthesized];
-    if (ordered.length === 0) ordered = [...photon];
-  } else {
-    ordered = [...premium, ...census, ...photon];
-  }
-  const seen = new Set<string>();
-  const suggestions: Suggestion[] = [];
-  for (const s of ordered) {
-    if (!s.label) continue;
-    const label = normalizeLabel(s.label);
-    const key = label.toLowerCase().replace(/\s+/g, " ").trim();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    suggestions.push({ ...s, label });
-    if (suggestions.length >= 7) break;
-  }
-  autocompleteCache.set(cacheKey, suggestions);
-  return NextResponse.json({ suggestions });
+  // No key, so nothing to ask. Census only.
+  const viaCensus = await fromCensus(q);
+  autocompleteCache.set(cacheKey, viaCensus);
+  return NextResponse.json({ suggestions: viaCensus });
 }

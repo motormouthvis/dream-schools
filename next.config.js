@@ -26,6 +26,23 @@ const nextConfig = {
           },
         ],
       },
+      {
+        // The address detector, which embed.js pulls in with a dynamic import
+        // from whatever site it is running on — always cross-origin, since the
+        // whole point is that it runs on the realtor's page. A module import
+        // without this header fails, and it fails into our own reader, so the
+        // symptom is not an error but the old answers coming back.
+        //
+        // Cached hard: it is versioned in lockstep with DN and changes rarely.
+        source: "/address-detector/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          {
+            key: "Cache-Control",
+            value: "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
     ];
   },
 };

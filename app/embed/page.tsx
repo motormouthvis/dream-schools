@@ -6,7 +6,6 @@ import { NearbySchoolsFull } from "@/components/embed/NearbySchoolsFull";
 import { MinimalistSchools } from "@/components/embed/MinimalistSchools";
 import { SchoolDetailModal } from "@/components/SchoolDetailModal";
 import { SchoolhouseMark } from "@/components/Logo";
-import { InsightsMarquee } from "@/components/InsightsMarquee";
 import { getRecent, addRecent, removeRecent, type RecentSearch } from "@/lib/recent";
 import { TERMS_URL, PRIVACY_URL } from "@/lib/legalLinks";
 import { NEIGHBORHOOD_INSIGHTS } from "@/lib/neighborhoodInsights";
@@ -14,7 +13,7 @@ import type { LookupResult } from "@/lib/types";
 
 // Chrome-less "Dream Neighborhood School Explorer" served for the embeddable
 // widget. Loaded inside an iframe by public/embed.js (popup or inline):
-//   /embed?address=...&lat=..&lng=..&accent=%23..&mode=popup|inline&header=1
+//   /embed?address=...&lat=..&lng=..&accent=%23..&mode=popup|inline
 //
 // The free School Explorer is a loss leader for the paid full Neighborhood
 // Explorer (38 hyperlocal insights). The detail shows a 0–10 Diversity Index
@@ -28,9 +27,20 @@ interface EmbedParams {
   lon: number | null;
   accent: string;
   mode: "popup" | "inline";
-  variant: "classic" | "full" | "minimalist";
+  /** The hostname of the page hosting us. Namespaces the prompt, identifies nobody. */
+  site: string;
+  /** Open straight onto this school's detail. Used when the SDK opens us over a page. */
+  school: string;
+  /**
+   * We are showing somewhere other than the listing on this page — the SDK
+   * could not read its address and fell back. Deliberately NOT the same as
+   * "approximate", which means we placed this listing but only to its ZIP
+   * centre. One label for both would let the milder wording cover the worse
+   * case: showing a specific real place, confidently, that is not this house.
+   */
+  general: boolean;
+  variant: "full" | "minimalist";
   fullHeight: number;
-  header: boolean;
   links: boolean;
   provider: string;
   business: string;
@@ -47,6 +57,8 @@ interface Suggestion {
   lat: number;
   lon: number;
   zip: string;
+  /** What to look up, when it differs from what we show. */
+  value?: string;
 }
 
 /** Sync peek of ?address / ?lat so we can skip the home search flash on auto-load. */
@@ -65,42 +77,12 @@ function peekIsInline(): boolean {
   return new URLSearchParams(window.location.search).get("mode") === "inline";
 }
 
-function peekIsFull(): boolean {
-  if (typeof window === "undefined") return false;
-  return new URLSearchParams(window.location.search).get("variant") === "full";
-}
-
-function peekIsMinimal(): boolean {
-  if (typeof window === "undefined") return false;
-  return new URLSearchParams(window.location.search).get("variant") === "minimalist";
-}
-
-function peekNative(): boolean {
-  const c = readAppearanceCookie();
-  const v = c ?? (peekIsFull() ? "full" : peekIsMinimal() ? "minimalist" : "classic");
-  return v === "full" || v === "minimalist";
-}
-
-// Temporary appearance switcher (footer): remembers the chosen inline variant in
-// a cookie so it can be compared across the three designs.
-const APPEARANCE_COOKIE = "dse_embed_appearance";
-type Variant = "classic" | "full" | "minimalist";
-const VARIANTS: Variant[] = ["classic", "full", "minimalist"];
-const VARIANT_LABEL: Record<Variant, string> = {
-  classic: "Compact",
-  full: "Showcase",
-  minimalist: "Minimalist",
-};
-function readAppearanceCookie(): Variant | null {
-  if (typeof document === "undefined") return null;
-  const m = document.cookie.match(new RegExp("(?:^|; )" + APPEARANCE_COOKIE + "=([^;]*)"));
-  const v = m ? decodeURIComponent(m[1]) : "";
-  return v === "classic" || v === "full" || v === "minimalist" ? v : null;
-}
-function writeAppearanceCookie(v: Variant): void {
-  if (typeof document === "undefined") return;
-  document.cookie = `${APPEARANCE_COOKIE}=${v};path=/;max-age=31536000;samesite=lax`;
-}
+type Variant = "full" | "minimalist";
+// One way back, worded the same everywhere. The detail component renders it as
+// "← <label>": the arrow carries the meaning, the words say where it goes.
+// Previously this said "Nearby Schools" in one place, "Back to list" or "Back to
+// map" in another, and nothing at all in a third.
+const BACK_LABEL = "Nearby schools";
 
 function readParams(): EmbedParams {
   const p = new URLSearchParams(window.location.search);
@@ -120,12 +102,14 @@ function readParams(): EmbedParams {
     accent: p.get("accent") || "#1fa55f",
     mode: p.get("mode") === "inline" ? "inline" : "popup",
     variant:
-      p.get("variant") === "full" ? "full" : p.get("variant") === "minimalist" ? "minimalist" : "classic",
+      p.get("variant") === "minimalist" ? "minimalist" : "full",
     fullHeight: Math.max(360, Math.min(1200, intParam("h", 640, 360))),
-    header: p.get("header") === "1",
     links: p.get("links") === "1",
     provider: (p.get("provider") || "").trim(),
     business: (p.get("business") || "").trim(),
+    site: (p.get("site") || "").trim().toLowerCase(),
+    school: (p.get("school") || "").trim(),
+    general: p.get("general") === "1",
     customer: (p.get("customer") || "").trim(),
     partner: (p.get("partner") || "").trim(),
     upgradeViews: intParam("uv", 2, 1),
@@ -198,6 +182,7 @@ export default function EmbedExplorer() {
   const [address, setAddress] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggest, setShowSuggest] = useState(false);
+  const [searchLimited, setSearchLimited] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   const [recents, setRecents] = useState<RecentSearch[]>([]);
   const [focused, setFocused] = useState(false);
@@ -209,28 +194,26 @@ export default function EmbedExplorer() {
 
   const accent = params?.accent || "#1fa55f";
   const isInline = params?.mode === "inline";
-  // Appearance override (footer switcher, cookie-backed) wins over the snippet's variant.
-  const [appearance, setAppearance] = useState<Variant | null>(null);
-  useEffect(() => {
-    setAppearance(readAppearanceCookie());
-  }, []);
-  const effVariant: Variant = appearance ?? params?.variant ?? "classic";
-  const isFull = effVariant === "full";
-  const isMinimal = effVariant === "minimalist";
+  // The realtor chooses the appearance by picking a snippet. Nothing overrides
+  // it at runtime: a switcher in the footer put the choice in front of the
+  // homebuyer, on the realtor's site, and remembered it in a cookie, so what a
+  // visitor saw could differ from what the realtor pasted.
+  const effVariant: Variant = params?.variant ?? "full";
+  // Variants are an inline-embed choice. The floating popup has its own layout
+  // and always has.
+  const isFull = isInline && effVariant === "full";
+  const isMinimal = isInline && effVariant === "minimalist";
   // Flat, native, page-flow variants (no accent header, no Home button).
   const isNative = isFull || isMinimal;
-  function cycleAppearance() {
-    const idx = VARIANTS.indexOf(effVariant);
-    const next = VARIANTS[(idx + 1) % VARIANTS.length];
-    writeAppearanceCookie(next);
-    setAppearance(next);
-    setSelected(null);
-  }
-  const headerTitle = `Dream Neighborhood School Explorer${params?.provider ? ` provided by ${params.provider}` : ""}`;
 
-  const upgradeKey = params?.customer ? `dse-upgrade-prompt:${params.customer}` : "";
-  const requestKey = params?.customer ? `dse-upgrade-requested:${params.customer}` : "";
-  const viewCountKey = params?.customer ? `dse-upgrade-view-count:${params.customer}` : "";
+  // Suppression is per site, not per customer: DN identifies the customer from
+  // the caller's Origin and never tells us who they are. The parent hostname is
+  // passed in the iframe URL purely to namespace these keys, so dismissing the
+  // prompt on one realtor's site does not silence it on another's.
+  const promptScope = params?.site || "";
+  const upgradeKey = promptScope ? `dse-upgrade-prompt:${promptScope}` : "";
+  const requestKey = promptScope ? `dse-upgrade-requested:${promptScope}` : "";
+  const viewCountKey = promptScope ? `dse-upgrade-view-count:${promptScope}` : "";
 
   function incrementUpgradeView() {
     if (!viewCountKey) {
@@ -246,6 +229,16 @@ export default function EmbedExplorer() {
     }
   }
 
+  // Opened straight onto a school — the SDK does this when a minimalist embed
+  // asks for one over the page. Applied after mount rather than during render,
+  // because this page is prerendered and the query string is not in that HTML.
+  const appliedSchoolRef = useRef(false);
+  useEffect(() => {
+    if (!params?.school || appliedSchoolRef.current) return;
+    appliedSchoolRef.current = true;
+    setSelected(params.school);
+  }, [params?.school]);
+
   useEffect(() => {
     if (!viewCountKey) return;
     try {
@@ -256,13 +249,13 @@ export default function EmbedExplorer() {
   }, [viewCountKey]);
 
   useEffect(() => {
-    if (!data || !params?.customer) return;
+    if (!data || !promptScope) return;
     const key = data.geocode?.matchedAddress || `${data.center?.lat || ""},${data.center?.lon || ""}`;
     if (!key || key === lastCountedResultRef.current) return;
     lastCountedResultRef.current = key;
     incrementUpgradeView();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, params?.customer]);
+  }, [data, promptScope]);
 
   function isWithinSuppressWindow(ts: number, days: number): boolean {
     if (!ts) return false;
@@ -275,7 +268,7 @@ export default function EmbedExplorer() {
 
   function canShowUpgrade(): boolean {
     if (upgradeSuppressedRef.current) return false;
-    if (!params?.customer || !upgradeKey || !requestKey) return false;
+    if (!params || !promptScope || !upgradeKey || !requestKey) return false;
     if (schoolViews < params.upgradeViews) return false;
     try {
       const dismissed = Number(localStorage.getItem(upgradeKey) || 0);
@@ -327,7 +320,7 @@ export default function EmbedExplorer() {
   }
 
   useEffect(() => {
-    if (!params?.customer) return;
+    if (!params || !promptScope) return;
     // Sync in-memory suppress from storage (e.g. prior request/dismiss this browser).
     try {
       const dismissed = Number(localStorage.getItem(upgradeKey) || 0);
@@ -348,7 +341,7 @@ export default function EmbedExplorer() {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params?.customer, schoolViews, upgradeVisible]);
+  }, [promptScope, schoolViews, upgradeVisible]);
 
   useEffect(() => {
     if (schoolViews >= (params?.upgradeViews || 2)) scheduleUpgradePrompt();
@@ -367,34 +360,41 @@ export default function EmbedExplorer() {
   async function requestFullAccess() {
     // Close immediately — never leave a lingering "Request sent" screen.
     dismissUpgradeAd("request");
-    if (!params?.customer) return;
+    // The ask belongs to Dream Neighborhood, and DN identifies the customer
+    // from the Origin of whoever calls it. This iframe's origin is ours, not
+    // the realtor's, so we cannot make that call from here — the SDK running on
+    // their page can, and does. We hand it the ask and hold nothing.
     try {
-      await fetch("/api/upgrade/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerId: params.customer,
-          partnerId: params.partner,
-          providerName: params.provider || params.business,
-          requesterKey: (() => {
-            try {
-              const key = `dse-visitor:${params.customer}`;
-              let v = localStorage.getItem(key);
-              if (!v) {
-                v = Math.random().toString(36).slice(2) + Date.now().toString(36);
-                localStorage.setItem(key, v);
-              }
-              return v;
-            } catch {
-              return "";
-            }
-          })(),
-          address: params.address || address,
-          source: params.mode,
-        }),
-      });
+      window.parent?.postMessage?.(
+        {
+          type: "dse:upgrade-request",
+          address: params?.address || address,
+          requesterKey: visitorKey(),
+          source: params?.mode === "inline" ? "inline" : "popup",
+        },
+        "*"
+      );
     } catch {
-      // Already dismissed + suppressed; ignore network errors for UX.
+      // Already dismissed and suppressed; a failed ask must not undo that.
+    }
+  }
+
+  /**
+   * A stable per-visitor id, so distinct homebuyers are countable and a repeat
+   * ask from the same person is recognisable as one. Scoped to the site rather
+   * than the customer, since we are no longer told who the customer is.
+   */
+  function visitorKey(): string {
+    try {
+      const key = `dse-visitor:${promptScope || "site"}`;
+      let v = localStorage.getItem(key);
+      if (!v) {
+        v = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem(key, v);
+      }
+      return v;
+    } catch {
+      return "";
     }
   }
   // home = empty search; boot = auto-detected address loading; results = schools ready
@@ -447,7 +447,7 @@ export default function EmbedExplorer() {
       },
       "*"
     );
-  }, [isInline, screen, selected, loading, view, error, focused, showSuggest, address, recents.length, appearance]);
+  }, [isInline, screen, selected, loading, view, error, focused, showSuggest, address, recents.length]);
 
   const runLookup = useCallback(async (query: string, picked?: Suggestion, opts?: { fromAuto?: boolean }) => {
     const q = query.trim();
@@ -563,6 +563,9 @@ export default function EmbedExplorer() {
         });
         const json = await res.json();
         setSuggestions(json.suggestions ?? []);
+        // The address service is down and the Census geocoder cannot do
+        // typeahead, so say so rather than let the dropdown quietly vanish.
+        setSearchLimited(Boolean(json.limited));
         setShowSuggest(true);
         setActiveIdx(-1);
       } catch {
@@ -581,7 +584,10 @@ export default function EmbedExplorer() {
     setShowSuggest(false);
     setFocused(false);
     setSuggestions([]);
-    runLookup(s.label, s);
+    // Look up exactly what the provider gave us, which is not always what
+    // we showed: a reconstructed address is matched afresh and can land in
+    // another state.
+    runLookup(s.value || s.label, s);
   }
 
   function pickRecent(r: RecentSearch) {
@@ -683,6 +689,12 @@ export default function EmbedExplorer() {
           ))}
         </ul>
       )}
+      {searchLimited && suggestions.length === 0 && (
+        <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] leading-snug text-amber-800 shadow-sm">
+          Address suggestions are temporarily unavailable. Type a full street
+          address, including the city and state, and it will still work.
+        </div>
+      )}
       {showSuggest && suggestions.length > 0 && (
         <ul className="absolute z-30 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
           {suggestions.map((s, i) => (
@@ -710,8 +722,16 @@ export default function EmbedExplorer() {
   // Don't SSR the home search UI — that HTML flashes inside the iframe before
   // client auto-lookup runs. Until mount (and during auto-boot), show a neutral
   // loader — never the search-bar home screen.
+  //
+  // Before mount this branch IS the prerendered HTML for /embed, and /embed is
+  // built statically, with no query string. Reading window.location here made
+  // the first client render disagree with that HTML whenever an address was
+  // passed — React #418, thrown on every customer page carrying the inline
+  // embed. Both branches below are neutral loaders, so deferring the peek to
+  // after mount costs a frame rather than a flash: the home search UI is still
+  // never server-rendered, which is the thing this block exists to prevent.
   if (!mounted || screen === "boot") {
-    const peek = !mounted ? peekAutoTarget() : { address, hasTarget: autoBoot };
+    const peek = mounted ? { address, hasTarget: autoBoot } : { address: "", hasTarget: false };
     const label = (peek.address || address).trim()
       ? `Looking up schools near ${(peek.address || address).split(",")[0].trim()}…`
       : "Looking up schools…";
@@ -723,24 +743,6 @@ export default function EmbedExplorer() {
         className={`flex flex-col bg-white ${mounted && !inlineBoot ? "h-screen overflow-hidden" : "min-h-[540px]"}`}
         aria-busy="true"
       >
-        {mounted && isInline && !peekNative() && (
-          <header
-            className="flex shrink-0 items-center gap-2 px-4 py-1.5 text-white"
-            style={{ background: accent }}
-          >
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20">
-              {PIN_SVG}
-            </span>
-            <div className="min-w-0 flex-1 overflow-hidden">
-              <p
-                className="overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-bold leading-tight"
-                title={headerTitle}
-              >
-                {headerTitle}
-              </p>
-            </div>
-          </header>
-        )}
         {showBoot ? (
           <div className={`mx-auto flex w-full max-w-5xl flex-col px-3 pt-3 sm:px-4 ${mounted && !isInline ? "min-h-0 flex-1" : ""}`}>
             {(peek.address || address).trim() ? (
@@ -764,37 +766,6 @@ export default function EmbedExplorer() {
 
   return (
     <main className={`flex flex-col bg-white ${isInline ? "" : "h-screen overflow-hidden"}`}>
-      <style>{`
-        @keyframes dse-inline-title-marquee {
-          0%, 15% { transform: translateX(0); }
-          85%, 100% { transform: translateX(calc(-100% + 220px)); }
-        }
-        @media (max-width: 520px) {
-          .dse-inline-title-marquee {
-            display: inline-block;
-            min-width: max-content;
-            animation: dse-inline-title-marquee 12s linear infinite;
-          }
-        }
-      `}</style>
-      {/* Inline embeds have no SDK chrome, so brand the iframe itself. The
-          "full"/"minimalist" variants use their own native heading instead. */}
-      {isInline && !isNative && (
-        <header
-          className="flex shrink-0 items-center gap-2 px-4 py-1.5 text-white"
-          style={{ background: accent }}
-        >
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20">
-            {PIN_SVG}
-          </span>
-          <div className="min-w-0 flex-1 overflow-hidden">
-            <p className="dse-inline-title-marquee overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-bold leading-tight" title={headerTitle}>
-              {headerTitle}
-            </p>
-          </div>
-        </header>
-      )}
-
       {/* ---- Native (full/minimalist) home: compact search (no hero, no Home) ---- */}
       {screen === "home" && isNative && (
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 py-6">
@@ -912,16 +883,23 @@ export default function EmbedExplorer() {
 
             {!changing ? (
               <div className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-                <p className="min-w-0 truncate text-sm font-bold text-slate-900">
-                  <span className="mr-1">📍</span>
-                  {resolvedCityState}
-                  {data.district?.name ? (
-                    <>
-                      {" · "}
-                      <span className="text-brand-700">{data.district.name} School District</span>
-                    </>
-                  ) : null}
-                </p>
+                <div className="min-w-0 flex-1">
+                  <p className="min-w-0 truncate text-sm font-bold text-slate-900">
+                    <span className="mr-1">📍</span>
+                    {resolvedCityState}
+                    {data.district?.name ? (
+                      <>
+                        {" · "}
+                        <span className="text-brand-700">{data.district.name} School District</span>
+                      </>
+                    ) : null}
+                  </p>
+                  {params?.general && (
+                    <p className="mt-0.5 truncate text-[11px] font-semibold text-amber-700">
+                      Showing the general area, not this listing&rsquo;s address
+                    </p>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={beginChange}
@@ -973,7 +951,7 @@ export default function EmbedExplorer() {
                     variant="inline"
                     embed
                     showExternalLinks
-                    backLabel="Nearby Schools"
+                    backLabel={BACK_LABEL}
                     onClose={() => setSelected(null)}
                   />
                 </div>
@@ -998,7 +976,25 @@ export default function EmbedExplorer() {
               {!loading && error && (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>
               )}
-              {!loading && !error && <MinimalistSchools data={data} />}
+              {!loading && !error && (
+                <MinimalistSchools
+                  data={data}
+                  siteBase={typeof window === "undefined" ? "" : window.location.origin}
+                  onOpenSchool={(id) => {
+                    incrementUpgradeView();
+                    // Ask the SDK on the realtor's page to open this school over
+                    // the page. The box stays small; the visitor stays put.
+                    try {
+                      window.parent?.postMessage?.(
+                        { type: "dse:open-school", ncesId: id, address: data.geocode?.matchedAddress || address },
+                        "*"
+                      );
+                    } catch {
+                      /* no parent to ask; nothing to do */
+                    }
+                  }}
+                />
+              )}
             </div>
           ) : (
             <div
@@ -1023,7 +1019,7 @@ export default function EmbedExplorer() {
                   variant="inline"
                   embed
                   showExternalLinks={!!params?.links}
-                  backLabel={view === "map" ? "Back to map" : "Back to list"}
+                  backLabel={BACK_LABEL}
                   onClose={() => setSelected(null)}
                 />
               )}
@@ -1067,25 +1063,13 @@ export default function EmbedExplorer() {
         >
           Privacy
         </a>
-        {isInline && (
-          <>
-            {" "}·{" "}
-            <button
-              type="button"
-              onClick={cycleAppearance}
-              title="Temporary: cycle the inline appearance (Compact → Showcase → Minimalist). Saved in this browser."
-              className="font-medium text-slate-600 underline decoration-dotted underline-offset-2 hover:text-brand-700"
-            >
-              Appearance: {VARIANT_LABEL[effVariant]}
-            </button>
-          </>
-        )}
       </footer>
 
       {upgradeVisible && (
         <UpgradePrompt
           accent={accent}
           providerName={params?.provider || params?.business || ""}
+          address={params?.address || address || data?.geocode?.matchedAddress || ""}
           onDismiss={() => dismissUpgradeAd("dismiss")}
           onRequest={requestFullAccess}
         />
@@ -1094,14 +1078,49 @@ export default function EmbedExplorer() {
   );
 }
 
+// What the free School Explorer already answers, by category. Kept honest and
+// short: overstating the free side weakens the comparison, understating it is a
+// claim a realtor reading their own widget would catch.
+const FREE_ANSWERS = ["School ratings", "Test scores", "Safety & discipline"];
+
+// The paid ones worth naming. Chosen for surprise rather than coverage — the
+// predictable three (price, commute, walkability) are what anyone would guess,
+// so each of these earns its place by being something a buyer would not think
+// to ask for. The rest are counted rather than listed.
+const PAID_ANSWERS = [
+  "Median home price",
+  "Days on market",
+  "Home price trend",
+  "Commute times",
+  "Walk & bike score",
+  "Parks & groceries",
+  "Homeownership rate",
+  "% of neighbors under 18",
+];
+
+/**
+ * Geocoders hand back SHOUTING ADDRESSES. Only touched when the string has no
+ * lowercase at all, so a properly-cased scrape from the page is left alone.
+ */
+function tidyAddress(raw: string): string {
+  const s = (raw || "").trim();
+  if (!s || /[a-z]/.test(s)) return s;
+  return s
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
 function UpgradePrompt({
   accent,
   providerName,
+  address,
   onDismiss,
   onRequest,
 }: {
   accent: string;
   providerName: string;
+  address: string;
   onDismiss: () => void;
   onRequest: () => void;
 }) {
@@ -1109,7 +1128,11 @@ function UpgradePrompt({
   const buttonText = providerName
     ? `Ask ${shortProviderName(providerName)} for full access`
     : "Request full access";
-  const count = NEIGHBORHOOD_INSIGHTS.length;
+  // "Schools are just the start" was true but abstract, and the old headline
+  // ("before you tour") assumed a listing page — this widget also runs on home
+  // pages and neighborhood pages, where there is nothing to tour.
+  const shortAddress = tidyAddress((address || "").split(",")[0]);
+  const remaining = Math.max(0, NEIGHBORHOOD_INSIGHTS.length - PAID_ANSWERS.length);
 
   return (
     <div className="fixed inset-0 z-50 flex bg-[#f7faf6]">
@@ -1132,41 +1155,68 @@ function UpgradePrompt({
                 Neighborhood Explorer
               </p>
               <h2 className="mt-2 text-[1.65rem] font-extrabold leading-[1.15] tracking-tight text-ink-900 sm:text-3xl">
-                See the full picture before you tour
+                You&rsquo;re seeing a third of the picture
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                Schools are just the start. Get{" "}
-                <strong className="font-bold text-slate-800">{count} neighborhood insights</strong>{" "}
-                for this area — prices, commute, walkability, lifestyle, and more.
+                {shortAddress ? (
+                  <>
+                    Schools are one part of{" "}
+                    <strong className="font-bold text-slate-800">{shortAddress}</strong>.
+                  </>
+                ) : (
+                  <>Schools are one part of this neighborhood.</>
+                )}{" "}
+                Here&rsquo;s the rest.
               </p>
             </div>
 
-            {/* Contained marquee — not full-bleed */}
-            <div className="mt-5 overflow-hidden rounded-2xl border border-[#d7e4c8] bg-white p-3 shadow-sm sm:p-3.5">
-              <p className="mb-2.5 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-[#49660f]/80">
-                {count} insights included
-              </p>
-              <InsightsMarquee compact fadeEdges />
-            </div>
+            {/* The argument is the gap between the columns, so they sit side by
+                side at every width — stacking them hides the whole point. */}
+            <div className="mt-5 grid grid-cols-2 items-start gap-2.5">
+              <div className="rounded-2xl border border-slate-200 bg-white/70 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
+                  What you see now
+                </p>
+                <ul className="mt-2.5 space-y-2">
+                  {FREE_ANSWERS.map((t) => (
+                    <li key={t} className="flex items-start gap-1.5 text-[12.5px] leading-snug text-slate-500">
+                      <span aria-hidden className="mt-[3px] text-[10px] leading-none text-slate-300">
+                        ✓
+                      </span>
+                      <span>{t}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
 
-            {/* Buyer benefits — not realtor marketing */}
-            <ul className="mt-5 space-y-2.5">
-              {[
-                "Compare home prices and market trends on this block",
-                "Check commute times to work, school, and errands",
-                "Explore walkability, parks, dining, and everyday conveniences",
-              ].map((t) => (
-                <li key={t} className="flex items-start gap-2.5 text-sm leading-snug text-slate-700">
-                  <span
-                    className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+              <div className="rounded-2xl border border-[#d7e4c8] bg-white p-3 shadow-sm">
+                <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#2f6b3a]">
+                  What you&rsquo;re missing
+                </p>
+                <ul className="mt-2.5 space-y-2">
+                  {PAID_ANSWERS.map((t) => (
+                    <li key={t} className="flex items-start gap-1.5 text-[12.5px] font-medium leading-snug text-slate-700">
+                      <span
+                        aria-hidden
+                        className="mt-[3px] text-[10px] leading-none"
+                        style={{ color: accent }}
+                      >
+                        ✓
+                      </span>
+                      <span>{t}</span>
+                    </li>
+                  ))}
+                </ul>
+                {remaining > 0 && (
+                  <p
+                    className="mt-2.5 inline-block rounded-full px-2 py-0.5 text-[10.5px] font-bold text-white"
                     style={{ backgroundColor: accent }}
                   >
-                    ✓
-                  </span>
-                  <span>{t}</span>
-                </li>
-              ))}
-            </ul>
+                    +{remaining} more
+                  </p>
+                )}
+              </div>
+            </div>
 
             <div className="mt-auto space-y-2 pt-6">
               <button

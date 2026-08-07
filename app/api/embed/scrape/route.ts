@@ -9,9 +9,18 @@ export const dynamic = "force-dynamic";
 //   POST /api/embed/scrape
 //   { page_url, page_title, page_address }   (all optional)
 //
-// `page_address` is what the client SDK already scraped (JSON-LD / OG /
-// microdata / DOM / visible text). We trust it first, then fall back to
-// server-side URL + title parsing, then a permissive slug-as-address guess.
+// `page_address` is what the client SDK already read. We trust it first, then
+// fall back to server-side URL + title parsing, then a permissive
+// slug-as-address guess.
+//
+// Those last two are off when the caller sends `allow_inference: false`, which
+// the SDK does whenever the shared address detector ran. The detector already
+// decides whether a page states an address, and it reports when it could not
+// find one so the explorer can say so. Guessing again here would overwrite that
+// "we could not read it" with a confident place name off the URL — /about-us
+// became "Kangaroo Walk-About, Fresno, CA" — and the label would then sit next
+// to a specific wrong town instead of an honest general area. Older cached SDK
+// bundles do not send the flag and keep the old behaviour.
 // Returns { success, address, lat, lon } so the SDK can decide whether to
 // show the widget (requireAddress) and seed the iframe with coordinates.
 
@@ -30,6 +39,7 @@ export async function POST(request: Request) {
   const pageUrl = String(body?.page_url ?? "");
   const pageTitle = String(body?.page_title ?? "");
   const pageAddress = String(body?.page_address ?? "").trim();
+  const allowInference = body?.allow_inference !== false;
 
   if (!pageUrl && !pageTitle && !pageAddress) {
     return withCors(request, { success: false });
@@ -39,8 +49,8 @@ export async function POST(request: Request) {
   // 2. Server-side URL/title parsing.
   // 3. Permissive slug-as-address fallback.
   let address = pageAddress || null;
-  if (!address) address = getPageAddress(pageUrl, pageTitle);
-  if (!address) address = slugAsAddress(pageUrl);
+  if (!address && allowInference) address = getPageAddress(pageUrl, pageTitle);
+  if (!address && allowInference) address = slugAsAddress(pageUrl);
 
   if (!address) {
     return withCors(request, { success: false });

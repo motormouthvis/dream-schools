@@ -40,10 +40,47 @@ optional and overrides the server-resolved per-host config.
 | `data-show-external-links` | both | show a "more on this school" row (Niche & GreatSchools) on the school detail. Off by default on the embed; always on for the main site |
 | `data-min-height` | inline | iframe min-height in px |
 | `data-max-width` | inline | max width in px (default 840; e.g. `600` narrower or `1100` wider) |
-| `data-show-header` | inline | show the explorer header bar |
 | `data-address` | inline | explicit address; bypasses scraping |
 | `data-lat` / `data-lng` | inline | explicit coordinates; bypasses geocoding |
 | `data-api-base` | both | override the API origin (defaults to the script's origin) |
+| `data-via` | popup | set by whoever loaded us; `dn-explorer` marks a Dream Neighborhood hand-off (see below) |
+
+### Loaded on demand by Dream Neighborhood
+
+Under the shared-popup model a realtor pastes only DN's tag. DN resolves
+entitlement per page load and, when the answer is "not entitled", appends
+`embed.js` to `<head>` at runtime:
+
+```html
+<script src="https://www.dreamneighborhoodschools.com/embed.js" async
+        data-via="dn-explorer"
+        data-accent-color="#ACEF00"
+        data-position="right"
+        data-bottom-offset="40"
+        data-tooltip-message="See schools near {{address}}"></script>
+```
+
+A runtime-injected tag behaves exactly like a parser-inserted one:
+`document.currentScript` is set for async classic scripts, so the `data-*`
+overrides above are read off it as usual, and `boot()` runs immediately because
+`document.readyState` is past `loading`. Loading `embed.js` twice is harmless —
+the second execution publishes the hand-off signal and then returns, so a page
+never grows a second floating bubble.
+
+`data-via="dn-explorer"` also **skips the Neighborhood Explorer grace period**
+described below. The attribute means DN has already evaluated entitlement and
+decided its own Explorer will not render, so no ready signal is coming. The
+grace period would otherwise fire on every hand-off: DN's bundle sets
+`window.__DN_EXPLORER_API_BASE__` and loads from a `dreamneighborhood.com` host,
+both of which make `neighborhoodExplorerMaybePresent()` true. If the hand-off
+arrives *after* a wait has already begun (a site running the old two-snippet
+install), the wait ends there rather than running to the timeout.
+
+The ready listener stays wired regardless: a page can carry both a hand-off and
+a separately installed DN popup, and stepping aside is still right.
+
+Covered by `scripts/smoke-dn-handoff.mjs`, which stands up a local origin and a
+fake DN sdk.js and needs no deployed environment.
 
 ### Automatic popup suppression
 
@@ -66,7 +103,8 @@ The School popup:
 - Checks the flag first (in case NE already signaled),
 - Listens for the event (including after the grace period),
 - Waits a configurable grace period (default **4000ms**, admin Account Settings)
-  before showing if no signal arrives.
+  before showing if no signal arrives — unless the loading tag carried
+  `data-via="dn-explorer"`, in which case there is nothing to wait for.
 
 **Inline School Explorer is not suppressed** by this handshake — partners can keep
 an embedded School Explorer on a school page alongside Neighborhood Explorer.
@@ -97,7 +135,7 @@ URL/title fallback) and returns `{ address, lat, lon }`.
 ## Endpoints
 
 - `GET  /embed` — chrome-less explorer (loaded in the iframe). Params:
-  `address`, `lat`, `lng`, `accent`, `mode=popup|inline`, `header=1`.
+  `address`, `lat`, `lng`, `accent`, `mode=popup|inline`.
   Sends `Content-Security-Policy: frame-ancestors *` so it can be framed by
   any partner domain.
 - `GET  /embed.js` — the one-line SDK (popup + inline). Served with `*` CORS.

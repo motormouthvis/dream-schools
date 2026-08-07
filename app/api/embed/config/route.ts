@@ -1,21 +1,25 @@
 import { preflight, withCors } from "@/lib/embedCors";
-import { presentationPayload, resolveByHost } from "@/lib/embedConfig";
+import { getDnConfig, normalizeDnHost } from "@/lib/dnConfig";
 import { recordUsageAsync } from "@/lib/embedUsage";
-import { getPool, hasDatabase } from "@/lib/db";
-import { getGlobalUpgradeSettings, REQUEST_SUPPRESS_DAYS } from "@/lib/upgradePrompt";
-import { getEmbedGlobalSettings } from "@/lib/embedSettings";
-import { ensureAuthTables } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-// Resolve the embeddable widget config for a host in one round-trip.
+// LEGACY. Superseded by /api/embed/dn-config.
 //
-//   GET /api/embed/config?host=example.com&widget_number=1
+// Kept alive only for copies of embed.js still in browser caches: the bundle is
+// served with `stale-while-revalidate=86400`, so a visitor can run a day-old
+// copy that still calls this. Delete it once nothing has asked for a day, and
+// not before.
 //
-// Returns the presentation payload (accent, position, options, ...) plus the
-// resolved partnerId / widgetNumber and the per-customer default address used
-// as a fallback when page scraping finds nothing. Unknown hosts get a
-// permissive default so a freshly-pasted snippet still renders.
+// It relays Dream Neighborhood exactly as the new endpoint does, rather than
+// answering from our own `embed_partners` table. Reading that table for one
+// more day would mean sites on a cached bundle kept showing the wrong address
+// and kept serving customers who had been switched off — the two bugs this
+// whole change exists to fix, left running for the length of the transition.
+//
+// It answers in the OLD shape, because the old bundle is what reads it: an
+// `enabled: false` body is what that bundle understands as "render nothing",
+// where the new one reads a 404.
 
 export async function OPTIONS(request: Request) {
   return preflight(request);
@@ -23,109 +27,48 @@ export async function OPTIONS(request: Request) {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const host = (searchParams.get("host") || "").trim();
-  const widgetRaw = (searchParams.get("widget_number") || "1").trim();
-  const surfaceRaw = (searchParams.get("surface") || "").trim();
-  const surface = surfaceRaw === "popup" || surfaceRaw === "embed" ? surfaceRaw : undefined;
-
+  const origin = request.headers.get("origin") || "";
+  let host = normalizeDnHost(searchParams.get("host") || "");
+  if (origin) {
+    try {
+      host = normalizeDnHost(new URL(origin).hostname);
+    } catch {
+      /* keep the parameter */
+    }
+  }
   if (!host) {
     return withCors(request, { error: "host query parameter is required" }, { status: 400 });
   }
-  const widgetNumber = Number.parseInt(widgetRaw, 10);
-  if (!Number.isFinite(widgetNumber)) {
-    return withCors(request, { error: "widget_number must be an integer" }, { status: 400 });
-  }
 
-  const config = await resolveByHost(host, widgetNumber);
-  if (!config.enabled) {
-    const res = withCors(request, { enabled: false, reason: "disabled" });
+  const surfaceRaw = (searchParams.get("surface") || "").trim();
+  const surface = surfaceRaw === "popup" || surfaceRaw === "embed" ? surfaceRaw : undefined;
+
+  const result = await getDnConfig(host);
+  if (result.outcome === "unknown" || result.outcome === "unavailable" || !result.body) {
+    const res = withCors(request, { enabled: false, reason: "unknown_host" });
     res.headers.set("Cache-Control", "no-store");
     return res;
   }
 
-  // Count this resolution as one view / "code detected" signal for the customer.
-  // Fire-and-forget so the widget response stays fast.
-  recordUsageAsync(config.partnerId, config.widgetNumber, surface);
+  // Local counting only, keyed on the hostname now that customer ids live in
+  // DN. Nothing is pushed anywhere; DN counts views on its own resolve.
+  recordUsageAsync(`host:${host}`, 1, surface);
 
-  let providerName = "";
-  let businessName = "";
-  let partnerId: string | null = null;
-  let partnerOverride: { viewsToTrigger: number | null; minDaysBetween: number | null; idleSeconds: number | null } = {
-    viewsToTrigger: null,
-    minDaysBetween: null,
-    idleSeconds: null,
-  };
-  if (hasDatabase() && !config.partnerId.startsWith("host:")) {
-    try {
-      await ensureAuthTables();
-      // Banner "provided by X" uses white-label (business_name), not Partner Name first:
-      //   1) account's own white-label override
-      //   2) partner's white-label default (for realtors under a partner)
-      //   3) partner's company name
-      //   4) account's own company name (Partner Name / Realtor Name) as last resort
-      const { rows } = await getPool().query(
-        `SELECT
-            u.business_name,
-            u.partner_id,
-            COALESCE(
-              NULLIF(TRIM(u.business_name), ''),
-              NULLIF(TRIM(partner.business_name), ''),
-              NULLIF(TRIM(partner.company_name), ''),
-              NULLIF(TRIM(u.company_name), ''),
-              ''
-            ) AS provider_name,
-            partner.upgrade_views_to_trigger,
-            partner.upgrade_min_days_between,
-            partner.upgrade_idle_seconds
-           FROM app_users u
-           LEFT JOIN app_users partner ON partner.id = u.partner_id
-          WHERE u.id = $1`,
-        [config.partnerId]
-      );
-      providerName = rows[0]?.provider_name || "";
-      businessName = rows[0]?.business_name || "";
-      partnerId = rows[0]?.partner_id || null;
-      partnerOverride = {
-        viewsToTrigger: rows[0]?.upgrade_views_to_trigger == null ? null : Number(rows[0].upgrade_views_to_trigger),
-        minDaysBetween: rows[0]?.upgrade_min_days_between == null ? null : Number(rows[0].upgrade_min_days_between),
-        idleSeconds: rows[0]?.upgrade_idle_seconds == null ? null : Number(rows[0].upgrade_idle_seconds),
-      };
-    } catch (err) {
-      console.error("providerName lookup failed:", err);
-    }
-  }
-  const globalUpgrade = await getGlobalUpgradeSettings();
-  const embedGlobals = await getEmbedGlobalSettings();
-  const upgradePrompt = {
-    enabled: true,
-    viewsToTrigger: partnerOverride.viewsToTrigger ?? globalUpgrade.viewsToTrigger,
-    minDaysBetween: partnerOverride.minDaysBetween ?? globalUpgrade.minDaysBetween,
-    idleSeconds: partnerOverride.idleSeconds ?? globalUpgrade.idleSeconds,
-    requestSuppressDays:
-      (partnerOverride.minDaysBetween ?? globalUpgrade.minDaysBetween) === 0
-        ? 0
-        : REQUEST_SUPPRESS_DAYS,
-  };
-
+  const body = result.body as Record<string, unknown>;
   const payload = {
+    ...body,
+    // The old bundle treats `enabled === false` as "disabled" and bails, so a
+    // free schools customer — whom DN reports as enabled:false with
+    // product:"school" — has to be reported as enabled here or their School
+    // Explorer would vanish for the length of the transition.
     enabled: true,
-    partnerId: config.partnerId,
-    widgetNumber: config.widgetNumber,
-    defaultAddress: config.defaultAddress || "",
-    providerName,
-    businessName,
-    customerId: config.partnerId,
-    customerPartnerId: partnerId,
-    upgradePrompt,
-    neighborhoodExplorerGraceMs: embedGlobals.neighborhoodExplorerGraceMs,
-    ...presentationPayload(config),
+    partnerId: `host:${host}`,
+    widgetNumber: 1,
   };
   const res = withCors(request, payload);
-  // Cache per fully-qualified URL (host + widget + surface are in the query).
-  // A CDN in front absorbs most of this endpoint's load; see docs/SCALING.md.
   res.headers.set(
     "Cache-Control",
-    "public, max-age=60, s-maxage=60, stale-while-revalidate=120"
+    result.outcome === "stale" ? "no-store" : "public, max-age=60, s-maxage=60"
   );
   return res;
 }

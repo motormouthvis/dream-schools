@@ -8,6 +8,65 @@ import { join } from "path";
 
 const EMBED_JS = "https://www.dreamneighborhoodschools.com/embed.js";
 
+// The DN ↔ DNS integration is tested on STAGING, so these point at DN staging
+// and at the Dream Schools preview app — never production. The listing pages
+// below keep the production snippet, because the production smoke plan in
+// docs/SMOKE_TEST_PLAN.md still runs against them and this must not quietly
+// repoint it. The two sets of pages coexist on purpose.
+//
+// Note the manual school embed points at PREVIEW explicitly: DN staging's
+// SCHOOL_EXPLORER_ORIGIN already sends the automatic hand-off there, but a
+// hand-pasted embed snippet has to be told separately.
+const DN_SDK = "https://staging.dreamneighborhood.com/explorer/sdk.js";
+const DN_INLINE = "https://staging.dreamneighborhood.com/explorer/inline.js";
+const DNS_EMBED_PREVIEW = "https://dream-schools-preview-b6b5fcaf4493.herokuapp.com/embed.js";
+
+const POPUP_BLOCK = `<script src="${DN_SDK}" async></script>`;
+const NEIGHBORHOOD_EMBED_BLOCK = `<div id="dn-explorer"></div>
+        <script src="${DN_INLINE}" async></script>`;
+const SCHOOL_EMBED_BLOCK = `<div id="dream-schools-explorer"></div>
+        <script src="${DNS_EMBED_PREVIEW}" async></script>`;
+
+/**
+ * One page per install shape, so every shape can be tested against every
+ * entitlement state by flipping the state in DN rather than editing the site.
+ * `what` is rendered on the page itself — a tester looking at a screenshot
+ * should not have to view source to know which shape they are looking at.
+ */
+const INSTALL_SHAPES = [
+  {
+    path: "embed-neighborhood",
+    title: "Neighborhood embed only",
+    what: "DN's inline Neighborhood Explorer. Renders nothing when unentitled, and is never substituted with a schools embed.",
+    blocks: [NEIGHBORHOOD_EMBED_BLOCK],
+  },
+  {
+    path: "embed-school",
+    title: "School embed only",
+    what: "Dream Schools' inline embed, pasted deliberately by the realtor. Entirely unaffected by DN entitlement.",
+    blocks: [SCHOOL_EMBED_BLOCK],
+  },
+  {
+    path: "embed-both",
+    title: "Both embeds, one page",
+    what: "A neighborhood embed and a schools embed together. Each must render its own product, and neither may be substituted for the other.",
+    blocks: [NEIGHBORHOOD_EMBED_BLOCK, SCHOOL_EMBED_BLOCK],
+  },
+  {
+    path: "popup-and-embed",
+    title: "Shared popup plus a neighborhood embed",
+    what: "The one-line popup snippet alongside DN's inline embed. No floating popup should appear over an inline embed.",
+    blocks: [NEIGHBORHOOD_EMBED_BLOCK],
+    popup: true,
+  },
+  {
+    path: "control",
+    title: "Control — no snippet at all",
+    what: "Nothing installed. Anything that appears here is a bug in something else.",
+    blocks: [],
+  },
+];
+
 // Optional Neighborhood Explorer simulator for coexistence QA. Inert unless the
 // page is loaded with `?ne` in the query string. Mirrors the real NE contract:
 // after a delay it sets the ready flag and dispatches the ready event once.
@@ -105,6 +164,11 @@ function layout({ brand, tagline, accent, title, body, extraHead = "", scripts =
       <a href="/">Home</a>
       <a href="/listings.html">Listings</a>
       <a href="/embed.html">Inline Embed Demo</a>
+      <a href="/embed-neighborhood">Nbhd embed</a>
+      <a href="/embed-school">School embed</a>
+      <a href="/embed-both">Both embeds</a>
+      <a href="/popup-and-embed">Popup + embed</a>
+      <a href="/control">Control</a>
     </nav>
   </header>
   <main>${body}</main>
@@ -138,9 +202,35 @@ function writeSite(site) {
           <h2>Featured listings (USA)</h2>
           <ul class="listings">${listingLinks}</ul>
         </div>`,
-      scripts: `<script src="${EMBED_JS}" async></script>`,
+      // The home page carries DN's ONE shared snippet — the single claim the
+      // whole product rests on. The listing pages below keep the production
+      // Dream Schools snippet so the existing production smoke plan is not
+      // quietly repointed at staging.
+      scripts: POPUP_BLOCK,
     })
   );
+
+  for (const shape of INSTALL_SHAPES) {
+    writeFileSync(
+      join(root, `${shape.path}.html`),
+      layout({
+        ...site,
+        title: `${site.brand} · ${shape.title}`,
+        body: `
+          <div class="card">
+            <h1>${shape.title}</h1>
+            <p class="addr">${shape.what}</p>
+            <p class="meta">Install shape fixture · DN staging + Dream Schools preview. Flip this site's entitlement state in DN; nothing here needs editing.</p>
+          </div>
+          <div class="card">
+            <h2>1500 N 23rd Street, Fort Pierce, FL 34950</h2>
+            ${shape.blocks.join("\n        ") || "<p class=\"meta\">Nothing installed on this page.</p>"}
+          </div>`,
+        extraHead: `<script type="application/ld+json">{"@context":"https://schema.org","@type":"Residence","address":{"@type":"PostalAddress","streetAddress":"1500 N 23rd Street","addressLocality":"Fort Pierce","addressRegion":"FL","postalCode":"34950"}}</script>`,
+        scripts: shape.popup ? POPUP_BLOCK : "",
+      })
+    );
+  }
 
   writeFileSync(
     join(root, "listings.html"),
@@ -208,8 +298,11 @@ const types = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", "
 http.createServer((req, res) => {
   let urlPath = decodeURIComponent((req.url || "/").split("?")[0]);
   if (urlPath === "/") urlPath = "/index.html";
-  const file = path.normalize(path.join(root, urlPath));
+  let file = path.normalize(path.join(root, urlPath));
   if (!file.startsWith(root)) { res.writeHead(403); return res.end("Forbidden"); }
+  // The install-shape fixtures are linked without an extension, because that is
+  // what a realtor's site looks like. Fall back to <path>.html.
+  if (!path.extname(file) && fs.existsSync(file + ".html")) file += ".html";
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404); return res.end("Not found"); }
     res.writeHead(200, { "Content-Type": types[path.extname(file)] || "application/octet-stream" });

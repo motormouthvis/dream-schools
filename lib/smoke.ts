@@ -38,6 +38,7 @@ function rowToUser(r: any): AppUser {
     isPartner: Boolean(r.is_partner),
     partnerId: r.partner_id ?? null,
     companyName: r.company_name ?? "",
+    customerNumber: r.customer_number || null,
     businessName: r.business_name ?? "",
     defaultCustomerAccentColor: r.default_customer_accent_color ?? "",
     upgradeViewsToTrigger: r.upgrade_views_to_trigger == null ? null : Number(r.upgrade_views_to_trigger),
